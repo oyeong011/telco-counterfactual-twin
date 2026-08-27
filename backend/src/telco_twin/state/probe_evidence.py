@@ -16,6 +16,7 @@ ProbeHash = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 ProbeGitSha = Annotated[str, Field(pattern=r"^[0-9a-f]{40}$")]
 PROBE_INVOCATION_ID: Final = "task5-safety-probe-v2"
 PROBE_SEED: Final = 91
+CLEAN_STATUS_HASH: Final[ProbeHash] = hashlib.sha256(b"").hexdigest()
 EXPECTED_REQUESTS: Final = 12
 EXPECTED_REPLAYS: Final = 11
 EXPECTED_EVENT_COUNT: Final = 6
@@ -126,6 +127,8 @@ class ProbeProvenance(_ArtifactModel):
     """Reviewed code/command/contracts bound into the artifact."""
 
     git_sha: ProbeGitSha
+    worktree_clean: Literal[True]
+    status_hash: ProbeHash
     invocation_id: Literal["task5-safety-probe-v2"]
     seed: Literal[91]
     schema_hash: ProbeHash
@@ -140,6 +143,7 @@ class ProbeProvenance(_ArtifactModel):
             self.schema_hash != probe_schema_hash()
             or self.contract_hash != PROBE_CONTRACT_HASH
             or self.policy_hash != LOCAL_POLICY_DEFINITION_HASH
+            or self.status_hash != CLEAN_STATUS_HASH
         ):
             fail_validation("probe_contract_stale", "probe contract identity is stale")
         return self
@@ -176,6 +180,7 @@ class ProbeArtifact(ProbeArtifactPayload):
 class _ProbeContract(_ArtifactModel):
     invocation_id: Literal["task5-safety-probe-v2"]
     seed: Literal[91]
+    clean_status_hash: ProbeHash
     negative_codes: tuple[str, ...]
     race: tuple[int, int, int, int]
 
@@ -183,6 +188,7 @@ class _ProbeContract(_ArtifactModel):
 PROBE_CONTRACT: Final = _ProbeContract(
     invocation_id=PROBE_INVOCATION_ID,
     seed=PROBE_SEED,
+    clean_status_hash=CLEAN_STATUS_HASH,
     negative_codes=EXPECTED_NEGATIVE_CODES,
     race=(EXPECTED_REQUESTS, 1, EXPECTED_REPLAYS, EXPECTED_EVENT_COUNT),
 )

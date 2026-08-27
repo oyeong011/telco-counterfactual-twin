@@ -1,38 +1,22 @@
 """Real CLI Task5 evidence-flow probe test."""
 
-import subprocess
-import sys
 from pathlib import Path
 
 from telco_twin.state.probe_evidence import ProbeArtifact
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+from .probe_git_support import checkout_head, clean_probe_checkout, run_probe
 
 
 def test_probe_runs_complete_evidence_flow_and_negative_paths(tmp_path: Path) -> None:
     # Given: a fresh output path and the real project runtime.
+    checkout = clean_probe_checkout(tmp_path)
     output = tmp_path / "task5-probe.json"
     # When: the CLI drives scenario through evidence-only approval and adversarial paths.
-    result = subprocess.run(
-        [sys.executable, "-m", "scripts.task5_safety_probe", "--out", str(output)],
-        cwd=REPO_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=20,
-    )
+    result = run_probe(checkout, output)
     # Then: the artifact proves immutable baseline, offline chain, and stable failures.
     assert result.returncode == 0, result.stdout + result.stderr
     artifact = ProbeArtifact.model_validate_json(output.read_text(encoding="utf-8"))
-    git_sha = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=REPO_ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-        timeout=5,
-    ).stdout.strip()
-    assert artifact.provenance.git_sha == git_sha
+    assert artifact.provenance.git_sha == checkout_head(checkout)
     assert artifact.result == "pass"
     assert artifact.positive.baseline_hash_before == artifact.positive.baseline_hash_after
     assert artifact.positive.approval_state == "approved"

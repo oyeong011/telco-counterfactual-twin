@@ -5,6 +5,7 @@ from pydantic import ValidationError
 
 from telco_twin.safety.local_policy import LOCAL_POLICY_DEFINITION_HASH
 from telco_twin.state.probe_evidence import (
+    CLEAN_STATUS_HASH,
     PROBE_CONTRACT_HASH,
     PROBE_INVOCATION_ID,
     PROBE_SEED,
@@ -59,6 +60,8 @@ def _payload(git_sha: str = "a" * 40) -> ProbeArtifactPayload:
         result="pass",
         provenance=ProbeProvenance(
             git_sha=git_sha,
+            worktree_clean=True,
+            status_hash=CLEAN_STATUS_HASH,
             invocation_id=PROBE_INVOCATION_ID,
             seed=PROBE_SEED,
             schema_hash=probe_schema_hash(),
@@ -169,3 +172,19 @@ def test_probe_rejects_self_consistent_artifact_from_stale_git_sha() -> None:
     artifact = build_probe_artifact(_payload("a" * 40))
     with pytest.raises(ProbeArtifactStaleError):
         _ = validate_probe_artifact_json(artifact.model_dump_json(), "b" * 40)
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    [
+        ("worktree_clean", False),
+        ("status_hash", "9" * 64),
+    ],
+)
+def test_probe_rejects_tampered_clean_worktree_evidence(
+    field_name: str,
+    value: bool | str,
+) -> None:
+    broken = _payload().provenance.model_copy(update={field_name: value})
+    with pytest.raises(ValidationError):
+        _ = ProbeProvenance.model_validate_json(broken.model_dump_json())
