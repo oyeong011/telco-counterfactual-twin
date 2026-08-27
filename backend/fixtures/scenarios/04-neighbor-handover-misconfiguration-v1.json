@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "scenario": {
+    "schema_version": "1.0",
+    "scenario_id": "scenario-neighbor-handover-misconfiguration-v1",
+    "topology_id": "topology-synthetic-v1",
+    "seed": 4104,
+    "fault_family": "neighbor-handover-misconfiguration",
+    "starts_at": "2026-08-27T00:00:00Z",
+    "duration_seconds": 60,
+    "target_ids": ["cell-0002"],
+    "parameters": {"handover_failure_percent": 45.0}
+  },
+  "observation": {
+    "scenario_id": "scenario-neighbor-handover-misconfiguration-v1",
+    "topology_id": "topology-synthetic-v1",
+    "windows": [{
+      "target_id": "cell-0002",
+      "observed_at": "2026-08-27T00:00:30Z",
+      "prb_utilization_pct": 58.0,
+      "sinr_db": 15.0,
+      "rsrp_dbm": -80.0,
+      "rsrq_db": -9.0,
+      "throughput_mbps": 760.0,
+      "latency_ms": 25.0,
+      "packet_loss_pct": 0.2,
+      "handover_attempts": 100,
+      "handover_failures": 45,
+      "active_ues": 130,
+      "slice_slo_throughput_mbps": 200.0,
+      "slice_throughput_mbps": 230.0,
+      "slice_slo_latency_ms": 50.0,
+      "slice_latency_ms": 28.0,
+      "nf_cpu_utilization_pct": 48.0
+    }],
+    "alarms": [],
+    "config_history": [{
+      "config_version": "config-neighbor-v1",
+      "recorded_at": "2026-08-27T00:00:00Z",
+      "neighbor_relation_valid": false,
+      "slice_scheduler_share_pct": 40.0,
+      "expected_slice_share_pct": 40.0
+    }]
+  }
+}
