@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import time
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Never, TypedDict, Unpack
 
 import pytest
 
@@ -33,9 +35,27 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+class RunOptions(TypedDict):
+    cwd: Path | None
+    check: bool
+    capture_output: bool
+    text: bool
+    timeout: float
+
+
+@dataclass(frozen=True, slots=True)
+class CommandInvocation:
+    arguments: tuple[str, ...]
+    timeout_seconds: float
+
+
 def write_tool(path: Path, body: str) -> None:
     _ = path.write_text(f"#!/bin/sh\n{body}\n", encoding="utf-8")
     path.chmod(0o755)
+
+
+def reject_wall_clock() -> Never:
+    pytest.fail("command-bound proof consulted the wall clock")
 
 
 def test_command_timeout_returns_stable_result(
@@ -75,11 +95,16 @@ def test_provider_and_permission_commands_use_default_bound(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Given
-    tool_dir = tmp_path / "bin"
-    tool_dir.mkdir()
-    write_tool(tool_dir / "gcloud", "exec sleep 0.5")
-    write_tool(tool_dir / "wrangler", "exec sleep 0.5")
-    monkeypatch.setenv("PATH", f"{tool_dir}:/usr/bin:/bin")
+    monkeypatch.setattr(time, "monotonic", reject_wall_clock)
+    calls: list[CommandInvocation] = []
+
+    def record_command(
+        arguments: tuple[str, ...], **options: Unpack[RunOptions]
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append(CommandInvocation(arguments, options["timeout"]))
+        return subprocess.CompletedProcess(arguments, 124, "", "")
+
+    monkeypatch.setattr(subprocess, "run", record_command)
     monkeypatch.setattr(
         gcp_commands,
         "DEFAULT_COMMAND_TIMEOUT_SECONDS",
@@ -92,11 +117,10 @@ def test_provider_and_permission_commands_use_default_bound(
         account_id="account-id",
         api_token=api_token,
         source_sha="a" * 40,
-        wrangler_command=str(tool_dir / "wrangler"),
+        wrangler_command="/fixture/wrangler",
     )
 
     # When
-    started = time.monotonic()
     with pytest.raises(ProviderProbeError, match="gcloud-access-token-failed"):
         _ = probe_gcp_iam(context)
     with pytest.raises(ProviderProbeError, match="cloudflare-deploy-failed"):
@@ -105,10 +129,24 @@ def test_provider_and_permission_commands_use_default_bound(
             tmp_path,
             "twin-preflight-test",
         )
-    elapsed = time.monotonic() - started
 
     # Then
-    assert elapsed < 0.3
+    assert calls == [
+        CommandInvocation(("gcloud", "auth", "print-access-token"), 0.05),
+        CommandInvocation(
+            (
+                "/fixture/wrangler",
+                "pages",
+                "deploy",
+                str(tmp_path),
+                "--project-name=twin-preflight-test",
+                "--branch=main",
+                f"--commit-hash={'a' * 40}",
+                "--commit-message=preflight-authority-probe",
+            ),
+            0.05,
+        ),
+    ]
 
 
 def test_workflow_query_command_uses_explicit_bound(
