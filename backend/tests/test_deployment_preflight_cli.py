@@ -97,6 +97,23 @@ def test_parses_explicit_blocked_provider_status(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
 
 
+def test_rejects_malformed_provider_json(tmp_path: Path) -> None:
+    # Given
+    provider = tmp_path / "malformed-provider.json"
+    _ = provider.write_text('{"provider":"github","status":42}\n', encoding="utf-8")
+
+    # When
+    result = run_project_script(
+        "deployment_preflight.py",
+        "--validate-provider",
+        str(provider),
+    )
+
+    # Then
+    assert result.returncode == 3
+    assert "invalid-provider-report" in result.stderr
+
+
 def test_rejects_ready_provider_when_permission_is_unproven(tmp_path: Path) -> None:
     # Given
     provider = tmp_path / "misleading-provider.json"

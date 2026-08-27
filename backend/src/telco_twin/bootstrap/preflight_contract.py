@@ -165,11 +165,14 @@ class ProviderResult(BaseModel):
         if actual != expected or len(actual) != len(self.permissions):
             msg = "provider-permission-set-incomplete"
             raise ValueError(msg)
-        if status_ready != is_ready or status_ready == bool(self.blockers):
+        if status_ready and (not is_ready or self.blockers):
             msg = "provider-status-inconsistent"
             raise ValueError(msg)
         if status_ready and not cleanup_ready:
             msg = "provider-cleanup-inconsistent"
+            raise ValueError(msg)
+        if not status_ready and not self.blockers:
+            msg = "provider-status-inconsistent"
             raise ValueError(msg)
         return self
 

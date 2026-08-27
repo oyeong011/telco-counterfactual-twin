@@ -1,0 +1,100 @@
+"""GCP IAM, WIF, budget, topic, publisher, and cleanup authority composition."""
+
+from __future__ import annotations
+
+from telco_twin.bootstrap.gcp_commands import ProvisioningError
+from telco_twin.bootstrap.preflight_contract import (
+    GCP_BILLING_PERMISSIONS,
+    GCP_PROJECT_PERMISSIONS,
+    CleanupStatus,
+    ProviderResult,
+)
+from telco_twin.bootstrap.probe_errors import ProviderProbeError
+from telco_twin.bootstrap.provider_adapters import (
+    ProviderAdapters,
+    missing_prerequisites,
+)
+from telco_twin.bootstrap.provider_results import (
+    ProviderFacts,
+    blocked_provider,
+    make_provider,
+)
+
+
+def probe_gcp_authority(adapters: ProviderAdapters) -> tuple[ProviderResult, ProviderResult]:
+    """Probe exact IAM subsets, then persistent WIF and reversible GCP resources."""
+    project_prerequisites = missing_prerequisites(
+        adapters,
+        "gcloud",
+        ("GCP_PROJECT_ID", "GCP_REGION"),
+    )
+    billing_prerequisites = missing_prerequisites(
+        adapters,
+        "gcloud",
+        ("GCP_BILLING_ACCOUNT_ID",),
+    )
+    github_prerequisites = missing_prerequisites(adapters, "gh", ())
+    if project_prerequisites or billing_prerequisites or github_prerequisites:
+        return (
+            blocked_provider(
+                "gcp-project",
+                project_prerequisites + github_prerequisites,
+            ),
+            blocked_provider(
+                "gcp-billing",
+                billing_prerequisites + github_prerequisites,
+            ),
+        )
+    try:
+        context = adapters.gcp_context()
+        iam = adapters.gcp_iam(context)
+    except ProviderProbeError as error:
+        blockers = (error.code,)
+        return (
+            blocked_provider("gcp-project", blockers),
+            blocked_provider("gcp-billing", blockers),
+        )
+    project_granted = frozenset(iam.project_permissions)
+    billing_granted = frozenset(iam.billing_permissions)
+    project_blockers = tuple(
+        f"unproven:{permission}"
+        for permission in GCP_PROJECT_PERMISSIONS
+        if permission not in project_granted
+    )
+    billing_blockers = tuple(
+        f"unproven:{permission}"
+        for permission in GCP_BILLING_PERMISSIONS
+        if permission not in billing_granted
+    )
+    cleanup = CleanupStatus.NOT_CREATED
+    wif_evidence = "not-run"
+    if not project_blockers and not billing_blockers:
+        try:
+            wif = adapters.wif(context)
+        except ProvisioningError as error:
+            project_blockers = (error.code,)
+            billing_blockers = (error.code,)
+        else:
+            cleanup = CleanupStatus.RESTORED
+            wif_evidence = wif.evidence
+    seed = f"{iam.evidence}:{wif_evidence}"
+    return (
+        make_provider(
+            ProviderFacts(
+                provider="gcp-project",
+                granted_permissions=project_granted,
+                blockers=project_blockers,
+                cleanup=cleanup,
+                seed=seed,
+            )
+        ),
+        make_provider(
+            ProviderFacts(
+                provider="gcp-billing",
+                granted_permissions=billing_granted,
+                blockers=billing_blockers,
+                cleanup=cleanup,
+                seed=seed,
+            )
+        ),
+    )

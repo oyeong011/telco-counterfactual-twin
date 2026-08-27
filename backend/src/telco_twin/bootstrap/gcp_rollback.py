@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-from tempfile import TemporaryDirectory
-
 from telco_twin.bootstrap.gcp_commands import GcpContext, attempt_gcloud
 from telco_twin.bootstrap.gcp_persistent import (
     POOL_ID,
@@ -45,31 +42,7 @@ def restore_persistent(context: GcpContext, state: PersistentState) -> bool:
             condition=state.provider_snapshot.condition,
         )
         restored &= attempt_gcloud(provider_command("update-oidc", old_config))
-    if state.service_account_created:
-        restored &= attempt_gcloud(
-            (
-                "gcloud",
-                "iam",
-                "service-accounts",
-                "delete",
-                state.service_account,
-                "--quiet",
-            )
-        )
-    else:
-        with TemporaryDirectory(prefix="twin-wif-rollback-") as temp_dir:
-            policy_path = Path(temp_dir) / "policy.json"
-            _ = policy_path.write_text(state.iam_policy, encoding="utf-8")
-            restored &= attempt_gcloud(
-                (
-                    "gcloud",
-                    "iam",
-                    "service-accounts",
-                    "set-iam-policy",
-                    state.service_account,
-                    str(policy_path),
-                )
-            )
+    restored &= state.service_account_state.rollback()
     if state.pool_created:
         restored &= attempt_gcloud(
             (

@@ -3,13 +3,25 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 from telco_twin.bootstrap.gcp_commands import (
     GcpContext,
     ProvisioningError,
-    attempt_gcloud,
     require_gcloud,
 )
+from telco_twin.bootstrap.gcp_resource_cleanup import (
+    TemporaryCleanupPlan,
+    cleanup_temporary,
+)
+from telco_twin.bootstrap.gcp_resource_contract import (
+    parse_budget,
+    parse_publisher_policy,
+    require_budget_name,
+)
+from telco_twin.bootstrap.github_deny_probe import assert_deny_exchange
+from telco_twin.bootstrap.preflight_contract import receipt_for
+from telco_twin.bootstrap.probe_errors import ProviderProbeError
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,19 +30,11 @@ class TemporaryProbeResult:
 
     cleanup_complete: bool
     restored_bindings: bool
-    schema_version: str
-
-
-def _require_budget_name(name: str) -> None:
-    if not name.startswith("billingAccounts/"):
-        code = "invalid-budget-resource-name"
-        raise ProvisioningError(code)
-
-
-def _require_publisher_edge(policy: str) -> None:
-    if "roles/pubsub.publisher" not in policy:
-        code = "billing-publisher-edge-missing"
-        raise ProvisioningError(code)
+    budget_schema_version: Literal["1.0"]
+    topic_resource: str
+    budget_resource: str
+    publisher_policy_evidence: str
+    deny_exchange_evidence: str
 
 
 def _provider_command(
@@ -77,8 +81,10 @@ def run_temporary_probes(
     provider_created = False
     binding_created = False
     topic_created = False
-    cleanup_failures: list[str] = []
     failure: ProvisioningError | None = None
+    deny_exchange_evidence = ""
+    publisher_policy_evidence = ""
+    budget_schema_version: Literal["1.0"] | None = None
     try:
         _ = require_gcloud(
             _provider_command(
@@ -103,6 +109,19 @@ def run_temporary_probes(
             "deny-binding-create-failed",
         )
         binding_created = True
+        provider_resource = (
+            f"projects/{context.project_number}/locations/global/workloadIdentityPools/"
+            f"github-actions/providers/{deny_provider}"
+        )
+        try:
+            deny_receipt = assert_deny_exchange(
+                provider_resource,
+                service_account,
+                context.project_id,
+            )
+        except ProviderProbeError as error:
+            raise ProvisioningError(error.code) from None
+        deny_exchange_evidence = deny_receipt.evidence
         _ = require_gcloud(
             (
                 "gcloud",
@@ -130,7 +149,20 @@ def run_temporary_probes(
             ),
             "budget-create-failed",
         )
-        _require_budget_name(budget_name)
+        require_budget_name(budget_name)
+        budget_snapshot = require_gcloud(
+            (
+                "gcloud",
+                "billing",
+                "budgets",
+                "describe",
+                budget_name,
+                "--format=json",
+            ),
+            "budget-describe-failed",
+        )
+        budget = parse_budget(budget_snapshot, budget_name)
+        budget_schema_version = budget.notifications_rule.schema_version
         policy = require_gcloud(
             (
                 "gcloud",
@@ -143,61 +175,47 @@ def run_temporary_probes(
             ),
             "publisher-policy-read-failed",
         )
-        _require_publisher_edge(policy)
+        parsed_policy = parse_publisher_policy(policy)
+        publisher_policy_evidence = receipt_for(
+            "billing-publisher-policy",
+            f"projects/{context.project_id}/topics/{topic}",
+            parsed_policy.model_dump_json(),
+        )
     except ProvisioningError as error:
         failure = error
     finally:
-        if budget_name and not attempt_gcloud(
-            ("gcloud", "billing", "budgets", "delete", budget_name, "--quiet")
-        ):
-            cleanup_failures.append("budget")
-        if binding_created and not attempt_gcloud(
-            (
-                "gcloud",
-                "iam",
-                "service-accounts",
-                "remove-iam-policy-binding",
-                service_account,
-                "--role=roles/iam.workloadIdentityUser",
-                f"--member={deny_member}",
-                "--quiet",
+        cleanup_failures = cleanup_temporary(
+            TemporaryCleanupPlan(
+                context=context,
+                service_account=service_account,
+                budget_name=budget_name,
+                binding_created=binding_created,
+                deny_member=deny_member,
+                provider_created=provider_created,
+                deny_provider=deny_provider,
+                topic_created=topic_created,
+                topic=topic,
             )
-        ):
-            cleanup_failures.append("deny-binding")
-        if provider_created and not attempt_gcloud(
-            (
-                "gcloud",
-                "iam",
-                "workload-identity-pools",
-                "providers",
-                "delete",
-                deny_provider,
-                f"--project={context.project_id}",
-                "--location=global",
-                "--workload-identity-pool=github-actions",
-                "--quiet",
-            )
-        ):
-            cleanup_failures.append("deny-provider")
-        if topic_created and not attempt_gcloud(
-            (
-                "gcloud",
-                "pubsub",
-                "topics",
-                "delete",
-                topic,
-                f"--project={context.project_id}",
-                "--quiet",
-            )
-        ):
-            cleanup_failures.append("topic")
+        )
     if cleanup_failures:
         code = "cleanup-incomplete"
         raise ProvisioningError(code)
     if failure is not None:
         raise failure
+    if (
+        budget_schema_version is None
+        or not budget_name
+        or not publisher_policy_evidence
+        or not deny_exchange_evidence
+    ):
+        code = "temporary-probe-receipt-incomplete"
+        raise ProvisioningError(code)
     return TemporaryProbeResult(
         cleanup_complete=True,
         restored_bindings=True,
-        schema_version="1.0",
+        budget_schema_version=budget_schema_version,
+        topic_resource=f"projects/{context.project_id}/topics/{topic}",
+        budget_resource=budget_name,
+        publisher_policy_evidence=publisher_policy_evidence,
+        deny_exchange_evidence=deny_exchange_evidence,
     )

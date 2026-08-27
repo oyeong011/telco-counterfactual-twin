@@ -13,6 +13,10 @@ from telco_twin.bootstrap.gcp_commands import (
     require_gcloud,
     run_gcloud,
 )
+from telco_twin.bootstrap.gcp_service_account import (
+    ServiceAccountState,
+    ensure_service_account,
+)
 
 POOL_ID: Literal["github-actions"] = "github-actions"
 PROVIDER_ID: Literal["github-oidc"] = "github-oidc"
@@ -40,14 +44,17 @@ class ProviderSnapshot(BaseModel):
 
 @dataclass(frozen=True, slots=True)
 class PersistentState:
-    """Rollback data captured before persistent changes."""
+    """WIF and service-account rollback state captured before mutation."""
 
-    service_account: str
-    service_account_created: bool
+    service_account_state: ServiceAccountState
     pool_created: bool
     provider_created: bool
     provider_snapshot: ProviderSnapshot | None
-    iam_policy: str
+
+    @property
+    def service_account(self) -> str:
+        """Return the deploy service-account email."""
+        return self.service_account_state.service_account
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,35 +104,8 @@ def _principal(context: GcpContext, repository: str) -> str:
 
 def ensure_persistent(context: GcpContext) -> PersistentState:
     """Create or update exact WIF state after taking rollback snapshots."""
-    service_account = f"skt-portfolio-deployer@{context.project_id}.iam.gserviceaccount.com"
-    iam_policy = require_gcloud(
-        (
-            "gcloud",
-            "iam",
-            "service-accounts",
-            "get-iam-policy",
-            service_account,
-            "--format=json",
-        ),
-        "service-account-policy-snapshot-failed",
-    )
-    service_account_created = (
-        run_gcloud(("gcloud", "iam", "service-accounts", "describe", service_account)).returncode
-        != 0
-    )
-    if service_account_created:
-        _ = require_gcloud(
-            (
-                "gcloud",
-                "iam",
-                "service-accounts",
-                "create",
-                "skt-portfolio-deployer",
-                f"--project={context.project_id}",
-                "--quiet",
-            ),
-            "service-account-create-failed",
-        )
+    service_account_state = ensure_service_account(context)
+    service_account = service_account_state.service_account
     pool_args = (
         "gcloud",
         "iam",
@@ -200,10 +180,8 @@ def ensure_persistent(context: GcpContext) -> PersistentState:
             "wif-binding-write-failed",
         )
     return PersistentState(
-        service_account=service_account,
-        service_account_created=service_account_created,
+        service_account_state=service_account_state,
         pool_created=pool_created,
         provider_created=provider_created,
         provider_snapshot=snapshot,
-        iam_policy=iam_policy,
     )

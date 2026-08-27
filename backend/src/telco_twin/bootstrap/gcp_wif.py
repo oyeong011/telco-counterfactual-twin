@@ -43,6 +43,18 @@ class CleanupReceipt(BaseModel):
     restored_bindings: bool
 
 
+class TemporaryProbeReceipt(BaseModel):
+    """Non-secret identifiers and hashes from reversible GCP resource probes."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
+
+    topic_resource: str = Field(min_length=1)
+    budget_resource: str = Field(min_length=1)
+    budget_schema_version: Literal["1.0"]
+    publisher_policy_evidence: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    deny_exchange_evidence: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+
+
 class WifApplyReceipt(BaseModel):
     """Secret-free result of persistent WIF and temporary probes."""
 
@@ -55,6 +67,8 @@ class WifApplyReceipt(BaseModel):
     provider_id: Literal["github-oidc"]
     deploy_service_account: str
     cleanup: CleanupReceipt
+    temporary_probe: TemporaryProbeReceipt
+    deny_exchange_evidence: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
     evidence: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
 
 
@@ -98,10 +112,22 @@ def apply_wif(context: GcpContext) -> WifApplyReceipt:
             temporary_resources=(),
             restored_bindings=probe.restored_bindings,
         ),
+        temporary_probe=TemporaryProbeReceipt(
+            topic_resource=probe.topic_resource,
+            budget_resource=probe.budget_resource,
+            budget_schema_version=probe.budget_schema_version,
+            publisher_policy_evidence=probe.publisher_policy_evidence,
+            deny_exchange_evidence=probe.deny_exchange_evidence,
+        ),
+        deny_exchange_evidence=probe.deny_exchange_evidence,
         evidence=receipt_for(
             context.project_id,
             context.project_number,
             context.owner_id,
+            probe.topic_resource,
+            probe.budget_resource,
+            probe.publisher_policy_evidence,
+            probe.deny_exchange_evidence,
             "wif-ready",
         ),
     )
