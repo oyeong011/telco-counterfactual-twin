@@ -1,0 +1,111 @@
+{
+  "$defs": {
+    "ApprovalDecision": {
+      "description": "The only evidence decisions in v0.1.",
+      "enum": [
+        "approved",
+        "rejected"
+      ],
+      "title": "ApprovalDecision",
+      "type": "string"
+    },
+    "SchemaVersion": {
+      "const": "1.0",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Session-signed decision bound to request, hashes, and nonce.",
+  "properties": {
+    "approval_request_id": {
+      "maxLength": 96,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "title": "Approval Request Id",
+      "type": "string"
+    },
+    "approved_at": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+      "title": "Approved At",
+      "type": "string"
+    },
+    "certificate_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Certificate Hash",
+      "type": "string"
+    },
+    "decision": {
+      "$ref": "#/$defs/ApprovalDecision"
+    },
+    "expires_at": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+      "title": "Expires At",
+      "type": "string"
+    },
+    "nonce": {
+      "title": "Nonce",
+      "type": "string"
+    },
+    "patch_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Patch Hash",
+      "type": "string"
+    },
+    "policy_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Policy Hash",
+      "type": "string"
+    },
+    "proof_id": {
+      "maxLength": 96,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "title": "Proof Id",
+      "type": "string"
+    },
+    "proof_signature": {
+      "title": "Proof Signature",
+      "type": "string"
+    },
+    "schema_version": {
+      "$ref": "#/$defs/SchemaVersion"
+    },
+    "session_id": {
+      "maxLength": 96,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "title": "Session Id",
+      "type": "string"
+    },
+    "session_key_id": {
+      "maxLength": 96,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "title": "Session Key Id",
+      "type": "string"
+    },
+    "simulation_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Simulation Hash",
+      "type": "string"
+    }
+  },
+  "required": [
+    "proof_id",
+    "approval_request_id",
+    "session_id",
+    "session_key_id",
+    "patch_hash",
+    "simulation_hash",
+    "policy_hash",
+    "nonce",
+    "decision",
+    "approved_at",
+    "expires_at",
+    "certificate_hash",
+    "proof_signature",
+    "schema_version"
+  ],
+  "title": "ApprovalProof",
+  "type": "object"
+}

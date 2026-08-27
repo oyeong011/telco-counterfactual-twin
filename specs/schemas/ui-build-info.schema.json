@@ -1,0 +1,165 @@
+{
+  "$defs": {
+    "JsonScalar": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer"
+        },
+        {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "SchemaVersion": {
+      "const": "1.0",
+      "type": "string"
+    },
+    "VersionedExtensions": {
+      "additionalProperties": false,
+      "description": "The sole versioned escape hatch for forward-compatible scalar metadata.",
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/SchemaVersion"
+        },
+        "values": {
+          "maxProperties": 32,
+          "patternProperties": {
+            "^(?!(?:email|gpsi|imei|imsi|msisdn|phone|subscriber[-_]?id|supi|apply[-_]?to[-_]?network|command|execute|execution|push[-_]?config|revoke|revocation|shell|url)$)[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$": {
+              "$ref": "#/$defs/JsonScalar"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "title": "Values",
+          "type": "object"
+        }
+      },
+      "required": [
+        "schema_version"
+      ],
+      "title": "VersionedExtensions",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Static UI identity bound to its emitted-asset manifest.",
+  "properties": {
+    "asset_manifest_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Asset Manifest Hash",
+      "type": "string"
+    },
+    "built_at": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+      "title": "Built At",
+      "type": "string"
+    },
+    "extensions": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/VersionedExtensions"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "mcp_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Mcp Hash",
+      "type": "string"
+    },
+    "policy_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Policy Hash",
+      "type": "string"
+    },
+    "release_commit_sha": {
+      "pattern": "^[0-9a-f]{40}$",
+      "title": "Release Commit Sha",
+      "type": "string"
+    },
+    "runtime_source_commit_sha": {
+      "pattern": "^[0-9a-f]{40}$",
+      "title": "Runtime Source Commit Sha",
+      "type": "string"
+    },
+    "runtime_tree_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Runtime Tree Hash",
+      "type": "string"
+    },
+    "schema_hashes": {
+      "maxProperties": 64,
+      "minProperties": 1,
+      "patternProperties": {
+        "^(?!(?:email|gpsi|imei|imsi|msisdn|phone|subscriber[-_]?id|supi|apply[-_]?to[-_]?network|command|execute|execution|push[-_]?config|revoke|revocation|shell|url)$)[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "propertyNames": {
+        "maxLength": 64,
+        "minLength": 1
+      },
+      "title": "Schema Hashes",
+      "type": "object"
+    },
+    "schema_version": {
+      "$ref": "#/$defs/SchemaVersion"
+    },
+    "service_name": {
+      "maxLength": 96,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "title": "Service Name",
+      "type": "string"
+    },
+    "trusted_root_hashes": {
+      "items": {
+        "pattern": "^[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "maxItems": 16,
+      "title": "Trusted Root Hashes",
+      "type": "array"
+    },
+    "version": {
+      "pattern": "^(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)(?:-[0-9A-Za-z.-]+)?$",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "service_name",
+    "version",
+    "runtime_source_commit_sha",
+    "release_commit_sha",
+    "runtime_tree_hash",
+    "schema_hashes",
+    "mcp_hash",
+    "policy_hash",
+    "trusted_root_hashes",
+    "built_at",
+    "asset_manifest_hash"
+  ],
+  "title": "UiBuildInfo",
+  "type": "object"
+}

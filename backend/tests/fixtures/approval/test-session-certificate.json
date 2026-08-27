@@ -1,0 +1,15 @@
+{
+  "certificate_signature": "GzqKgcsp8lOiCF8B4_tGyjLI13ojULAZhbi7Mue0LtZBDrLtiZ1XaZh8gbVsaE_Mj1GZC9DD5hkJA_L3I_vaDA",
+  "environment": "test",
+  "expires_at": "2026-08-27T00:01:00Z",
+  "issued_at": "2026-08-27T00:00:00Z",
+  "root_key_id": "test-only-rfc8037-root",
+  "schema_version": "1.0",
+  "session_id": "session-0001",
+  "session_key_id": "test-only-session-key-0001",
+  "session_public_key_jwk": {
+    "crv": "Ed25519",
+    "kty": "OKP",
+    "x": "YwccMAoWrlxHH4nVJzGbeJ07imPvd4lK3ifjUe_NbuM"
+  }
+}

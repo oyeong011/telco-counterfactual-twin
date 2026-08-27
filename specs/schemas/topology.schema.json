@@ -1,0 +1,265 @@
+{
+  "$defs": {
+    "ConfigRecord": {
+      "additionalProperties": false,
+      "description": "Immutable synthetic configuration-history record.",
+      "properties": {
+        "changes": {
+          "maxProperties": 32,
+          "patternProperties": {
+            "^(?!(?:email|gpsi|imei|imsi|msisdn|phone|subscriber[-_]?id|supi|apply[-_]?to[-_]?network|command|execute|execution|push[-_]?config|revoke|revocation|shell|url)$)[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$": {
+              "$ref": "#/$defs/JsonScalar"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "title": "Changes",
+          "type": "object"
+        },
+        "config_version": {
+          "maxLength": 96,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "title": "Config Version",
+          "type": "string"
+        },
+        "recorded_at": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "title": "Recorded At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "config_version",
+        "recorded_at",
+        "changes"
+      ],
+      "title": "ConfigRecord",
+      "type": "object"
+    },
+    "JsonScalar": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer"
+        },
+        {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "NodeKind": {
+      "description": "Permitted synthetic topology node families.",
+      "enum": [
+        "cell",
+        "gnb",
+        "ue-cohort",
+        "backhaul",
+        "amf",
+        "smf",
+        "upf",
+        "slice"
+      ],
+      "title": "NodeKind",
+      "type": "string"
+    },
+    "SchemaVersion": {
+      "const": "1.0",
+      "type": "string"
+    },
+    "TopologyLink": {
+      "additionalProperties": false,
+      "description": "One bounded directed link between known nodes.",
+      "properties": {
+        "capacity_mbps": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "title": "Capacity Mbps",
+          "type": "number"
+        },
+        "latency_ms": {
+          "maximum": 60000,
+          "minimum": 0,
+          "title": "Latency Ms",
+          "type": "number"
+        },
+        "link_id": {
+          "maxLength": 96,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "title": "Link Id",
+          "type": "string"
+        },
+        "source_id": {
+          "maxLength": 96,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "target_id": {
+          "maxLength": 96,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "title": "Target Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "link_id",
+        "source_id",
+        "target_id",
+        "capacity_mbps",
+        "latency_ms"
+      ],
+      "title": "TopologyLink",
+      "type": "object"
+    },
+    "TopologyNode": {
+      "additionalProperties": false,
+      "description": "One synthetic, non-subscriber topology node.",
+      "properties": {
+        "attributes": {
+          "maxProperties": 32,
+          "patternProperties": {
+            "^(?!(?:email|gpsi|imei|imsi|msisdn|phone|subscriber[-_]?id|supi|apply[-_]?to[-_]?network|command|execute|execution|push[-_]?config|revoke|revocation|shell|url)$)[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$": {
+              "$ref": "#/$defs/JsonScalar"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "title": "Attributes",
+          "type": "object"
+        },
+        "kind": {
+          "$ref": "#/$defs/NodeKind"
+        },
+        "node_id": {
+          "maxLength": 96,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "title": "Node Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "node_id",
+        "kind"
+      ],
+      "title": "TopologyNode",
+      "type": "object"
+    },
+    "VersionedExtensions": {
+      "additionalProperties": false,
+      "description": "The sole versioned escape hatch for forward-compatible scalar metadata.",
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/SchemaVersion"
+        },
+        "values": {
+          "maxProperties": 32,
+          "patternProperties": {
+            "^(?!(?:email|gpsi|imei|imsi|msisdn|phone|subscriber[-_]?id|supi|apply[-_]?to[-_]?network|command|execute|execution|push[-_]?config|revoke|revocation|shell|url)$)[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$": {
+              "$ref": "#/$defs/JsonScalar"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "title": "Values",
+          "type": "object"
+        }
+      },
+      "required": [
+        "schema_version"
+      ],
+      "title": "VersionedExtensions",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Bounded topology required by every deterministic scenario.",
+  "properties": {
+    "config_history": {
+      "items": {
+        "$ref": "#/$defs/ConfigRecord"
+      },
+      "maxItems": 128,
+      "minItems": 1,
+      "title": "Config History",
+      "type": "array"
+    },
+    "extensions": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/VersionedExtensions"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "links": {
+      "items": {
+        "$ref": "#/$defs/TopologyLink"
+      },
+      "maxItems": 128,
+      "minItems": 1,
+      "title": "Links",
+      "type": "array"
+    },
+    "nodes": {
+      "items": {
+        "$ref": "#/$defs/TopologyNode"
+      },
+      "maxItems": 64,
+      "minItems": 9,
+      "title": "Nodes",
+      "type": "array"
+    },
+    "schema_version": {
+      "$ref": "#/$defs/SchemaVersion"
+    },
+    "seed": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "title": "Seed",
+      "type": "integer"
+    },
+    "topology_id": {
+      "maxLength": 96,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "title": "Topology Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "topology_id",
+    "seed",
+    "nodes",
+    "links",
+    "config_history"
+  ],
+  "title": "Topology",
+  "type": "object"
+}

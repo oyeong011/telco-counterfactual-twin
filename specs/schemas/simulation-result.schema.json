@@ -1,0 +1,228 @@
+{
+  "$defs": {
+    "ConstraintResult": {
+      "additionalProperties": false,
+      "description": "Machine-checkable local safety-constraint result.",
+      "properties": {
+        "constraint_code": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^(?!(?:email|gpsi|imei|imsi|msisdn|phone|subscriber[-_]?id|supi|apply[-_]?to[-_]?network|command|execute|execution|push[-_]?config|revoke|revocation|shell|url)$)[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "title": "Constraint Code",
+          "type": "string"
+        },
+        "evidence_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Evidence Hash",
+          "type": "string"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "constraint_code",
+        "passed",
+        "evidence_hash"
+      ],
+      "title": "ConstraintResult",
+      "type": "object"
+    },
+    "JsonScalar": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer"
+        },
+        {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "MetricDelta": {
+      "additionalProperties": false,
+      "description": "One bounded baseline-to-candidate metric comparison.",
+      "properties": {
+        "baseline": {
+          "maximum": 1000000000,
+          "minimum": -1000000000,
+          "title": "Baseline",
+          "type": "number"
+        },
+        "candidate": {
+          "maximum": 1000000000,
+          "minimum": -1000000000,
+          "title": "Candidate",
+          "type": "number"
+        },
+        "metric_name": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^(?!(?:email|gpsi|imei|imsi|msisdn|phone|subscriber[-_]?id|supi|apply[-_]?to[-_]?network|command|execute|execution|push[-_]?config|revoke|revocation|shell|url)$)[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "title": "Metric Name",
+          "type": "string"
+        },
+        "unit": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^(?!(?:email|gpsi|imei|imsi|msisdn|phone|subscriber[-_]?id|supi|apply[-_]?to[-_]?network|command|execute|execution|push[-_]?config|revoke|revocation|shell|url)$)[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "metric_name",
+        "baseline",
+        "candidate",
+        "unit"
+      ],
+      "title": "MetricDelta",
+      "type": "object"
+    },
+    "SchemaVersion": {
+      "const": "1.0",
+      "type": "string"
+    },
+    "VersionedExtensions": {
+      "additionalProperties": false,
+      "description": "The sole versioned escape hatch for forward-compatible scalar metadata.",
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/SchemaVersion"
+        },
+        "values": {
+          "maxProperties": 32,
+          "patternProperties": {
+            "^(?!(?:email|gpsi|imei|imsi|msisdn|phone|subscriber[-_]?id|supi|apply[-_]?to[-_]?network|command|execute|execution|push[-_]?config|revoke|revocation|shell|url)$)[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$": {
+              "$ref": "#/$defs/JsonScalar"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "title": "Values",
+          "type": "object"
+        }
+      },
+      "required": [
+        "schema_version"
+      ],
+      "title": "VersionedExtensions",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Hashed baseline/candidate comparison eligible only after all constraints pass.",
+  "properties": {
+    "approval_eligible": {
+      "title": "Approval Eligible",
+      "type": "boolean"
+    },
+    "baseline_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Baseline Hash",
+      "type": "string"
+    },
+    "candidate_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Candidate Hash",
+      "type": "string"
+    },
+    "completed_at": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+      "title": "Completed At",
+      "type": "string"
+    },
+    "constraints": {
+      "items": {
+        "$ref": "#/$defs/ConstraintResult"
+      },
+      "maxItems": 64,
+      "minItems": 1,
+      "title": "Constraints",
+      "type": "array"
+    },
+    "extensions": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/VersionedExtensions"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "metric_deltas": {
+      "items": {
+        "$ref": "#/$defs/MetricDelta"
+      },
+      "maxItems": 128,
+      "minItems": 1,
+      "title": "Metric Deltas",
+      "type": "array"
+    },
+    "patch_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Patch Hash",
+      "type": "string"
+    },
+    "scenario_id": {
+      "maxLength": 96,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "title": "Scenario Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "$ref": "#/$defs/SchemaVersion"
+    },
+    "simulation_id": {
+      "maxLength": 96,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "title": "Simulation Id",
+      "type": "string"
+    },
+    "started_at": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+      "title": "Started At",
+      "type": "string"
+    },
+    "trace_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Trace Hash",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "simulation_id",
+    "scenario_id",
+    "patch_hash",
+    "baseline_hash",
+    "candidate_hash",
+    "trace_hash",
+    "started_at",
+    "completed_at",
+    "metric_deltas",
+    "constraints",
+    "approval_eligible"
+  ],
+  "title": "SimulationResult",
+  "type": "object"
+}

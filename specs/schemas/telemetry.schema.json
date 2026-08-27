@@ -1,0 +1,169 @@
+{
+  "$defs": {
+    "JsonScalar": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer"
+        },
+        {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "MetricSample": {
+      "additionalProperties": false,
+      "description": "One bounded synthetic metric sample without subscriber identity.",
+      "properties": {
+        "metric_name": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^(?!(?:email|gpsi|imei|imsi|msisdn|phone|subscriber[-_]?id|supi|apply[-_]?to[-_]?network|command|execute|execution|push[-_]?config|revoke|revocation|shell|url)$)[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "title": "Metric Name",
+          "type": "string"
+        },
+        "observed_at": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "title": "Observed At",
+          "type": "string"
+        },
+        "quality": {
+          "$ref": "#/$defs/ObservationQuality"
+        },
+        "target_id": {
+          "maxLength": 96,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "title": "Target Id",
+          "type": "string"
+        },
+        "unit": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^(?!(?:email|gpsi|imei|imsi|msisdn|phone|subscriber[-_]?id|supi|apply[-_]?to[-_]?network|command|execute|execution|push[-_]?config|revoke|revocation|shell|url)$)[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "title": "Unit",
+          "type": "string"
+        },
+        "value": {
+          "maximum": 1000000000,
+          "minimum": -1000000000,
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "metric_name",
+        "target_id",
+        "value",
+        "unit",
+        "observed_at",
+        "quality"
+      ],
+      "title": "MetricSample",
+      "type": "object"
+    },
+    "ObservationQuality": {
+      "description": "Quality boundary carried by every observation.",
+      "enum": [
+        "fresh",
+        "stale",
+        "noisy"
+      ],
+      "title": "ObservationQuality",
+      "type": "string"
+    },
+    "SchemaVersion": {
+      "const": "1.0",
+      "type": "string"
+    },
+    "VersionedExtensions": {
+      "additionalProperties": false,
+      "description": "The sole versioned escape hatch for forward-compatible scalar metadata.",
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/SchemaVersion"
+        },
+        "values": {
+          "maxProperties": 32,
+          "patternProperties": {
+            "^(?!(?:email|gpsi|imei|imsi|msisdn|phone|subscriber[-_]?id|supi|apply[-_]?to[-_]?network|command|execute|execution|push[-_]?config|revoke|revocation|shell|url)$)[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$": {
+              "$ref": "#/$defs/JsonScalar"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "title": "Values",
+          "type": "object"
+        }
+      },
+      "required": [
+        "schema_version"
+      ],
+      "title": "VersionedExtensions",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Immutable metric batch bound to one topology.",
+  "properties": {
+    "extensions": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/VersionedExtensions"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "samples": {
+      "items": {
+        "$ref": "#/$defs/MetricSample"
+      },
+      "maxItems": 1024,
+      "minItems": 1,
+      "title": "Samples",
+      "type": "array"
+    },
+    "schema_version": {
+      "$ref": "#/$defs/SchemaVersion"
+    },
+    "telemetry_id": {
+      "maxLength": 96,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "title": "Telemetry Id",
+      "type": "string"
+    },
+    "topology_id": {
+      "maxLength": 96,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "title": "Topology Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "telemetry_id",
+    "topology_id",
+    "samples"
+  ],
+  "title": "Telemetry",
+  "type": "object"
+}

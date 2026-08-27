@@ -1,0 +1,171 @@
+{
+  "$defs": {
+    "JsonScalar": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer"
+        },
+        {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "SchemaVersion": {
+      "const": "1.0",
+      "type": "string"
+    },
+    "VersionedExtensions": {
+      "additionalProperties": false,
+      "description": "The sole versioned escape hatch for forward-compatible scalar metadata.",
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/SchemaVersion"
+        },
+        "values": {
+          "maxProperties": 32,
+          "patternProperties": {
+            "^(?!(?:email|gpsi|imei|imsi|msisdn|phone|subscriber[-_]?id|supi|apply[-_]?to[-_]?network|command|execute|execution|push[-_]?config|revoke|revocation|shell|url)$)[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$": {
+              "$ref": "#/$defs/JsonScalar"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "title": "Values",
+          "type": "object"
+        }
+      },
+      "required": [
+        "schema_version"
+      ],
+      "title": "VersionedExtensions",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Hashes and provenance for a synthetic, non-executing decision artifact.",
+  "properties": {
+    "approval_proof_hash": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Approval Proof Hash"
+    },
+    "contract_hashes": {
+      "maxProperties": 32,
+      "minProperties": 1,
+      "patternProperties": {
+        "^(?!(?:email|gpsi|imei|imsi|msisdn|phone|subscriber[-_]?id|supi|apply[-_]?to[-_]?network|command|execute|execution|push[-_]?config|revoke|revocation|shell|url)$)[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "propertyNames": {
+        "maxLength": 64,
+        "minLength": 1
+      },
+      "title": "Contract Hashes",
+      "type": "object"
+    },
+    "evidence_id": {
+      "maxLength": 96,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "title": "Evidence Id",
+      "type": "string"
+    },
+    "extensions": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/VersionedExtensions"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "generated_at": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+      "title": "Generated At",
+      "type": "string"
+    },
+    "patch_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Patch Hash",
+      "type": "string"
+    },
+    "policy_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Policy Hash",
+      "type": "string"
+    },
+    "scenario_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Scenario Hash",
+      "type": "string"
+    },
+    "schema_version": {
+      "$ref": "#/$defs/SchemaVersion"
+    },
+    "seed": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "title": "Seed",
+      "type": "integer"
+    },
+    "session_id": {
+      "maxLength": 96,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "title": "Session Id",
+      "type": "string"
+    },
+    "simulation_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Simulation Hash",
+      "type": "string"
+    },
+    "source_commit_sha": {
+      "pattern": "^[0-9a-f]{40}$",
+      "title": "Source Commit Sha",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "evidence_id",
+    "session_id",
+    "scenario_hash",
+    "patch_hash",
+    "simulation_hash",
+    "policy_hash",
+    "approval_proof_hash",
+    "seed",
+    "source_commit_sha",
+    "contract_hashes",
+    "generated_at"
+  ],
+  "title": "EvidenceCard",
+  "type": "object"
+}

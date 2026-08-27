@@ -1,0 +1,16 @@
+{
+  "approval_request_id": "approval-request-0001",
+  "approved_at": "2026-08-27T00:00:00Z",
+  "certificate_hash": "68959ac03a4bab12d9dbf6b83b7387fce0b88bd52b7e52eafe2f50359aedae85",
+  "decision": "approved",
+  "expires_at": "2026-08-27T00:01:00Z",
+  "nonce": "AAECAwQFBgcICQoLDA0ODw",
+  "patch_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "policy_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "proof_id": "approval-proof-0001",
+  "proof_signature": "GoHRz37W904E-bLbJFpWkwhXQacy1PoX_WIoZ4H_3-NR7JDlp1BPghRTfNywjZe6-b3AL7mhV9L_KGSRIoKFDA",
+  "schema_version": "1.0",
+  "session_id": "session-0001",
+  "session_key_id": "test-only-session-key-0001",
+  "simulation_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+}

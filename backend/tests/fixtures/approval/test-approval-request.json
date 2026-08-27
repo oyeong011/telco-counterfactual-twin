@@ -1,0 +1,12 @@
+{
+  "expires_at": "2026-08-27T00:01:00Z",
+  "nonce": "AAECAwQFBgcICQoLDA0ODw",
+  "patch_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "policy_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "request_id": "approval-request-0001",
+  "requested_at": "2026-08-27T00:00:00Z",
+  "schema_version": "1.0",
+  "session_id": "session-0001",
+  "simulation_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "state": "pending"
+}

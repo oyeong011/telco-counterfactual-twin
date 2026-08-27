@@ -1,0 +1,14 @@
+{
+  "algorithm": "Ed25519",
+  "descriptor_hash": "0a0ac92bec879131e15c2b22d6fdeff8f88b7e6e753dcaa8f23568fe9e0300c9",
+  "environment": "test",
+  "not_after": "2027-01-01T00:00:00Z",
+  "not_before": "2026-01-01T00:00:00Z",
+  "public_key_jwk": {
+    "crv": "Ed25519",
+    "kty": "OKP",
+    "x": "11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo"
+  },
+  "root_key_id": "test-only-rfc8037-root",
+  "schema_version": "1.0"
+}

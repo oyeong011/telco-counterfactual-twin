@@ -1,0 +1,105 @@
+{
+  "$defs": {
+    "Ed25519Jwk": {
+      "additionalProperties": false,
+      "description": "Minimal public OKP JWK for Ed25519 verification.",
+      "properties": {
+        "crv": {
+          "const": "Ed25519",
+          "title": "Crv",
+          "type": "string"
+        },
+        "kty": {
+          "const": "OKP",
+          "title": "Kty",
+          "type": "string"
+        },
+        "x": {
+          "title": "X",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kty",
+        "crv",
+        "x"
+      ],
+      "title": "Ed25519Jwk",
+      "type": "object"
+    },
+    "Environment": {
+      "description": "Trust environment encoded into every approval key object.",
+      "enum": [
+        "test",
+        "production"
+      ],
+      "title": "Environment",
+      "type": "string"
+    },
+    "SchemaVersion": {
+      "const": "1.0",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Root-certified, 60-second session verification key.",
+  "properties": {
+    "certificate_signature": {
+      "title": "Certificate Signature",
+      "type": "string"
+    },
+    "environment": {
+      "$ref": "#/$defs/Environment"
+    },
+    "expires_at": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+      "title": "Expires At",
+      "type": "string"
+    },
+    "issued_at": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+      "title": "Issued At",
+      "type": "string"
+    },
+    "root_key_id": {
+      "maxLength": 96,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "title": "Root Key Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "$ref": "#/$defs/SchemaVersion"
+    },
+    "session_id": {
+      "maxLength": 96,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "title": "Session Id",
+      "type": "string"
+    },
+    "session_key_id": {
+      "maxLength": 96,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "title": "Session Key Id",
+      "type": "string"
+    },
+    "session_public_key_jwk": {
+      "$ref": "#/$defs/Ed25519Jwk"
+    }
+  },
+  "required": [
+    "session_id",
+    "session_key_id",
+    "session_public_key_jwk",
+    "root_key_id",
+    "issued_at",
+    "expires_at",
+    "environment",
+    "certificate_signature",
+    "schema_version"
+  ],
+  "title": "SessionKeyCertificate",
+  "type": "object"
+}

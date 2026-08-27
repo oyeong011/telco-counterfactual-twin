@@ -1,0 +1,222 @@
+{
+  "$defs": {
+    "BlastRadius": {
+      "additionalProperties": false,
+      "description": "Explicit upper bounds for affected synthetic resources.",
+      "properties": {
+        "max_cells": {
+          "maximum": 4,
+          "minimum": 0,
+          "title": "Max Cells",
+          "type": "integer"
+        },
+        "max_slices": {
+          "maximum": 8,
+          "minimum": 0,
+          "title": "Max Slices",
+          "type": "integer"
+        },
+        "max_ue_cohorts": {
+          "maximum": 32,
+          "minimum": 0,
+          "title": "Max Ue Cohorts",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_cells",
+        "max_ue_cohorts",
+        "max_slices"
+      ],
+      "title": "BlastRadius",
+      "type": "object"
+    },
+    "JsonScalar": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer"
+        },
+        {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "PatchChange": {
+      "additionalProperties": false,
+      "description": "One typed candidate change evaluated only in a forked simulation.",
+      "properties": {
+        "operation": {
+          "$ref": "#/$defs/PatchOperation"
+        },
+        "parameters": {
+          "maxProperties": 32,
+          "patternProperties": {
+            "^(?!(?:email|gpsi|imei|imsi|msisdn|phone|subscriber[-_]?id|supi|apply[-_]?to[-_]?network|command|execute|execution|push[-_]?config|revoke|revocation|shell|url)$)[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$": {
+              "$ref": "#/$defs/JsonScalar"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "title": "Parameters",
+          "type": "object"
+        },
+        "target_id": {
+          "maxLength": 96,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "title": "Target Id",
+          "type": "string"
+        },
+        "target_kind": {
+          "$ref": "#/$defs/TargetKind"
+        }
+      },
+      "required": [
+        "target_id",
+        "target_kind",
+        "operation",
+        "parameters"
+      ],
+      "title": "PatchChange",
+      "type": "object"
+    },
+    "PatchOperation": {
+      "description": "Simulation-only remediation operations.",
+      "enum": [
+        "adjust-radio-capacity",
+        "restore-backhaul-capacity",
+        "scale-upf-capacity",
+        "correct-neighbor-relation",
+        "rebalance-slice-weight",
+        "ignore-untrusted-alarm"
+      ],
+      "title": "PatchOperation",
+      "type": "string"
+    },
+    "SchemaVersion": {
+      "const": "1.0",
+      "type": "string"
+    },
+    "TargetKind": {
+      "description": "Closed synthetic targets that a candidate patch may reference.",
+      "enum": [
+        "cell",
+        "backhaul",
+        "upf",
+        "neighbor-relation",
+        "slice",
+        "alarm"
+      ],
+      "title": "TargetKind",
+      "type": "string"
+    },
+    "VersionedExtensions": {
+      "additionalProperties": false,
+      "description": "The sole versioned escape hatch for forward-compatible scalar metadata.",
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/SchemaVersion"
+        },
+        "values": {
+          "maxProperties": 32,
+          "patternProperties": {
+            "^(?!(?:email|gpsi|imei|imsi|msisdn|phone|subscriber[-_]?id|supi|apply[-_]?to[-_]?network|command|execute|execution|push[-_]?config|revoke|revocation|shell|url)$)[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$": {
+              "$ref": "#/$defs/JsonScalar"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "title": "Values",
+          "type": "object"
+        }
+      },
+      "required": [
+        "schema_version"
+      ],
+      "title": "VersionedExtensions",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Immutable candidate input used only by a forked simulation.",
+  "properties": {
+    "base_topology_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Base Topology Hash",
+      "type": "string"
+    },
+    "blast_radius": {
+      "$ref": "#/$defs/BlastRadius"
+    },
+    "changes": {
+      "items": {
+        "$ref": "#/$defs/PatchChange"
+      },
+      "maxItems": 16,
+      "minItems": 1,
+      "title": "Changes",
+      "type": "array"
+    },
+    "extensions": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/VersionedExtensions"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "patch_id": {
+      "maxLength": 96,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "title": "Patch Id",
+      "type": "string"
+    },
+    "proposed_at": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+      "title": "Proposed At",
+      "type": "string"
+    },
+    "scenario_id": {
+      "maxLength": 96,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "title": "Scenario Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "$ref": "#/$defs/SchemaVersion"
+    }
+  },
+  "required": [
+    "schema_version",
+    "patch_id",
+    "scenario_id",
+    "base_topology_hash",
+    "changes",
+    "blast_radius",
+    "proposed_at"
+  ],
+  "title": "TypedPatch",
+  "type": "object"
+}
