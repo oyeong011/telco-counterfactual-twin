@@ -6,6 +6,8 @@ import heapq
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Self, override
 
+from telco_twin.simulator.frozen_event import FrozenEvent, snapshot_event
+
 if TYPE_CHECKING:
     from telco_twin.domain.event import Event
 
@@ -29,18 +31,18 @@ class _QueueEntry:
     timestamp: str
     priority: int
     sequence_id: int
-    event: Event = field(compare=False)
+    event: FrozenEvent = field(compare=False)
 
 
 @dataclass(frozen=True, slots=True)
 class EventTrace:
     """One immutable version in an append-only event trace."""
 
-    events: tuple[Event, ...] = ()
+    events: tuple[FrozenEvent, ...] = ()
 
     def append(self, event: Event) -> Self:
         """Return a new trace containing one additional event."""
-        return type(self)(events=(*self.events, event))
+        return type(self)(events=(*self.events, snapshot_event(event)))
 
 
 class DeterministicScheduler:
@@ -53,16 +55,17 @@ class DeterministicScheduler:
 
     def schedule(self, event: Event) -> None:
         """Schedule an immutable event once by global sequence identifier."""
-        if event.sequence_id in self._sequence_ids:
-            raise DuplicateSequenceError(sequence_id=event.sequence_id)
-        self._sequence_ids.add(event.sequence_id)
+        snapshot = snapshot_event(event)
+        if snapshot.sequence_id in self._sequence_ids:
+            raise DuplicateSequenceError(sequence_id=snapshot.sequence_id)
+        self._sequence_ids.add(snapshot.sequence_id)
         heapq.heappush(
             self._queue,
             _QueueEntry(
-                timestamp=event.timestamp,
-                priority=event.priority,
-                sequence_id=event.sequence_id,
-                event=event,
+                timestamp=snapshot.timestamp,
+                priority=snapshot.priority,
+                sequence_id=snapshot.sequence_id,
+                event=snapshot,
             ),
         )
 
@@ -70,5 +73,6 @@ class DeterministicScheduler:
         """Consume the queue into a stable append-only trace."""
         trace = EventTrace()
         while self._queue:
-            trace = trace.append(heapq.heappop(self._queue).event)
+            entry = heapq.heappop(self._queue)
+            trace = EventTrace(events=(*trace.events, entry.event))
         return trace

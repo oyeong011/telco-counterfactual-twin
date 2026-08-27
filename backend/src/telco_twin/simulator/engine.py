@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Final, override
+from typing import TYPE_CHECKING, Final, override
 
 from telco_twin.data.synthetic import (
     GENERATOR_VERSION,
@@ -21,6 +21,9 @@ from telco_twin.simulator.hashing import (
     hash_trace,
 )
 from telco_twin.simulator.scheduler import DeterministicScheduler
+
+if TYPE_CHECKING:
+    from telco_twin.simulator.frozen_event import FrozenEvent
 
 SIMULATOR_VERSION: Final[SemanticVersion] = "1.0.0"
 
@@ -48,7 +51,7 @@ class SimulationTrace:
 
     manifest_hash: Sha256Hex
     topology_hash: Sha256Hex
-    events: tuple[Event, ...]
+    events: tuple[FrozenEvent, ...]
     trace_hash: Sha256Hex
 
 

@@ -15,6 +15,7 @@ from telco_twin.simulator.hashing import (
     HashContext,
     TraceHashInput,
     hash_contract,
+    hash_trace,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -30,6 +31,31 @@ def test_same_manifest_produces_one_nonempty_trace_hash_across_100_runs() -> Non
     assert tuple(trace.trace_hash for trace in traces) == (traces[0].trace_hash,) * 100
 
 
+def test_exposed_trace_payload_rejects_mutation_and_keeps_canonical_hash() -> None:
+    # Given: a completed trace and independent canonical hash context.
+    manifest = generate_manifest(20260827)
+    trace = run_simulation(manifest)
+    context = HashContext(
+        schema_version="1.0",
+        input_name="simulation-trace",
+        input_version="1.0.0",
+        seed=manifest.seed,
+    )
+    before = hash_trace(
+        TraceHashInput(manifest_hash=trace.manifest_hash, events=trace.events),
+        context,
+    )
+    # When: a caller attempts to mutate the returned event payload.
+    with pytest.raises(TypeError, match="immutable"):
+        trace.events[0].payload["manifest_hash"] = "0" * 64
+    after = hash_trace(
+        TraceHashInput(manifest_hash=trace.manifest_hash, events=trace.events),
+        context,
+    )
+    # Then: the stored hash remains an independent recomputation of exposed events.
+    assert trace.trace_hash == before == after
+
+
 def test_same_manifest_is_byte_stable_across_isolated_processes(tmp_path: Path) -> None:
     # Given: one serialized manifest and two distinct process hash seeds.
     manifest_path = tmp_path / "manifest.json"
@@ -37,11 +63,25 @@ def test_same_manifest_is_byte_stable_across_isolated_processes(tmp_path: Path) 
     code = (
         "from pathlib import Path;"
         "from telco_twin.data.synthetic import SimulationManifest;"
+        "from telco_twin.domain.event import Event;"
         "from telco_twin.simulator.engine import run_simulation;"
+        "from telco_twin.simulator.hashing import HashContext,TraceHashInput,hash_trace;"
+        "from telco_twin.simulator.scheduler import DeterministicScheduler;"
         "import sys;"
         "manifest=SimulationManifest.model_validate_json(Path(sys.argv[1]).read_text());"
         "trace=run_simulation(manifest);"
-        "print(trace.trace_hash)"
+        "source=Event(event_id='event-0099',scenario_id='scenario-0001',"
+        "timestamp='2026-08-27T00:00:00Z',priority=0,sequence_id=99,"
+        "event_type='nested-test',payload={},schema_version='1.0');"
+        "source=source.model_copy(update={'payload':"
+        "{'settings':{'mode':'original'},'values':[1,2]}});"
+        "scheduler=DeterministicScheduler();scheduler.schedule(source);"
+        "stored=scheduler.drain().events[0];"
+        "context=HashContext(schema_version='1.0',input_name='simulation-trace',"
+        "input_version='1.0.0',seed=71);"
+        "nested_hash=hash_trace(TraceHashInput("
+        "manifest_hash=manifest.manifest_hash,events=(stored,)),context);"
+        "print(trace.trace_hash+':'+nested_hash+':'+stored.model_dump_json())"
     )
     outputs: list[str] = []
     # When: independent interpreters execute with different PYTHONHASHSEED values.

@@ -19,7 +19,7 @@ from telco_twin.domain._contract import (
 from telco_twin.domain.canonical import canonical_json_bytes, canonical_model_bytes
 
 if TYPE_CHECKING:
-    from telco_twin.domain.event import Event
+    from telco_twin.simulator.frozen_event import FrozenEvent
 
 JSON_VALUE_ADAPTER: Final[TypeAdapter[JsonValue]] = TypeAdapter(JsonValue)
 
@@ -58,7 +58,7 @@ class TraceHashInput:
     """Nonempty append-only trace bound to its immutable manifest."""
 
     manifest_hash: Sha256Hex
-    events: tuple[Event, ...]
+    events: tuple[FrozenEvent, ...]
 
     def __post_init__(self) -> None:
         """Reject success-shaped traces without observable events."""
@@ -94,7 +94,7 @@ def hash_trace(trace: TraceHashInput, context: HashContext) -> Sha256Hex:
         {
             "schema_version": context.schema_version,
             "manifest_hash": trace.manifest_hash,
-            "events": [event.model_dump(mode="json", exclude_none=True) for event in trace.events],
+            "events": [event.model_dump() for event in trace.events],
         }
     )
     input_hash = hashlib.sha256(canonical_json_bytes(value)).hexdigest()
