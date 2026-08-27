@@ -7,6 +7,11 @@ from typing import TYPE_CHECKING, ClassVar, Literal
 
 from pydantic import AliasPath, BaseModel, ConfigDict, Field
 
+from telco_twin.bootstrap.gcp_reconciliation import (
+    DEFAULT_RECONCILIATION_POLICY,
+    ReconciliationPolicy,
+)
+
 if TYPE_CHECKING:
     from telco_twin.bootstrap.gcp_commands import GcpContext
     from telco_twin.bootstrap.gcp_service_account import ServiceAccountState
@@ -60,6 +65,7 @@ class PoolRollbackIntent:
     """Exact pool deletion ownership registered before create dispatch."""
 
     context: GcpContext
+    policy: ReconciliationPolicy = DEFAULT_RECONCILIATION_POLICY
 
     @property
     def resource_name(self) -> str:
@@ -83,6 +89,7 @@ class PersistentState:
     provider_create_intent: ProviderConfig | None
     provider_target: ProviderConfig | None
     provider_snapshot: ProviderSnapshot | None
+    policy: ReconciliationPolicy = DEFAULT_RECONCILIATION_POLICY
 
     @property
     def service_account(self) -> str:

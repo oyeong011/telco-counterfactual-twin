@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from telco_twin.bootstrap import gcp_commands, gcp_persistent, gcp_service_account
+from telco_twin.bootstrap import gcp_commands, gcp_persistent
 from telco_twin.bootstrap.gcp_commands import GcpContext, ProvisioningError
+from telco_twin.bootstrap.gcp_reconciliation import ReconciliationPolicy
 
+from .gcp_eventual_fakes import FakeClock
 from .gcp_persistent_fakes import (
     ORIGINAL_POLICY,
     ORIGINAL_PROVIDER,
@@ -22,9 +24,6 @@ CONTEXT = GcpContext(
 def install_fake(monkeypatch: pytest.MonkeyPatch, fake: FakeGcloud) -> None:
     """Install one stateful fake at every GCP command import seam."""
     monkeypatch.setattr(gcp_commands, "run_gcloud", fake.run)
-    monkeypatch.setattr(gcp_persistent, "run_gcloud", fake.run)
-    monkeypatch.setattr(gcp_service_account, "run_gcloud", fake.run)
-    monkeypatch.setattr(gcp_service_account, "require_gcloud", fake.require)
 
 
 def assert_reconciled_after_failure(fake: FakeGcloud, failure_point: str) -> None:
@@ -77,10 +76,12 @@ def test_new_persistent_state_is_removed_when_setup_fails(
     # Given
     fake = FakeGcloud(failure_point, existing=False)
     install_fake(monkeypatch, fake)
+    clock = FakeClock()
+    policy = ReconciliationPolicy(monotonic=clock.monotonic, sleeper=clock.sleep)
 
     # When
     with pytest.raises(ProvisioningError):
-        _ = gcp_persistent.ensure_persistent(CONTEXT)
+        _ = gcp_persistent.ensure_persistent(CONTEXT, policy)
 
     # Then
     assert fake.failure_triggered is True
@@ -101,10 +102,12 @@ def test_existing_persistent_state_is_restored_when_setup_fails(
     # Given
     fake = FakeGcloud(failure_point, existing=True)
     install_fake(monkeypatch, fake)
+    clock = FakeClock()
+    policy = ReconciliationPolicy(monotonic=clock.monotonic, sleeper=clock.sleep)
 
     # When
     with pytest.raises(ProvisioningError):
-        _ = gcp_persistent.ensure_persistent(CONTEXT)
+        _ = gcp_persistent.ensure_persistent(CONTEXT, policy)
 
     # Then
     assert fake.failure_triggered is True

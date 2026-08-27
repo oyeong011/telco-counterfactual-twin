@@ -11,6 +11,10 @@ from pydantic import AliasPath, BaseModel, ConfigDict, Field, TypeAdapter, Valid
 from telco_twin.bootstrap.gcp_commands import ProvisioningError
 from telco_twin.bootstrap.gcp_iam_contract import IamPolicy, parse_iam_policy
 from telco_twin.bootstrap.gcp_persistent_contract import ISSUER, MAPPING
+from telco_twin.bootstrap.gcp_reconciliation import (
+    DEFAULT_RECONCILIATION_POLICY,
+    ReconciliationPolicy,
+)
 
 if TYPE_CHECKING:
     from telco_twin.bootstrap.gcp_commands import GcpContext
@@ -70,6 +74,7 @@ class ProviderRollbackIntent:
     context: GcpContext
     provider_id: str
     condition: str
+    policy: ReconciliationPolicy = DEFAULT_RECONCILIATION_POLICY
 
     @property
     def resource_name(self) -> str:
@@ -99,6 +104,7 @@ class TopicRollbackIntent:
 
     context: GcpContext
     topic: str
+    policy: ReconciliationPolicy = DEFAULT_RECONCILIATION_POLICY
 
     @property
     def resource_name(self) -> str:
@@ -112,6 +118,7 @@ class BudgetRollbackIntent:
 
     context: GcpContext
     display_name: str
+    policy: ReconciliationPolicy = DEFAULT_RECONCILIATION_POLICY
 
     @property
     def topic_resource(self) -> str:

@@ -196,7 +196,13 @@ class FakeGcloud:
         ).model_dump_json()
         return self._mutated_result(arguments, f"binding-{repository}")
 
-    def run(self, arguments: tuple[str, ...]) -> subprocess.CompletedProcess[str]:
+    def run(
+        self,
+        arguments: tuple[str, ...],
+        *,
+        timeout_seconds: float | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = timeout_seconds
         joined = " ".join(arguments)
         self.commands.append(joined)
         handlers = (

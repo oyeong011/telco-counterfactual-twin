@@ -113,10 +113,10 @@ case "$*" in
     fi
     ;;
   *"billing budgets create"*)
-    if test "${FAKE_FAIL_BUDGET:-0}" = 1; then exit 1; fi
     for arg in "$@"; do
       case "$arg" in --display-name=*) printf '%s' "${arg#--display-name=}" > "$budget_state" ;; esac
     done
+    if test "${FAKE_FAIL_BUDGET:-0}" = 1; then exit 1; fi
     printf '%s\n' 'billingAccounts/ABC/budgets/123'
     ;;
   *"billing budgets describe"*) print_budget; printf '\n' ;;

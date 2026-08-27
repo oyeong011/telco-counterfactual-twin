@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import ClassVar, Protocol
@@ -13,9 +13,12 @@ from telco_twin.bootstrap.gcp_commands import (
     GcpContext,
     ProvisioningError,
     require_gcloud,
-    run_gcloud,
 )
-from telco_twin.bootstrap.gcp_iam_contract import parse_iam_policy
+from telco_twin.bootstrap.gcp_iam_contract import IamPolicy, parse_iam_policy
+from telco_twin.bootstrap.gcp_reconciliation import (
+    DEFAULT_RECONCILIATION_POLICY,
+    ReconciliationPolicy,
+)
 
 SERVICE_ACCOUNT_ID = "skt-portfolio-deployer"
 SERVICE_ACCOUNT_DISPLAY_NAME = "SKT Portfolio Deployer"
@@ -39,6 +42,7 @@ class ServiceAccountCreateIntent:
 
     context: GcpContext
     service_account: str
+    policy: ReconciliationPolicy = DEFAULT_RECONCILIATION_POLICY
 
     @property
     def resource_name(self) -> str:
@@ -47,7 +51,7 @@ class ServiceAccountCreateIntent:
 
     def accounts(self) -> tuple[ServiceAccountProjection, ...] | None:
         """List exact-email candidates under the expected project."""
-        result = run_gcloud(
+        result = self.policy.read(
             (
                 "gcloud",
                 "iam",
@@ -75,14 +79,15 @@ class ServiceAccountCreateIntent:
 
     def rollback(self) -> bool:
         """Read back and delete only the exact account created by this intent."""
-        accounts = self.accounts()
-        if accounts is None:
+        visible = self.policy.poll(
+            self.accounts,
+            lambda accounts: (
+                accounts is not None and len(accounts) == 1 and self.matches(accounts[0])
+            ),
+        )
+        if visible is None:
             return False
-        if not accounts:
-            return True
-        if len(accounts) != 1 or not self.matches(accounts[0]):
-            return False
-        _ = run_gcloud(
+        _ = self.policy.read(
             (
                 "gcloud",
                 "iam",
@@ -92,8 +97,12 @@ class ServiceAccountCreateIntent:
                 "--quiet",
             )
         )
-        after = self.accounts()
-        return after == ()
+        absent = self.policy.poll(
+            self.accounts,
+            lambda accounts: accounts == (),
+            confirmations=2,
+        )
+        return absent is not None
 
 
 class ServiceAccountState(Protocol):
@@ -108,6 +117,10 @@ class ServiceAccountState(Protocol):
         """Restore or delete the service account according to its initial state."""
         ...
 
+    def register_pending_member(self, member: str) -> ServiceAccountState:
+        """Register a binding mutation before its dispatch."""
+        ...
+
 
 @dataclass(frozen=True, slots=True)
 class ExistingServiceAccountSnapshot:
@@ -115,10 +128,15 @@ class ExistingServiceAccountSnapshot:
 
     service_account: str
     iam_policy: str
+    policy: ReconciliationPolicy = DEFAULT_RECONCILIATION_POLICY
+    pending_members: tuple[str, ...] = ()
 
-    def rollback(self) -> bool:
-        """Restore the preflight IAM policy snapshot."""
-        current = run_gcloud(
+    def register_pending_member(self, member: str) -> ExistingServiceAccountSnapshot:
+        """Return a snapshot that expects this member mutation to surface."""
+        return replace(self, pending_members=(*self.pending_members, member))
+
+    def _current_policy(self) -> IamPolicy | None:
+        result = self.policy.read(
             (
                 "gcloud",
                 "iam",
@@ -128,19 +146,38 @@ class ExistingServiceAccountSnapshot:
                 "--format=json",
             )
         )
-        if current.returncode != 0:
-            return False
+        if result.returncode != 0:
+            return None
         try:
-            current_policy = parse_iam_policy(current.stdout)
+            return parse_iam_policy(result.stdout)
+        except ProvisioningError:
+            return None
+
+    def rollback(self) -> bool:
+        """Restore the preflight IAM policy snapshot."""
+        try:
             original_policy = parse_iam_policy(self.iam_policy)
         except ProvisioningError:
             return False
-        if current_policy == original_policy:
+        if self.pending_members:
+            visible = self.policy.poll(
+                self._current_policy,
+                lambda current: (
+                    current is not None
+                    and all(
+                        any(member in binding.members for binding in current.bindings)
+                        for member in self.pending_members
+                    )
+                ),
+            )
+            if visible is None:
+                return False
+        elif self._current_policy() == original_policy:
             return True
         with TemporaryDirectory(prefix="twin-wif-rollback-") as temp_dir:
             policy_path = Path(temp_dir) / "policy.json"
             _ = policy_path.write_text(self.iam_policy, encoding="utf-8")
-            _ = run_gcloud(
+            _ = self.policy.read(
                 (
                     "gcloud",
                     "iam",
@@ -150,22 +187,12 @@ class ExistingServiceAccountSnapshot:
                     str(policy_path),
                 )
             )
-        after = run_gcloud(
-            (
-                "gcloud",
-                "iam",
-                "service-accounts",
-                "get-iam-policy",
-                self.service_account,
-                "--format=json",
-            )
+        restored = self.policy.poll(
+            self._current_policy,
+            lambda current: current == original_policy,
+            confirmations=2,
         )
-        if after.returncode != 0:
-            return False
-        try:
-            return parse_iam_policy(after.stdout) == original_policy
-        except ProvisioningError:
-            return False
+        return restored is not None
 
 
 @dataclass(frozen=True, slots=True)
@@ -183,12 +210,20 @@ class CreatedServiceAccountSnapshot:
         """Delete the service account created by the failed preflight."""
         return self.intent.rollback()
 
+    def register_pending_member(self, member: str) -> CreatedServiceAccountSnapshot:
+        """Account deletion already owns all bindings created beneath it."""
+        _ = member
+        return self
 
-def ensure_service_account(context: GcpContext) -> ServiceAccountState:
+
+def ensure_service_account(
+    context: GcpContext,
+    policy: ReconciliationPolicy = DEFAULT_RECONCILIATION_POLICY,
+) -> ServiceAccountState:
     """Describe first, snapshot existing IAM, or create without a nonexistent policy read."""
     service_account = f"{SERVICE_ACCOUNT_ID}@{context.project_id}.iam.gserviceaccount.com"
-    described = run_gcloud(("gcloud", "iam", "service-accounts", "describe", service_account))
-    intent = ServiceAccountCreateIntent(context, service_account)
+    described = policy.read(("gcloud", "iam", "service-accounts", "describe", service_account))
+    intent = ServiceAccountCreateIntent(context, service_account, policy)
     accounts = intent.accounts()
     if accounts is None:
         code = "service-account-list-failed"
@@ -211,8 +246,9 @@ def ensure_service_account(context: GcpContext) -> ServiceAccountState:
         return ExistingServiceAccountSnapshot(
             service_account=service_account,
             iam_policy=iam_policy,
+            policy=policy,
         )
-    result = run_gcloud(
+    result = policy.read(
         (
             "gcloud",
             "iam",
@@ -224,8 +260,13 @@ def ensure_service_account(context: GcpContext) -> ServiceAccountState:
             "--quiet",
         )
     )
-    created = intent.accounts()
-    reconciled = created is not None and len(created) == 1 and intent.matches(created[0])
+    created = policy.poll(
+        intent.accounts,
+        lambda accounts: (
+            accounts is not None and len(accounts) == 1 and intent.matches(accounts[0])
+        ),
+    )
+    reconciled = created is not None
     if result.returncode != 0 or not reconciled:
         if not intent.rollback():
             code = "service-account-rollback-failed"

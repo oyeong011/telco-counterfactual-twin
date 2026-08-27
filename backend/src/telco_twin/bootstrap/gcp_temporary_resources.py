@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
-from telco_twin.bootstrap import gcp_commands
 from telco_twin.bootstrap.gcp_commands import GcpContext, ProvisioningError
+from telco_twin.bootstrap.gcp_reconciliation import (
+    DEFAULT_RECONCILIATION_POLICY,
+    ReconciliationPolicy,
+)
 from telco_twin.bootstrap.gcp_resource_contract import (
     BudgetCleanupTarget,
     BudgetRollbackIntent,
@@ -17,7 +20,7 @@ from telco_twin.bootstrap.gcp_resource_contract import (
 
 
 def _topic_list(intent: TopicRollbackIntent) -> tuple[TopicSnapshot, ...]:
-    result = gcp_commands.run_gcloud(
+    result = intent.policy.read(
         (
             "gcloud",
             "pubsub",
@@ -34,9 +37,13 @@ def _topic_list(intent: TopicRollbackIntent) -> tuple[TopicSnapshot, ...]:
     return parse_topic_list(result.stdout)
 
 
-def prepare_topic(context: GcpContext, topic: str) -> TopicRollbackIntent:
+def prepare_topic(
+    context: GcpContext,
+    topic: str,
+    policy: ReconciliationPolicy = DEFAULT_RECONCILIATION_POLICY,
+) -> TopicRollbackIntent:
     """Prove exact topic absence before registering rollback ownership."""
-    intent = TopicRollbackIntent(context, topic)
+    intent = TopicRollbackIntent(context, topic, policy)
     if _topic_list(intent):
         code = "topic-name-conflict"
         raise ProvisioningError(code)
@@ -45,7 +52,7 @@ def prepare_topic(context: GcpContext, topic: str) -> TopicRollbackIntent:
 
 def create_topic(intent: TopicRollbackIntent) -> None:
     """Create and read back the exact topic after any command result."""
-    result = gcp_commands.run_gcloud(
+    result = intent.policy.read(
         (
             "gcloud",
             "pubsub",
@@ -55,12 +62,14 @@ def create_topic(intent: TopicRollbackIntent) -> None:
             f"--project={intent.context.project_id}",
         )
     )
-    snapshots = _topic_list(intent)
-    exact = tuple(snapshot for snapshot in snapshots if snapshot.name == intent.resource_name)
+    visible = intent.policy.poll(
+        lambda: _topic_list(intent),
+        lambda snapshots: len(snapshots) == 1 and snapshots[0].name == intent.resource_name,
+    )
     if result.returncode != 0:
         code = "topic-create-failed"
         raise ProvisioningError(code)
-    if len(snapshots) != 1 or len(exact) != 1:
+    if visible is None:
         code = "topic-reconcile-failed"
         raise ProvisioningError(code)
 
@@ -68,14 +77,15 @@ def create_topic(intent: TopicRollbackIntent) -> None:
 def cleanup_topic(intent: TopicRollbackIntent) -> bool:
     """Delete only the exact topic owned by the registered intent."""
     try:
-        snapshots = _topic_list(intent)
+        visible = intent.policy.poll(
+            lambda: _topic_list(intent),
+            lambda snapshots: len(snapshots) == 1 and snapshots[0].name == intent.resource_name,
+        )
     except ProvisioningError:
         return False
-    if not snapshots:
-        return True
-    if len(snapshots) != 1 or snapshots[0].name != intent.resource_name:
+    if visible is None:
         return False
-    _ = gcp_commands.run_gcloud(
+    _ = intent.policy.read(
         (
             "gcloud",
             "pubsub",
@@ -87,13 +97,18 @@ def cleanup_topic(intent: TopicRollbackIntent) -> bool:
         )
     )
     try:
-        return _topic_list(intent) == ()
+        absent = intent.policy.poll(
+            lambda: _topic_list(intent),
+            lambda snapshots: snapshots == (),
+            confirmations=2,
+        )
     except ProvisioningError:
         return False
+    return absent is not None
 
 
 def _budget_list(intent: BudgetRollbackIntent) -> tuple[BudgetSnapshot, ...]:
-    result = gcp_commands.run_gcloud(
+    result = intent.policy.read(
         (
             "gcloud",
             "billing",
@@ -109,9 +124,13 @@ def _budget_list(intent: BudgetRollbackIntent) -> tuple[BudgetSnapshot, ...]:
     return parse_budget_list(result.stdout)
 
 
-def prepare_budget(context: GcpContext, topic: str) -> BudgetRollbackIntent:
+def prepare_budget(
+    context: GcpContext,
+    topic: str,
+    policy: ReconciliationPolicy = DEFAULT_RECONCILIATION_POLICY,
+) -> BudgetRollbackIntent:
     """Prove unique display-name absence before registering rollback ownership."""
-    intent = BudgetRollbackIntent(context, topic)
+    intent = BudgetRollbackIntent(context, topic, policy)
     if any(snapshot.display_name == topic for snapshot in _budget_list(intent)):
         code = "budget-name-conflict"
         raise ProvisioningError(code)
@@ -120,7 +139,7 @@ def prepare_budget(context: GcpContext, topic: str) -> BudgetRollbackIntent:
 
 def create_budget(intent: BudgetRollbackIntent) -> BudgetCleanupTarget:
     """Create a budget and reconcile its server-assigned ID by exact contract."""
-    result = gcp_commands.run_gcloud(
+    result = intent.policy.read(
         (
             "gcloud",
             "billing",
@@ -134,12 +153,14 @@ def create_budget(intent: BudgetRollbackIntent) -> BudgetCleanupTarget:
             "--format=value(name)",
         )
     )
-    snapshots = _budget_list(intent)
-    targets = tuple(
-        target
-        for snapshot in snapshots
-        if snapshot.display_name == intent.display_name
-        if (target := intent.target(snapshot)) is not None
+    targets = intent.policy.poll(
+        lambda: tuple(
+            target
+            for snapshot in _budget_list(intent)
+            if snapshot.display_name == intent.display_name
+            if (target := intent.target(snapshot)) is not None
+        ),
+        lambda candidates: len(candidates) == 1,
     )
     if result.returncode != 0:
         code = "budget-create-failed"
@@ -147,7 +168,7 @@ def create_budget(intent: BudgetRollbackIntent) -> BudgetCleanupTarget:
     response_target = parse_budget_target(
         result.stdout.strip(), intent.context, intent.display_name
     )
-    if len(targets) != 1 or targets[0] != response_target:
+    if targets is None or targets[0] != response_target:
         code = "budget-reconcile-failed"
         raise ProvisioningError(code)
     return response_target
@@ -156,18 +177,20 @@ def create_budget(intent: BudgetRollbackIntent) -> BudgetCleanupTarget:
 def cleanup_budget(intent: BudgetRollbackIntent) -> bool:
     """Delete the sole exact account-bound budget; fail closed otherwise."""
     try:
-        snapshots = _budget_list(intent)
+        targets = intent.policy.poll(
+            lambda: tuple(
+                target
+                for snapshot in _budget_list(intent)
+                if snapshot.display_name == intent.display_name
+                if (target := intent.target(snapshot)) is not None
+            ),
+            lambda candidates: len(candidates) == 1,
+        )
     except ProvisioningError:
         return False
-    same_name = tuple(
-        snapshot for snapshot in snapshots if snapshot.display_name == intent.display_name
-    )
-    targets = tuple(
-        target for snapshot in same_name if (target := intent.target(snapshot)) is not None
-    )
-    if len(same_name) != 1 or len(targets) != 1:
+    if targets is None:
         return False
-    _ = gcp_commands.run_gcloud(
+    _ = intent.policy.read(
         (
             "gcloud",
             "billing",
@@ -178,7 +201,13 @@ def cleanup_budget(intent: BudgetRollbackIntent) -> bool:
         )
     )
     try:
-        after = _budget_list(intent)
+        absent = intent.policy.poll(
+            lambda: _budget_list(intent),
+            lambda snapshots: (
+                not any(snapshot.display_name == intent.display_name for snapshot in snapshots)
+            ),
+            confirmations=2,
+        )
     except ProvisioningError:
         return False
-    return not any(snapshot.display_name == intent.display_name for snapshot in after)
+    return absent is not None

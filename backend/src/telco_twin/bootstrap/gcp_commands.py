@@ -69,9 +69,13 @@ def run_command(
         )
 
 
-def run_gcloud(arguments: tuple[str, ...]) -> subprocess.CompletedProcess[str]:
+def run_gcloud(
+    arguments: tuple[str, ...],
+    *,
+    timeout_seconds: float | None = None,
+) -> subprocess.CompletedProcess[str]:
     """Run one gcloud command through the secret-safe command boundary."""
-    return run_command(arguments)
+    return run_command(arguments, timeout_seconds=timeout_seconds)
 
 
 def require_gcloud(arguments: tuple[str, ...], code: str) -> str:

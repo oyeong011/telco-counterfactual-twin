@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pydantic import TypeAdapter, ValidationError
 
-from telco_twin.bootstrap import gcp_commands
 from telco_twin.bootstrap.gcp_commands import GcpContext, ProvisioningError
 from telco_twin.bootstrap.gcp_iam_contract import parse_iam_policy
 from telco_twin.bootstrap.gcp_persistent_contract import (
@@ -16,13 +15,17 @@ from telco_twin.bootstrap.gcp_persistent_contract import (
     ProviderSnapshot,
     provider_command,
 )
+from telco_twin.bootstrap.gcp_reconciliation import (
+    DEFAULT_RECONCILIATION_POLICY,
+    ReconciliationPolicy,
+)
 
 POOL_LIST_ADAPTER = TypeAdapter(tuple[PoolSnapshot, ...])
 WIF_ROLE = "roles/iam.workloadIdentityUser"
 
 
 def _pool_list(intent: PoolRollbackIntent) -> tuple[PoolSnapshot, ...] | None:
-    result = gcp_commands.run_gcloud(
+    result = intent.policy.read(
         (
             "gcloud",
             "iam",
@@ -42,9 +45,12 @@ def _pool_list(intent: PoolRollbackIntent) -> tuple[PoolSnapshot, ...] | None:
         return None
 
 
-def prepare_pool(context: GcpContext) -> PoolRollbackIntent:
+def prepare_pool(
+    context: GcpContext,
+    policy: ReconciliationPolicy = DEFAULT_RECONCILIATION_POLICY,
+) -> PoolRollbackIntent:
     """Prove exact pool absence before registering rollback ownership."""
-    intent = PoolRollbackIntent(context)
+    intent = PoolRollbackIntent(context, policy)
     snapshots = _pool_list(intent)
     if snapshots is None:
         code = "wif-pool-list-failed"
@@ -57,20 +63,26 @@ def prepare_pool(context: GcpContext) -> PoolRollbackIntent:
 
 def verify_pool(intent: PoolRollbackIntent) -> bool:
     """Read back the exact created pool fingerprint."""
-    snapshots = _pool_list(intent)
-    return snapshots is not None and len(snapshots) == 1 and intent.matches(snapshots[0])
+    visible = intent.policy.poll(
+        lambda: _pool_list(intent),
+        lambda snapshots: (
+            snapshots is not None and len(snapshots) == 1 and intent.matches(snapshots[0])
+        ),
+    )
+    return visible is not None
 
 
 def cleanup_pool(intent: PoolRollbackIntent) -> bool:
     """Delete only the exact pool and verify its absence after any result."""
-    before = _pool_list(intent)
-    if before is None:
+    visible = intent.policy.poll(
+        lambda: _pool_list(intent),
+        lambda snapshots: (
+            snapshots is not None and len(snapshots) == 1 and intent.matches(snapshots[0])
+        ),
+    )
+    if visible is None:
         return False
-    if not before:
-        return True
-    if len(before) != 1 or not intent.matches(before[0]):
-        return False
-    _ = gcp_commands.run_gcloud(
+    _ = intent.policy.read(
         (
             "gcloud",
             "iam",
@@ -82,13 +94,20 @@ def cleanup_pool(intent: PoolRollbackIntent) -> bool:
             "--quiet",
         )
     )
-    after = _pool_list(intent)
-    return after == ()
+    absent = intent.policy.poll(
+        lambda: _pool_list(intent),
+        lambda snapshots: snapshots == (),
+        confirmations=2,
+    )
+    return absent is not None
 
 
-def read_provider(context: GcpContext) -> ProviderSnapshot | None:
+def read_provider(
+    context: GcpContext,
+    policy: ReconciliationPolicy,
+) -> ProviderSnapshot | None:
     """Read the exact persistent provider or return no proven snapshot."""
-    result = gcp_commands.run_gcloud(
+    result = policy.read(
         (
             "gcloud",
             "iam",
@@ -114,14 +133,14 @@ def restore_provider(
     context: GcpContext,
     target: ProviderConfig,
     original: ProviderSnapshot,
+    policy: ReconciliationPolicy,
 ) -> bool:
     """Restore only target/unchanged states and verify the exact old snapshot."""
-    current = read_provider(context)
-    if current is None:
-        return False
-    if current == original:
-        return True
-    if not current.matches(target):
+    visible = policy.poll(
+        lambda: read_provider(context, policy),
+        lambda current: current is not None and current.matches(target),
+    )
+    if visible is None:
         return False
     mapping = ",".join(f"{key}={value}" for key, value in sorted(original.mapping.items()))
     old_config = ProviderConfig(
@@ -131,14 +150,22 @@ def restore_provider(
         mapping=mapping,
         condition=original.condition,
     )
-    _ = gcp_commands.run_gcloud(provider_command("update-oidc", old_config))
-    restored = read_provider(context)
-    return restored == original
+    _ = policy.read(provider_command("update-oidc", old_config))
+    restored = policy.poll(
+        lambda: read_provider(context, policy),
+        lambda current: current == original,
+        confirmations=2,
+    )
+    return restored is not None
 
 
-def binding_present(service_account: str, member: str) -> bool | None:
+def binding_present(
+    service_account: str,
+    member: str,
+    policy: ReconciliationPolicy,
+) -> bool | None:
     """Read whether the exact member/role edge currently exists."""
-    result = gcp_commands.run_gcloud(
+    result = policy.read(
         (
             "gcloud",
             "iam",
@@ -151,23 +178,27 @@ def binding_present(service_account: str, member: str) -> bool | None:
     if result.returncode != 0:
         return None
     try:
-        policy = parse_iam_policy(result.stdout)
+        parsed_policy = parse_iam_policy(result.stdout)
     except ProvisioningError:
         return None
     return any(
-        binding.role == WIF_ROLE and member in binding.members for binding in policy.bindings
+        binding.role == WIF_ROLE and member in binding.members for binding in parsed_policy.bindings
     )
 
 
-def ensure_binding(service_account: str, member: str) -> None:
+def ensure_binding(
+    service_account: str,
+    member: str,
+    policy: ReconciliationPolicy,
+) -> None:
     """Add an absent binding and reconcile it after any command result."""
-    before = binding_present(service_account, member)
+    before = binding_present(service_account, member, policy)
     if before is None:
         code = "wif-binding-snapshot-failed"
         raise ProvisioningError(code)
     if before:
         return
-    result = gcp_commands.run_gcloud(
+    result = policy.read(
         (
             "gcloud",
             "iam",
@@ -179,10 +210,13 @@ def ensure_binding(service_account: str, member: str) -> None:
             "--quiet",
         )
     )
-    after = binding_present(service_account, member)
+    after = policy.poll(
+        lambda: binding_present(service_account, member, policy),
+        lambda present: present is True,
+    )
     if result.returncode != 0:
         code = "wif-binding-write-failed"
         raise ProvisioningError(code)
-    if after is not True:
+    if after is None:
         code = "wif-binding-reconcile-failed"
         raise ProvisioningError(code)

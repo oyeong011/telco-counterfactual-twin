@@ -7,12 +7,15 @@ import pytest
 
 from telco_twin.bootstrap import gcp_commands
 from telco_twin.bootstrap.gcp_commands import GcpContext, ProvisioningError
+from telco_twin.bootstrap.gcp_reconciliation import ReconciliationPolicy
 from telco_twin.bootstrap.gcp_resource_contract import (
     BudgetCleanupTarget,
     BudgetRollbackIntent,
     parse_budget,
 )
 from telco_twin.bootstrap.gcp_temporary_mutations import cleanup_budget
+
+from .gcp_eventual_fakes import FakeClock
 
 CONTEXT = GcpContext(
     project_id="example-project",
@@ -38,7 +41,12 @@ def test_cleanup_rejects_unowned_budget_and_continues(
     # Given
     commands: list[str] = []
 
-    def run(arguments: tuple[str, ...]) -> subprocess.CompletedProcess[str]:
+    def run(
+        arguments: tuple[str, ...],
+        *,
+        timeout_seconds: float | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = timeout_seconds
         rendered = " ".join(arguments)
         commands.append(rendered)
         snapshot = budget_snapshot(
@@ -51,7 +59,9 @@ def test_cleanup_rejects_unowned_budget_and_continues(
         return subprocess.CompletedProcess(arguments, 0, stdout, "")
 
     monkeypatch.setattr(gcp_commands, "run_gcloud", run)
-    intent = BudgetRollbackIntent(CONTEXT, "twin-preflight-test")
+    clock = FakeClock()
+    policy = ReconciliationPolicy(monotonic=clock.monotonic, sleeper=clock.sleep)
+    intent = BudgetRollbackIntent(CONTEXT, "twin-preflight-test", policy)
 
     # When
     cleaned = cleanup_budget(intent)
@@ -139,12 +149,19 @@ def test_budget_cleanup_fails_closed_without_one_exact_match(
         for index in range(match_count)
     )
 
-    def run(arguments: tuple[str, ...]) -> subprocess.CompletedProcess[str]:
+    def run(
+        arguments: tuple[str, ...],
+        *,
+        timeout_seconds: float | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = timeout_seconds
         commands.append(" ".join(arguments))
         return subprocess.CompletedProcess(arguments, 0, f"[{snapshots}]", "")
 
     monkeypatch.setattr(gcp_commands, "run_gcloud", run)
-    intent = BudgetRollbackIntent(CONTEXT, "twin-preflight-test")
+    clock = FakeClock()
+    policy = ReconciliationPolicy(monotonic=clock.monotonic, sleeper=clock.sleep)
+    intent = BudgetRollbackIntent(CONTEXT, "twin-preflight-test", policy)
 
     # When
     cleaned = cleanup_budget(intent)

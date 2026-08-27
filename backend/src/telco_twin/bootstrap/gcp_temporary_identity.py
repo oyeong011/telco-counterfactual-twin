@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from telco_twin.bootstrap import gcp_commands
 from telco_twin.bootstrap.gcp_commands import GcpContext, ProvisioningError
 from telco_twin.bootstrap.gcp_iam_contract import parse_iam_policy
 from telco_twin.bootstrap.gcp_persistent_contract import (
@@ -10,6 +9,10 @@ from telco_twin.bootstrap.gcp_persistent_contract import (
     MAPPING,
     ProviderConfig,
     provider_command,
+)
+from telco_twin.bootstrap.gcp_reconciliation import (
+    DEFAULT_RECONCILIATION_POLICY,
+    ReconciliationPolicy,
 )
 from telco_twin.bootstrap.gcp_resource_contract import (
     ProviderRollbackIntent,
@@ -24,7 +27,7 @@ WIF_ROLE = "roles/iam.workloadIdentityUser"
 def _provider_list(
     intent: ProviderRollbackIntent,
 ) -> tuple[TemporaryProviderSnapshot, ...]:
-    result = gcp_commands.run_gcloud(
+    result = intent.policy.read(
         (
             "gcloud",
             "iam",
@@ -48,9 +51,10 @@ def prepare_provider(
     context: GcpContext,
     provider_id: str,
     condition: str,
+    policy: ReconciliationPolicy = DEFAULT_RECONCILIATION_POLICY,
 ) -> ProviderRollbackIntent:
     """Prove exact provider absence before registering rollback ownership."""
-    intent = ProviderRollbackIntent(context, provider_id, condition)
+    intent = ProviderRollbackIntent(context, provider_id, condition, policy)
     if _provider_list(intent):
         code = "deny-provider-name-conflict"
         raise ProvisioningError(code)
@@ -66,13 +70,15 @@ def create_provider(intent: ProviderRollbackIntent) -> None:
         mapping=MAPPING,
         condition=intent.condition,
     )
-    result = gcp_commands.run_gcloud(provider_command("create-oidc", config))
-    snapshots = _provider_list(intent)
-    matches = tuple(snapshot for snapshot in snapshots if intent.matches(snapshot))
+    result = intent.policy.read(provider_command("create-oidc", config))
+    visible = intent.policy.poll(
+        lambda: _provider_list(intent),
+        lambda snapshots: len(snapshots) == 1 and intent.matches(snapshots[0]),
+    )
     if result.returncode != 0:
         code = "deny-provider-create-failed"
         raise ProvisioningError(code)
-    if len(snapshots) != 1 or len(matches) != 1:
+    if visible is None:
         code = "deny-provider-reconcile-failed"
         raise ProvisioningError(code)
 
@@ -80,14 +86,15 @@ def create_provider(intent: ProviderRollbackIntent) -> None:
 def cleanup_provider(intent: ProviderRollbackIntent) -> bool:
     """Delete only the exact provider owned by the registered intent."""
     try:
-        snapshots = _provider_list(intent)
+        visible = intent.policy.poll(
+            lambda: _provider_list(intent),
+            lambda snapshots: len(snapshots) == 1 and intent.matches(snapshots[0]),
+        )
     except ProvisioningError:
         return False
-    if not snapshots:
-        return True
-    if len(snapshots) != 1 or not intent.matches(snapshots[0]):
+    if visible is None:
         return False
-    _ = gcp_commands.run_gcloud(
+    _ = intent.policy.read(
         (
             "gcloud",
             "iam",
@@ -102,9 +109,14 @@ def cleanup_provider(intent: ProviderRollbackIntent) -> bool:
         )
     )
     try:
-        return _provider_list(intent) == ()
+        absent = intent.policy.poll(
+            lambda: _provider_list(intent),
+            lambda snapshots: snapshots == (),
+            confirmations=2,
+        )
     except ProvisioningError:
         return False
+    return absent is not None
 
 
 def _binding_present(policy: str, member: str) -> bool:
@@ -114,9 +126,13 @@ def _binding_present(policy: str, member: str) -> bool:
     )
 
 
-def prepare_binding(service_account: str, member: str) -> ExistingServiceAccountSnapshot:
+def prepare_binding(
+    service_account: str,
+    member: str,
+    policy: ReconciliationPolicy = DEFAULT_RECONCILIATION_POLICY,
+) -> ExistingServiceAccountSnapshot:
     """Snapshot exact IAM state and prove the temporary member is absent."""
-    policy = gcp_commands.require_gcloud(
+    policy_result = policy.read(
         (
             "gcloud",
             "iam",
@@ -124,13 +140,20 @@ def prepare_binding(service_account: str, member: str) -> ExistingServiceAccount
             "get-iam-policy",
             service_account,
             "--format=json",
-        ),
-        "deny-binding-snapshot-failed",
+        )
     )
-    if _binding_present(policy, member):
+    if policy_result.returncode != 0:
+        code = "deny-binding-snapshot-failed"
+        raise ProvisioningError(code)
+    if _binding_present(policy_result.stdout, member):
         code = "deny-binding-conflict"
         raise ProvisioningError(code)
-    return ExistingServiceAccountSnapshot(service_account, policy)
+    return ExistingServiceAccountSnapshot(
+        service_account,
+        policy_result.stdout,
+        policy,
+        (member,),
+    )
 
 
 def create_binding(
@@ -138,7 +161,7 @@ def create_binding(
     member: str,
 ) -> None:
     """Add and read back the exact member after any command result."""
-    result = gcp_commands.run_gcloud(
+    result = snapshot.policy.read(
         (
             "gcloud",
             "iam",
@@ -150,20 +173,24 @@ def create_binding(
             "--quiet",
         )
     )
-    current = gcp_commands.require_gcloud(
-        (
-            "gcloud",
-            "iam",
-            "service-accounts",
-            "get-iam-policy",
-            snapshot.service_account,
-            "--format=json",
+    current = snapshot.policy.poll(
+        lambda: snapshot.policy.read(
+            (
+                "gcloud",
+                "iam",
+                "service-accounts",
+                "get-iam-policy",
+                snapshot.service_account,
+                "--format=json",
+            )
         ),
-        "deny-binding-reconcile-failed",
+        lambda read_result: (
+            read_result.returncode == 0 and _binding_present(read_result.stdout, member)
+        ),
     )
     if result.returncode != 0:
         code = "deny-binding-create-failed"
         raise ProvisioningError(code)
-    if not _binding_present(current, member):
+    if current is None:
         code = "deny-binding-reconcile-failed"
         raise ProvisioningError(code)

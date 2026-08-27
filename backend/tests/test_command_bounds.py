@@ -6,10 +6,11 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from telco_twin.bootstrap import cloudflare_probe, gcp_commands, gcp_service_account
+from telco_twin.bootstrap import cloudflare_probe, gcp_commands
 from telco_twin.bootstrap.cloudflare_probe import CloudflareContext
 from telco_twin.bootstrap.gcp_commands import GcpContext
 from telco_twin.bootstrap.gcp_iam_probe import probe_gcp_iam
+from telco_twin.bootstrap.gcp_reconciliation import ReconciliationPolicy
 from telco_twin.bootstrap.gcp_resource_cleanup import (
     TemporaryCleanupPlan,
     cleanup_temporary,
@@ -24,6 +25,7 @@ from telco_twin.bootstrap.probe_errors import ProviderProbeError
 
 from .conftest import run_project_script
 from .gcp_ambiguous_fakes import AmbiguousTemporaryGcloud
+from .gcp_eventual_fakes import FakeClock
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -145,20 +147,24 @@ def test_cleanup_timeout_records_failure_and_continues(
     fake.binding_exists = True
     fake.topic_exists = True
     fake.budget_exists = True
+    clock = FakeClock()
+    policy = ReconciliationPolicy(monotonic=clock.monotonic, sleeper=clock.sleep)
     monkeypatch.setattr(gcp_commands, "run_gcloud", fake.run)
-    monkeypatch.setattr(gcp_service_account, "run_gcloud", fake.run)
     plan = TemporaryCleanupPlan(
-        budget=BudgetRollbackIntent(context, "twin-preflight-ambiguous"),
+        budget=BudgetRollbackIntent(context, "twin-preflight-ambiguous", policy),
         binding=ExistingServiceAccountSnapshot(
             "skt-portfolio-deployer@example-project.iam.gserviceaccount.com",
             '{"bindings":[]}',
+            policy,
+            (fake.deny_member,),
         ),
         provider=ProviderRollbackIntent(
             context,
             "github-oidc-deny-ambiguous",
             "assertion.repository=='oyeong011/nonmatching-preflight'",
+            policy,
         ),
-        topic=TopicRollbackIntent(context, "twin-preflight-ambiguous"),
+        topic=TopicRollbackIntent(context, "twin-preflight-ambiguous", policy),
     )
 
     # When

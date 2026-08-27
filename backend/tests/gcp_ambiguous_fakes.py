@@ -207,7 +207,13 @@ class AmbiguousTemporaryGcloud:
             return self._completed(arguments)
         return None
 
-    def run(self, arguments: tuple[str, ...]) -> subprocess.CompletedProcess[str]:
+    def run(
+        self,
+        arguments: tuple[str, ...],
+        *,
+        timeout_seconds: float | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = timeout_seconds
         joined = " ".join(arguments)
         self.commands.append(joined)
         handlers = (

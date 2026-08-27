@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import pytest
 
-from telco_twin.bootstrap import gcp_commands, gcp_resource_probe, gcp_service_account
+from telco_twin.bootstrap import gcp_commands, gcp_resource_probe
 from telco_twin.bootstrap.gcp_commands import GcpContext, ProvisioningError
+from telco_twin.bootstrap.gcp_reconciliation import ReconciliationPolicy
 from telco_twin.bootstrap.probe_errors import ProviderProbeError
 
 from .gcp_ambiguous_fakes import AmbiguousTemporaryGcloud
+from .gcp_eventual_fakes import FakeClock
 
 CONTEXT = GcpContext(
     project_id="example-project",
@@ -22,13 +24,14 @@ def test_deny_timeout_still_removes_binding_and_provider(
 ) -> None:
     # Given
     fake = AmbiguousTemporaryGcloud(CONTEXT, "no-mutation-timeout")
+    clock = FakeClock()
+    policy = ReconciliationPolicy(monotonic=clock.monotonic, sleeper=clock.sleep)
 
     def timeout_deny(_provider: str, _service_account: str, _project: str) -> None:
         code = "deny-workflow-timeout"
         raise ProviderProbeError(code)
 
     monkeypatch.setattr(gcp_commands, "run_gcloud", fake.run)
-    monkeypatch.setattr(gcp_service_account, "run_gcloud", fake.run)
     monkeypatch.setattr(gcp_resource_probe, "assert_deny_exchange", timeout_deny)
 
     # When
@@ -37,6 +40,7 @@ def test_deny_timeout_still_removes_binding_and_provider(
             CONTEXT,
             SERVICE_ACCOUNT,
             "timeout-test",
+            policy,
         )
 
     # Then

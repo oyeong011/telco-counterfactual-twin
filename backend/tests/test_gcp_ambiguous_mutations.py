@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import pytest
 
-from telco_twin.bootstrap import gcp_commands, gcp_resource_probe, gcp_service_account
+from telco_twin.bootstrap import gcp_commands, gcp_resource_probe
 from telco_twin.bootstrap.gcp_commands import GcpContext, ProvisioningError
+from telco_twin.bootstrap.gcp_reconciliation import ReconciliationPolicy
 from telco_twin.bootstrap.github_deny_probe import DenyExchangeReceipt
 from telco_twin.bootstrap.preflight_contract import receipt_for
 
 from .gcp_ambiguous_fakes import AmbiguousTemporaryGcloud
+from .gcp_eventual_fakes import FakeClock
 
 CONTEXT = GcpContext(
     project_id="example-project",
@@ -28,6 +30,8 @@ def test_server_committed_temporary_mutation_is_cleaned_after_client_timeout(
 ) -> None:
     # Given
     fake = AmbiguousTemporaryGcloud(CONTEXT, failure_point)
+    clock = FakeClock()
+    policy = ReconciliationPolicy(monotonic=clock.monotonic, sleeper=clock.sleep)
 
     def deny_exchange(
         _provider: str,
@@ -43,7 +47,6 @@ def test_server_committed_temporary_mutation_is_cleaned_after_client_timeout(
 
     monkeypatch.setattr(gcp_commands, "run_gcloud", fake.run)
     monkeypatch.setattr(gcp_resource_probe, "assert_deny_exchange", deny_exchange)
-    monkeypatch.setattr(gcp_service_account, "run_gcloud", fake.run)
 
     # When
     with pytest.raises(ProvisioningError):
@@ -51,6 +54,7 @@ def test_server_committed_temporary_mutation_is_cleaned_after_client_timeout(
             CONTEXT,
             SERVICE_ACCOUNT,
             "ambiguous",
+            policy,
         )
 
     # Then
@@ -68,6 +72,8 @@ def test_preexisting_temporary_authority_is_never_deleted(
 ) -> None:
     # Given
     fake = AmbiguousTemporaryGcloud(CONTEXT, "no-timeout")
+    clock = FakeClock()
+    policy = ReconciliationPolicy(monotonic=clock.monotonic, sleeper=clock.sleep)
     fake.provider_exists = preexisting == "provider"
     fake.provider_id = "github-oidc-deny-ambiguous"
     fake.binding_exists = preexisting == "binding"
@@ -88,7 +94,6 @@ def test_preexisting_temporary_authority_is_never_deleted(
 
     monkeypatch.setattr(gcp_commands, "run_gcloud", fake.run)
     monkeypatch.setattr(gcp_resource_probe, "assert_deny_exchange", deny_exchange)
-    monkeypatch.setattr(gcp_service_account, "run_gcloud", fake.run)
 
     # When
     with pytest.raises(ProvisioningError):
@@ -96,6 +101,7 @@ def test_preexisting_temporary_authority_is_never_deleted(
             CONTEXT,
             SERVICE_ACCOUNT,
             "ambiguous",
+            policy,
         )
 
     # Then

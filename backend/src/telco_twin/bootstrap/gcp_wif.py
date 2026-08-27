@@ -97,7 +97,7 @@ def apply_wif(context: GcpContext) -> WifApplyReceipt:
         probe = run_temporary_probes(context, state.service_account, secrets.token_hex(6))
     except ProvisioningError:
         if not restore_persistent(context, state):
-            code = "persistent-rollback-failed"
+            code = "cleanup-unresolved"
             raise ProvisioningError(code) from None
         raise
     return WifApplyReceipt(

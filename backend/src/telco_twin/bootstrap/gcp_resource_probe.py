@@ -10,6 +10,10 @@ from telco_twin.bootstrap.gcp_commands import (
     ProvisioningError,
     require_gcloud,
 )
+from telco_twin.bootstrap.gcp_reconciliation import (
+    DEFAULT_RECONCILIATION_POLICY,
+    ReconciliationPolicy,
+)
 from telco_twin.bootstrap.gcp_resource_cleanup import (
     TemporaryCleanupPlan,
     cleanup_temporary,
@@ -57,6 +61,7 @@ def run_temporary_probes(
     context: GcpContext,
     service_account: str,
     suffix: str,
+    policy: ReconciliationPolicy = DEFAULT_RECONCILIATION_POLICY,
 ) -> TemporaryProbeResult:
     """Create authority probes and always remove their resources and IAM binding."""
     deny_provider = f"github-oidc-deny-{suffix}"
@@ -80,9 +85,10 @@ def run_temporary_probes(
             context,
             deny_provider,
             "assertion.repository=='oyeong011/nonmatching-preflight'",
+            policy,
         )
         create_provider(provider_intent)
-        binding_snapshot = prepare_binding(service_account, deny_member)
+        binding_snapshot = prepare_binding(service_account, deny_member, policy)
         create_binding(binding_snapshot, deny_member)
         try:
             deny_receipt = assert_deny_exchange(
@@ -93,9 +99,9 @@ def run_temporary_probes(
         except ProviderProbeError as error:
             raise ProvisioningError(error.code) from None
         deny_exchange_evidence = deny_receipt.evidence
-        topic_intent = prepare_topic(context, topic)
+        topic_intent = prepare_topic(context, topic, policy)
         create_topic(topic_intent)
-        budget_intent = prepare_budget(context, topic)
+        budget_intent = prepare_budget(context, topic, policy)
         budget_target = create_budget(budget_intent)
         budget_snapshot = require_gcloud(
             (
@@ -110,7 +116,7 @@ def run_temporary_probes(
         )
         _ = parse_budget(budget_snapshot, budget_target)
         budget_schema_version = "1.0"
-        policy = require_gcloud(
+        publisher_policy_raw = require_gcloud(
             (
                 "gcloud",
                 "pubsub",
@@ -122,7 +128,7 @@ def run_temporary_probes(
             ),
             "publisher-policy-read-failed",
         )
-        parsed_policy = parse_publisher_policy(policy)
+        parsed_policy = parse_publisher_policy(publisher_policy_raw)
         publisher_policy_evidence = receipt_for(
             "billing-publisher-policy",
             f"projects/{context.project_id}/topics/{topic}",
@@ -140,7 +146,7 @@ def run_temporary_probes(
             )
         )
     if cleanup_failures:
-        code = "cleanup-incomplete"
+        code = "cleanup-unresolved"
         raise ProvisioningError(code)
     if failure is not None:
         raise failure

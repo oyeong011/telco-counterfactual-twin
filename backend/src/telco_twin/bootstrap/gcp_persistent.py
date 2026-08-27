@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from pydantic import ValidationError
 
 from telco_twin.bootstrap.gcp_commands import (
     GcpContext,
     ProvisioningError,
-    run_gcloud,
 )
 from telco_twin.bootstrap.gcp_persistent_contract import (
     ISSUER,
@@ -26,6 +27,10 @@ from telco_twin.bootstrap.gcp_persistent_reconcile import (
     prepare_pool,
     read_provider,
     verify_pool,
+)
+from telco_twin.bootstrap.gcp_reconciliation import (
+    DEFAULT_RECONCILIATION_POLICY,
+    ReconciliationPolicy,
 )
 from telco_twin.bootstrap.gcp_rollback import restore_persistent
 from telco_twin.bootstrap.gcp_service_account import ensure_service_account
@@ -48,7 +53,7 @@ def _principal(context: GcpContext, repository: str) -> str:
 
 
 def _write_pool(context: GcpContext, intent: PoolRollbackIntent) -> None:
-    result = run_gcloud(
+    result = intent.policy.read(
         (
             "gcloud",
             "iam",
@@ -73,8 +78,9 @@ def _write_pool(context: GcpContext, intent: PoolRollbackIntent) -> None:
 def _provider_prior(
     context: GcpContext,
     config: ProviderConfig,
+    policy: ReconciliationPolicy,
 ) -> tuple[ProviderConfig | None, ProviderSnapshot | None]:
-    before = run_gcloud(
+    before = policy.read(
         (
             "gcloud",
             "iam",
@@ -89,7 +95,7 @@ def _provider_prior(
         )
     )
     if before.returncode != 0:
-        _ = prepare_provider(context, PROVIDER_ID, config.condition)
+        _ = prepare_provider(context, PROVIDER_ID, config.condition, policy)
         return config, None
     try:
         return None, ProviderSnapshot.model_validate_json(before.stdout)
@@ -98,21 +104,32 @@ def _provider_prior(
         raise ProvisioningError(code) from None
 
 
-def _write_provider(config: ProviderConfig, *, create: bool) -> None:
+def _write_provider(
+    config: ProviderConfig,
+    policy: ReconciliationPolicy,
+    *,
+    create: bool,
+) -> None:
     action = "create-oidc" if create else "update-oidc"
-    result = run_gcloud(provider_command(action, config))
-    current = read_provider(config.context)
+    result = policy.read(provider_command(action, config))
+    current = policy.poll(
+        lambda: read_provider(config.context, policy),
+        lambda snapshot: snapshot is not None and snapshot.matches(config),
+    )
     if result.returncode != 0:
         code = "wif-provider-write-failed"
         raise ProvisioningError(code)
-    if current is None or not current.matches(config):
+    if current is None:
         code = "wif-provider-reconcile-failed"
         raise ProvisioningError(code)
 
 
-def ensure_persistent(context: GcpContext) -> PersistentState:
+def ensure_persistent(
+    context: GcpContext,
+    policy: ReconciliationPolicy = DEFAULT_RECONCILIATION_POLICY,
+) -> PersistentState:
     """Create or update exact WIF state after taking rollback snapshots."""
-    service_account_state = ensure_service_account(context)
+    service_account_state = ensure_service_account(context, policy)
     service_account = service_account_state.service_account
     state = PersistentState(
         service_account_state=service_account_state,
@@ -120,8 +137,9 @@ def ensure_persistent(context: GcpContext) -> PersistentState:
         provider_create_intent=None,
         provider_target=None,
         provider_snapshot=None,
+        policy=policy,
     )
-    pool_before = run_gcloud(
+    pool_before = policy.read(
         (
             "gcloud",
             "iam",
@@ -133,13 +151,14 @@ def ensure_persistent(context: GcpContext) -> PersistentState:
         )
     )
     try:
-        pool_intent = prepare_pool(context) if pool_before.returncode != 0 else None
+        pool_intent = prepare_pool(context, policy) if pool_before.returncode != 0 else None
         state = PersistentState(
             service_account_state=service_account_state,
             pool_intent=pool_intent,
             provider_create_intent=None,
             provider_target=None,
             provider_snapshot=None,
+            policy=policy,
         )
         if pool_intent is not None:
             _write_pool(context, pool_intent)
@@ -150,20 +169,26 @@ def ensure_persistent(context: GcpContext) -> PersistentState:
             mapping=MAPPING,
             condition=_condition(context.owner_id),
         )
-        create_intent, snapshot = _provider_prior(context, config)
+        create_intent, snapshot = _provider_prior(context, config, policy)
         state = PersistentState(
             service_account_state=service_account_state,
             pool_intent=state.pool_intent,
             provider_create_intent=create_intent,
             provider_target=config,
             provider_snapshot=snapshot,
+            policy=policy,
         )
-        _write_provider(config, create=create_intent is not None)
+        _write_provider(config, policy, create=create_intent is not None)
         for repository in REPOSITORIES:
-            ensure_binding(service_account, _principal(context, repository))
+            member = _principal(context, repository)
+            state = replace(
+                state,
+                service_account_state=state.service_account_state.register_pending_member(member),
+            )
+            ensure_binding(service_account, member, policy)
     except ProvisioningError:
         if not restore_persistent(context, state):
-            code = "persistent-rollback-failed"
+            code = "cleanup-unresolved"
             raise ProvisioningError(code) from None
         raise
     return state

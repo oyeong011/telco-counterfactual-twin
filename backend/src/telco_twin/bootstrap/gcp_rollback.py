@@ -22,6 +22,7 @@ def restore_persistent(context: GcpContext, state: PersistentState) -> bool:
                 context=context,
                 provider_id=state.provider_create_intent.provider_id,
                 condition=state.provider_create_intent.condition,
+                policy=state.policy,
             )
         )
     elif state.provider_snapshot is not None and state.provider_target is not None:
@@ -29,6 +30,7 @@ def restore_persistent(context: GcpContext, state: PersistentState) -> bool:
             context,
             state.provider_target,
             state.provider_snapshot,
+            state.policy,
         )
     restored &= state.service_account_state.rollback()
     if state.pool_intent is not None:
