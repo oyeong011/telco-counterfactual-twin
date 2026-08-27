@@ -1,0 +1,52 @@
+"""Secret-safe gcloud command boundary for reversible preflight probes."""
+
+from __future__ import annotations
+
+import subprocess
+from dataclasses import dataclass
+from typing import override
+
+
+@dataclass(frozen=True, slots=True)
+class GcpContext:
+    """Non-secret identifiers needed by the GCP preflight."""
+
+    project_id: str
+    project_number: str
+    billing_account_id: str
+    owner_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class ProvisioningError(Exception):
+    """Stable failure code that never embeds provider stderr."""
+
+    code: str
+
+    @override
+    def __str__(self) -> str:
+        """Return the stable redacted failure code."""
+        return self.code
+
+
+def run_command(arguments: tuple[str, ...]) -> subprocess.CompletedProcess[str]:
+    """Run an argv-only provider command while keeping output captured."""
+    return subprocess.run(arguments, check=False, capture_output=True, text=True)
+
+
+def run_gcloud(arguments: tuple[str, ...]) -> subprocess.CompletedProcess[str]:
+    """Run one gcloud command through the secret-safe command boundary."""
+    return run_command(arguments)
+
+
+def require_gcloud(arguments: tuple[str, ...], code: str) -> str:
+    """Return captured stdout or raise a stable redacted failure."""
+    result = run_gcloud(arguments)
+    if result.returncode != 0:
+        raise ProvisioningError(code)
+    return result.stdout.strip()
+
+
+def attempt_gcloud(arguments: tuple[str, ...]) -> bool:
+    """Return only whether a cleanup command succeeded."""
+    return run_gcloud(arguments).returncode == 0
