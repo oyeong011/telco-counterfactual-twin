@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-import os
 from typing import TYPE_CHECKING
 
 from .conftest import run_project_script
 from .provision_wif_fakes import (
     first_run_environment,
-    write_deny_workflow_tools,
     write_first_run_tools,
 )
 
@@ -61,55 +59,11 @@ def test_apply_returns_blocked_when_gcloud_authority_is_absent(tmp_path: Path) -
 
 def test_apply_updates_existing_provider_and_cleans_temporary_resources(tmp_path: Path) -> None:
     # Given
-    tool_dir = tmp_path / "bin"
-    tool_dir.mkdir()
-    command_log = tmp_path / "gcloud.log"
-    gcloud = tool_dir / "gcloud"
-    _ = gcloud.write_text(
-        """#!/bin/sh
-printf '%s\\n' "$*" >> "$FAKE_GCLOUD_LOG"
-budget_state="$FAKE_GCLOUD_LOG-budget"
-case "$*" in
-  *"auth list"*) printf '%s\\n' 'test-account@example.invalid' ;;
-  *"projects describe"*) printf '%s\\n' '987654321' ;;
-  *"providers describe"*)
-    printf '%s\\n' '{"oidc":{"issuerUri":"x"},"attributeMapping":{},"attributeCondition":"false"}'
-    ;;
-  *"service-accounts get-iam-policy"*) printf '%s\\n' '{"bindings":[]}' ;;
-  *"billing budgets create"*)
-    for arg in "$@"; do
-      case "$arg" in
-        --display-name=*) printf '%s' "$arg" | cut -d= -f2- > "$budget_state" ;;
-      esac
-    done
-    printf '%s\\n' 'billingAccounts/ABC/budgets/123'
-    ;;
-  *"billing budgets describe"*)
-    display="$(cat "$budget_state")"
-    prefix='{"name":"billingAccounts/ABC/budgets/123","displayName":"'
-    middle='","budgetFilter":{"projects":["projects/987654321"]},"notificationsRule":{"schemaVersion":"'
-    suffix='","pubsubTopic":"projects/example-project/topics/'
-    printf '%s%s%s%s%s%s%s\\n' "$prefix" "$display" "$middle" '1.0' \
-      "$suffix" "$display" '"}}'
-    ;;
-  *"pubsub topics get-iam-policy"*)
-    prefix='{"bindings":[{"role":"roles/pubsub.publisher","members":["serviceAccount:'
-    printf '%s%s%s\\n' "$prefix" 'billing-budget-alert@system.gserviceaccount.com' '"]}]}'
-    ;;
-esac
-exit 0
-""",
-        encoding="utf-8",
+    tool_dir, command_log, state = write_first_run_tools(
+        tmp_path,
+        service_account_exists=True,
     )
-    gcloud.chmod(0o755)
-    write_deny_workflow_tools(tool_dir)
-    environment = {
-        "PATH": f"{tool_dir}:{os.environ['PATH']}",
-        "FAKE_GCLOUD_LOG": str(command_log),
-        "GCP_PROJECT_ID": "example-project",
-        "GCP_REGION": "asia-northeast3",
-        "GCP_BILLING_ACCOUNT_ID": "ABC",
-    }
+    environment = first_run_environment(tool_dir, command_log, state)
 
     # When
     result = run_project_script("provision_wif.py", "--apply", environment=environment)
@@ -150,7 +104,10 @@ def test_first_run_creates_service_account_before_policy_snapshot(tmp_path: Path
     commands = command_log.read_text(encoding="utf-8")
     assert "service-accounts describe" in commands
     assert "service-accounts create skt-portfolio-deployer" in commands
-    assert "service-accounts get-iam-policy" not in commands
+    describe_index = commands.index("service-accounts describe")
+    create_index = commands.index("service-accounts create")
+    policy_index = commands.index("service-accounts get-iam-policy")
+    assert describe_index < create_index < policy_index
 
 
 def test_first_run_rolls_back_created_service_account_after_probe_failure(tmp_path: Path) -> None:
@@ -182,7 +139,7 @@ def test_unexpected_deny_exchange_success_is_fatal_and_cleanup_runs(tmp_path: Pa
     assert result.returncode == 3
     assert "deny-exchange-unexpected-success" in result.stderr
     commands = command_log.read_text(encoding="utf-8")
-    assert "remove-iam-policy-binding" in commands
+    assert "service-accounts set-iam-policy" in commands
     assert "providers delete github-oidc-deny-" in commands
 
 

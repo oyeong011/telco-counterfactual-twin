@@ -34,14 +34,54 @@ class ProviderSnapshot(BaseModel):
     mapping: dict[str, str] = Field(alias="attributeMapping")
     condition: str = Field(alias="attributeCondition")
 
+    def matches(self, config: ProviderConfig) -> bool:
+        """Compare the provider snapshot with one exact write configuration."""
+        expected_mapping: dict[str, str] = {}
+        for item in config.mapping.split(","):
+            key, value = item.split("=", 1)
+            expected_mapping[key] = value
+        return (
+            self.issuer == config.issuer
+            and self.mapping == expected_mapping
+            and self.condition == config.condition
+        )
+
+
+class PoolSnapshot(BaseModel):
+    """Persistent pool identity used to guard created-resource deletion."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore", frozen=True)
+    name: str
+    display_name: str = Field(alias="displayName")
+
+
+@dataclass(frozen=True, slots=True)
+class PoolRollbackIntent:
+    """Exact pool deletion ownership registered before create dispatch."""
+
+    context: GcpContext
+
+    @property
+    def resource_name(self) -> str:
+        """Return the exact pool resource identity."""
+        return (
+            f"projects/{self.context.project_number}/locations/global/"
+            f"workloadIdentityPools/{POOL_ID}"
+        )
+
+    def matches(self, snapshot: PoolSnapshot) -> bool:
+        """Require the exact resource and preflight display fingerprint."""
+        return snapshot.name == self.resource_name and snapshot.display_name == "GitHub Actions"
+
 
 @dataclass(frozen=True, slots=True)
 class PersistentState:
     """WIF and service-account rollback state captured before mutation."""
 
     service_account_state: ServiceAccountState
-    pool_created: bool
-    provider_created: bool
+    pool_intent: PoolRollbackIntent | None
+    provider_create_intent: ProviderConfig | None
+    provider_target: ProviderConfig | None
     provider_snapshot: ProviderSnapshot | None
 
     @property

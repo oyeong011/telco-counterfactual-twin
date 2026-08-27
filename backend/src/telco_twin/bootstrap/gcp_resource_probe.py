@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from telco_twin.bootstrap.gcp_commands import (
     GcpContext,
@@ -16,13 +16,28 @@ from telco_twin.bootstrap.gcp_resource_cleanup import (
 )
 from telco_twin.bootstrap.gcp_resource_contract import (
     BudgetCleanupTarget,
+    BudgetRollbackIntent,
+    ProviderRollbackIntent,
+    TopicRollbackIntent,
     parse_budget,
-    parse_budget_target,
     parse_publisher_policy,
+)
+from telco_twin.bootstrap.gcp_temporary_mutations import (
+    create_binding,
+    create_budget,
+    create_provider,
+    create_topic,
+    prepare_binding,
+    prepare_budget,
+    prepare_provider,
+    prepare_topic,
 )
 from telco_twin.bootstrap.github_deny_probe import assert_deny_exchange
 from telco_twin.bootstrap.preflight_contract import receipt_for
 from telco_twin.bootstrap.probe_errors import ProviderProbeError
+
+if TYPE_CHECKING:
+    from telco_twin.bootstrap.gcp_service_account import ExistingServiceAccountSnapshot
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,33 +51,6 @@ class TemporaryProbeResult:
     budget_resource: str
     publisher_policy_evidence: str
     deny_exchange_evidence: str
-
-
-def _provider_command(
-    context: GcpContext,
-    provider_id: str,
-    condition: str,
-) -> tuple[str, ...]:
-    mapping = (
-        "google.subject=assertion.sub,"
-        "attribute.repository=assertion.repository,"
-        "attribute.repository_owner_id=assertion.repository_owner_id"
-    )
-    return (
-        "gcloud",
-        "iam",
-        "workload-identity-pools",
-        "providers",
-        "create-oidc",
-        provider_id,
-        f"--project={context.project_id}",
-        "--location=global",
-        "--workload-identity-pool=github-actions",
-        "--issuer-uri=https://token.actions.githubusercontent.com",
-        f"--attribute-mapping={mapping}",
-        f"--attribute-condition={condition}",
-        "--quiet",
-    )
 
 
 def run_temporary_probes(
@@ -79,78 +67,36 @@ def run_temporary_probes(
         "attribute.repository/oyeong011/nonmatching-preflight"
     )
     budget_target: BudgetCleanupTarget | None = None
-    provider_created = False
-    binding_created = False
-    topic_created = False
+    budget_intent: BudgetRollbackIntent | None = None
+    provider_intent: ProviderRollbackIntent | None = None
+    binding_snapshot: ExistingServiceAccountSnapshot | None = None
+    topic_intent: TopicRollbackIntent | None = None
     failure: ProvisioningError | None = None
     deny_exchange_evidence = ""
     publisher_policy_evidence = ""
     budget_schema_version: Literal["1.0"] | None = None
     try:
-        _ = require_gcloud(
-            _provider_command(
-                context,
-                deny_provider,
-                "assertion.repository=='oyeong011/nonmatching-preflight'",
-            ),
-            "deny-provider-create-failed",
+        provider_intent = prepare_provider(
+            context,
+            deny_provider,
+            "assertion.repository=='oyeong011/nonmatching-preflight'",
         )
-        provider_created = True
-        _ = require_gcloud(
-            (
-                "gcloud",
-                "iam",
-                "service-accounts",
-                "add-iam-policy-binding",
-                service_account,
-                "--role=roles/iam.workloadIdentityUser",
-                f"--member={deny_member}",
-                "--quiet",
-            ),
-            "deny-binding-create-failed",
-        )
-        binding_created = True
-        provider_resource = (
-            f"projects/{context.project_number}/locations/global/workloadIdentityPools/"
-            f"github-actions/providers/{deny_provider}"
-        )
+        create_provider(provider_intent)
+        binding_snapshot = prepare_binding(service_account, deny_member)
+        create_binding(binding_snapshot, deny_member)
         try:
             deny_receipt = assert_deny_exchange(
-                provider_resource,
+                provider_intent.resource_name,
                 service_account,
                 context.project_id,
             )
         except ProviderProbeError as error:
             raise ProvisioningError(error.code) from None
         deny_exchange_evidence = deny_receipt.evidence
-        _ = require_gcloud(
-            (
-                "gcloud",
-                "pubsub",
-                "topics",
-                "create",
-                topic,
-                f"--project={context.project_id}",
-            ),
-            "topic-create-failed",
-        )
-        topic_created = True
-        budget_name = require_gcloud(
-            (
-                "gcloud",
-                "billing",
-                "budgets",
-                "create",
-                f"--billing-account={context.billing_account_id}",
-                f"--display-name={topic}",
-                "--budget-amount=1USD",
-                f"--notifications-rule-pubsub-topic=projects/{context.project_id}/topics/{topic}",
-                f"--filter-projects=projects/{context.project_number}",
-                "--format=value(name)",
-            ),
-            "budget-create-failed",
-        )
-        budget_target = parse_budget_target(budget_name, context, topic)
+        topic_intent = prepare_topic(context, topic)
+        create_topic(topic_intent)
+        budget_intent = prepare_budget(context, topic)
+        budget_target = create_budget(budget_intent)
         budget_snapshot = require_gcloud(
             (
                 "gcloud",
@@ -162,8 +108,8 @@ def run_temporary_probes(
             ),
             "budget-describe-failed",
         )
-        budget = parse_budget(budget_snapshot, budget_target)
-        budget_schema_version = budget.notifications_rule.schema_version
+        _ = parse_budget(budget_snapshot, budget_target)
+        budget_schema_version = "1.0"
         policy = require_gcloud(
             (
                 "gcloud",
@@ -187,15 +133,10 @@ def run_temporary_probes(
     finally:
         cleanup_failures = cleanup_temporary(
             TemporaryCleanupPlan(
-                context=context,
-                service_account=service_account,
-                budget=budget_target,
-                binding_created=binding_created,
-                deny_member=deny_member,
-                provider_created=provider_created,
-                deny_provider=deny_provider,
-                topic_created=topic_created,
-                topic=topic,
+                budget=budget_intent,
+                binding=binding_snapshot,
+                provider=provider_intent,
+                topic=topic_intent,
             )
         )
     if cleanup_failures:

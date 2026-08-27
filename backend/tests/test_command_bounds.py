@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import os
-import subprocess
 import time
 from typing import TYPE_CHECKING
 
 import pytest
 
-from telco_twin.bootstrap import cloudflare_probe, gcp_commands
+from telco_twin.bootstrap import cloudflare_probe, gcp_commands, gcp_service_account
 from telco_twin.bootstrap.cloudflare_probe import CloudflareContext
 from telco_twin.bootstrap.gcp_commands import GcpContext
 from telco_twin.bootstrap.gcp_iam_probe import probe_gcp_iam
@@ -15,10 +14,16 @@ from telco_twin.bootstrap.gcp_resource_cleanup import (
     TemporaryCleanupPlan,
     cleanup_temporary,
 )
-from telco_twin.bootstrap.gcp_resource_contract import BudgetCleanupTarget
+from telco_twin.bootstrap.gcp_resource_contract import (
+    BudgetRollbackIntent,
+    ProviderRollbackIntent,
+    TopicRollbackIntent,
+)
+from telco_twin.bootstrap.gcp_service_account import ExistingServiceAccountSnapshot
 from telco_twin.bootstrap.probe_errors import ProviderProbeError
 
 from .conftest import run_project_script
+from .gcp_ambiguous_fakes import AmbiguousTemporaryGcloud
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -133,33 +138,27 @@ def test_cleanup_timeout_records_failure_and_continues(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Given
-    commands: list[str] = []
-
-    def fake_runner(arguments: tuple[str, ...]) -> subprocess.CompletedProcess[str]:
-        rendered = " ".join(arguments)
-        commands.append(rendered)
-        returncode = 124 if "billing budgets delete" in rendered else 0
-        return subprocess.CompletedProcess(arguments, returncode, "", "")
-
-    monkeypatch.setattr(gcp_commands, "run_gcloud", fake_runner)
     context = GcpContext("example-project", "987654321", "ABC", "12345678")
-    budget = BudgetCleanupTarget(
-        resource_name="billingAccounts/ABC/budgets/123",
-        billing_account_id="ABC",
-        display_name="twin-preflight-test",
-        topic_resource="projects/example-project/topics/twin-preflight-test",
-        project_resource="projects/987654321",
-    )
+    fake = AmbiguousTemporaryGcloud(context, "budget-delete")
+    fake.provider_exists = True
+    fake.provider_id = "github-oidc-deny-ambiguous"
+    fake.binding_exists = True
+    fake.topic_exists = True
+    fake.budget_exists = True
+    monkeypatch.setattr(gcp_commands, "run_gcloud", fake.run)
+    monkeypatch.setattr(gcp_service_account, "run_gcloud", fake.run)
     plan = TemporaryCleanupPlan(
-        context=context,
-        service_account="skt-portfolio-deployer@example-project.iam.gserviceaccount.com",
-        budget=budget,
-        binding_created=True,
-        deny_member="principalSet://example.invalid/member",
-        provider_created=True,
-        deny_provider="github-oidc-deny-test",
-        topic_created=True,
-        topic="twin-preflight-test",
+        budget=BudgetRollbackIntent(context, "twin-preflight-ambiguous"),
+        binding=ExistingServiceAccountSnapshot(
+            "skt-portfolio-deployer@example-project.iam.gserviceaccount.com",
+            '{"bindings":[]}',
+        ),
+        provider=ProviderRollbackIntent(
+            context,
+            "github-oidc-deny-ambiguous",
+            "assertion.repository=='oyeong011/nonmatching-preflight'",
+        ),
+        topic=TopicRollbackIntent(context, "twin-preflight-ambiguous"),
     )
 
     # When
@@ -167,6 +166,8 @@ def test_cleanup_timeout_records_failure_and_continues(
 
     # Then
     assert failures == ("budget",)
-    assert any("remove-iam-policy-binding" in command for command in commands)
-    assert any("providers delete" in command for command in commands)
-    assert any("pubsub topics delete" in command for command in commands)
+    assert fake.binding_exists is False
+    assert fake.provider_exists is False
+    assert fake.topic_exists is False
+    assert any("providers delete" in command for command in fake.commands)
+    assert any("pubsub topics delete" in command for command in fake.commands)

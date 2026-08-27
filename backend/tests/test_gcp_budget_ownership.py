@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 import json
+import subprocess
 
 import pytest
 
-from telco_twin.bootstrap import gcp_resource_cleanup
+from telco_twin.bootstrap import gcp_commands
 from telco_twin.bootstrap.gcp_commands import GcpContext, ProvisioningError
-from telco_twin.bootstrap.gcp_resource_cleanup import (
-    TemporaryCleanupPlan,
-    cleanup_temporary,
+from telco_twin.bootstrap.gcp_resource_contract import (
+    BudgetCleanupTarget,
+    BudgetRollbackIntent,
+    parse_budget,
 )
-from telco_twin.bootstrap.gcp_resource_contract import BudgetCleanupTarget, parse_budget
+from telco_twin.bootstrap.gcp_temporary_mutations import cleanup_budget
 
 CONTEXT = GcpContext(
     project_id="example-project",
@@ -18,7 +20,6 @@ CONTEXT = GcpContext(
     billing_account_id="ABC",
     owner_id="12345678",
 )
-SERVICE_ACCOUNT = "skt-portfolio-deployer@example-project.iam.gserviceaccount.com"
 
 
 @pytest.mark.parametrize(
@@ -37,50 +38,40 @@ def test_cleanup_rejects_unowned_budget_and_continues(
     # Given
     commands: list[str] = []
 
-    def attempt(arguments: tuple[str, ...]) -> bool:
-        commands.append(" ".join(arguments))
-        return True
+    def run(arguments: tuple[str, ...]) -> subprocess.CompletedProcess[str]:
+        rendered = " ".join(arguments)
+        commands.append(rendered)
+        snapshot = budget_snapshot(
+            "twin-preflight-test",
+            "projects/example-project/topics/twin-preflight-test",
+            ("projects/987654321",),
+            name=budget_name,
+        )
+        stdout = f"[{snapshot}]" if "billing budgets list" in rendered else ""
+        return subprocess.CompletedProcess(arguments, 0, stdout, "")
 
-    monkeypatch.setattr(gcp_resource_cleanup, "attempt_gcloud", attempt)
-    budget = BudgetCleanupTarget(
-        resource_name=budget_name,
-        billing_account_id="ABC",
-        display_name="twin-preflight-test",
-        topic_resource="projects/example-project/topics/twin-preflight-test",
-        project_resource="projects/987654321",
-    )
-    plan = TemporaryCleanupPlan(
-        context=CONTEXT,
-        service_account=SERVICE_ACCOUNT,
-        budget=budget,
-        binding_created=True,
-        deny_member="principalSet://example.invalid/member",
-        provider_created=True,
-        deny_provider="github-oidc-deny-test",
-        topic_created=True,
-        topic="twin-preflight-test",
-    )
+    monkeypatch.setattr(gcp_commands, "run_gcloud", run)
+    intent = BudgetRollbackIntent(CONTEXT, "twin-preflight-test")
 
     # When
-    failures = cleanup_temporary(plan)
+    cleaned = cleanup_budget(intent)
 
     # Then
-    assert failures == ("budget-ownership",)
+    assert cleaned is False
     assert all("billing budgets delete" not in command for command in commands)
-    assert any("remove-iam-policy-binding" in command for command in commands)
-    assert any("providers delete" in command for command in commands)
-    assert any("pubsub topics delete" in command for command in commands)
 
 
 def budget_snapshot(
     display_name: str,
     pubsub_topic: str,
     projects: tuple[str, ...],
+    *,
+    name: str = "billingAccounts/ABC/budgets/123",
 ) -> str:
     """Render one typed Budget API snapshot fixture."""
     return json.dumps(
         {
-            "name": "billingAccounts/ABC/budgets/123",
+            "name": name,
             "displayName": display_name,
             "budgetFilter": {"projects": projects},
             "notificationsRule": {
@@ -129,3 +120,35 @@ def test_budget_snapshot_rejects_probe_identity_mismatch(
     )
     with pytest.raises(ProvisioningError):
         _ = parse_budget(snapshot, target)
+
+
+@pytest.mark.parametrize("match_count", [0, 2])
+def test_budget_cleanup_fails_closed_without_one_exact_match(
+    match_count: int,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Given
+    commands: list[str] = []
+    snapshots = ",".join(
+        budget_snapshot(
+            "twin-preflight-test",
+            "projects/example-project/topics/twin-preflight-test",
+            ("projects/987654321",),
+            name=f"billingAccounts/ABC/budgets/{index}",
+        )
+        for index in range(match_count)
+    )
+
+    def run(arguments: tuple[str, ...]) -> subprocess.CompletedProcess[str]:
+        commands.append(" ".join(arguments))
+        return subprocess.CompletedProcess(arguments, 0, f"[{snapshots}]", "")
+
+    monkeypatch.setattr(gcp_commands, "run_gcloud", run)
+    intent = BudgetRollbackIntent(CONTEXT, "twin-preflight-test")
+
+    # When
+    cleaned = cleanup_budget(intent)
+
+    # Then
+    assert cleaned is False
+    assert all("billing budgets delete" not in command for command in commands)

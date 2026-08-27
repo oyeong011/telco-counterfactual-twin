@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from pathlib import Path
+import shutil
+from pathlib import Path
 
 FAKE_HEAD_SHA = "c" * 40
 
@@ -61,65 +59,25 @@ exit 0
     gh.chmod(0o755)
 
 
-def write_first_run_tools(tmp_path: Path) -> tuple[Path, Path, Path]:
-    """Create fake gh/gcloud binaries whose service account begins absent."""
+def write_first_run_tools(
+    tmp_path: Path,
+    *,
+    service_account_exists: bool = False,
+) -> tuple[Path, Path, Path]:
+    """Create stateful fake provider CLIs for a WIF transaction."""
     tool_dir = tmp_path / "first-run-bin"
     tool_dir.mkdir()
     command_log = tmp_path / "first-run-gcloud.log"
     service_account_state = tmp_path / "service-account-created"
     gcloud = tool_dir / "gcloud"
-    _ = gcloud.write_text(
-        """#!/bin/sh
-printf '%s\\n' "$*" >> "$FAKE_GCLOUD_LOG"
-budget_state="$FAKE_GCLOUD_LOG-budget"
-case "$*" in
-  *"auth list"*) printf '%s\\n' 'test-account@example.invalid' ;;
-  *"projects describe"*) printf '%s\\n' '987654321' ;;
-  *"service-accounts describe"*) test -f "$FAKE_SA_STATE"; exit $? ;;
-  *"service-accounts get-iam-policy"*)
-    if test -f "$FAKE_SA_STATE"; then printf '%s\\n' '{"bindings":[]}'; else exit 1; fi
-    ;;
-  *"service-accounts create"*) : > "$FAKE_SA_STATE" ;;
-  *"providers describe"*)
-    printf '%s\\n' '{"oidc":{"issuerUri":"x"},"attributeMapping":{},"attributeCondition":"false"}'
-    ;;
-  *"billing budgets create"*)
-    if test "${FAKE_FAIL_BUDGET:-0}" = 1; then exit 1; fi
-    for arg in "$@"; do
-      case "$arg" in
-        --display-name=*) printf '%s' "$arg" | cut -d= -f2- > "$budget_state" ;;
-      esac
-    done
-    printf '%s\\n' 'billingAccounts/ABC/budgets/123'
-    ;;
-  *"billing budgets describe"*)
-    if test "${FAKE_WRONG_SCHEMA:-0}" = 1; then
-      schema=2.0
-    else
-      schema=1.0
-    fi
-    display="$(cat "$budget_state")"
-    prefix='{"name":"billingAccounts/ABC/budgets/123","displayName":"'
-    middle='","budgetFilter":{"projects":["projects/987654321"]},"notificationsRule":{"schemaVersion":"'
-    suffix='","pubsubTopic":"projects/example-project/topics/'
-    printf '%s%s%s%s%s%s%s\\n' "$prefix" "$display" "$middle" "$schema" \
-      "$suffix" "$display" '"}}'
-    ;;
-  *"pubsub topics get-iam-policy"*)
-    if test "${FAKE_WRONG_PUBLISHER:-0}" = 1; then
-      member=wrong@example.invalid
-    else
-      member=billing-budget-alert@system.gserviceaccount.com
-    fi
-    prefix='{"bindings":[{"role":"roles/pubsub.publisher","members":["serviceAccount:'
-    printf '%s%s%s\\n' "$prefix" "$member" '"]}]}'
-    ;;
-esac
-exit 0
-""",
-        encoding="utf-8",
+    fixture = Path(__file__).parent / "fixtures" / "fake_gcloud.sh"
+    _ = shutil.copyfile(
+        fixture,
+        gcloud,
     )
     gcloud.chmod(0o755)
+    if service_account_exists:
+        _ = service_account_state.write_text("existing\n", encoding="utf-8")
     write_deny_workflow_tools(tool_dir)
     return tool_dir, command_log, service_account_state
 

@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from telco_twin.bootstrap import gcp_resource_cleanup, gcp_resource_probe
+from telco_twin.bootstrap import gcp_commands, gcp_resource_probe, gcp_service_account
 from telco_twin.bootstrap.gcp_commands import GcpContext, ProvisioningError
 from telco_twin.bootstrap.probe_errors import ProviderProbeError
+
+from .gcp_ambiguous_fakes import AmbiguousTemporaryGcloud
 
 CONTEXT = GcpContext(
     project_id="example-project",
@@ -19,22 +21,15 @@ def test_deny_timeout_still_removes_binding_and_provider(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Given
-    cleanup_commands: list[tuple[str, ...]] = []
-
-    def require_gcloud(_arguments: tuple[str, ...], _code: str) -> str:
-        return ""
+    fake = AmbiguousTemporaryGcloud(CONTEXT, "no-mutation-timeout")
 
     def timeout_deny(_provider: str, _service_account: str, _project: str) -> None:
         code = "deny-workflow-timeout"
         raise ProviderProbeError(code)
 
-    def attempt_gcloud(arguments: tuple[str, ...]) -> bool:
-        cleanup_commands.append(arguments)
-        return True
-
-    monkeypatch.setattr(gcp_resource_probe, "require_gcloud", require_gcloud)
+    monkeypatch.setattr(gcp_commands, "run_gcloud", fake.run)
+    monkeypatch.setattr(gcp_service_account, "run_gcloud", fake.run)
     monkeypatch.setattr(gcp_resource_probe, "assert_deny_exchange", timeout_deny)
-    monkeypatch.setattr(gcp_resource_cleanup, "attempt_gcloud", attempt_gcloud)
 
     # When
     with pytest.raises(ProvisioningError, match="deny-workflow-timeout"):
@@ -45,6 +40,9 @@ def test_deny_timeout_still_removes_binding_and_provider(
         )
 
     # Then
-    rendered = tuple(" ".join(command) for command in cleanup_commands)
-    assert any("remove-iam-policy-binding" in command for command in rendered)
-    assert any("providers delete github-oidc-deny-timeout-test" in command for command in rendered)
+    assert fake.binding_exists is False
+    assert fake.provider_exists is False
+    assert any("service-accounts set-iam-policy" in command for command in fake.commands)
+    assert any(
+        "providers delete github-oidc-deny-timeout-test" in command for command in fake.commands
+    )
