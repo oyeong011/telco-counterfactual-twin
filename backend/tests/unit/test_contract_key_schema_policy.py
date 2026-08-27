@@ -71,6 +71,9 @@ def test_separator_free_key_policy_is_declared_and_normatively_rejected(
         "token",
     ]
     assert key_policy["authority_url_uri_stems"] == ["uri", "url"]
+    assert key_policy["api_group_stems"] == ["api"]
+    assert key_policy["api_group_targets"] == ["key", "secret", "token"]
+    assert key_policy["api_benign_embedded_lexemes"] == ["rapid"]
     assert key_policy["pii_unordered_groups"] == [
         [
             ["customer", "subscriber"],
@@ -78,7 +81,6 @@ def test_separator_free_key_policy_is_declared_and_normatively_rejected(
         ]
     ]
     assert [["push"], ["config", "network", "payload"]] in authority_groups
-    assert [["api"], ["key", "secret", "token"]] in secret_groups
     assert [["access"], ["key", "secret", "token"]] in secret_groups
     assert key_policy["safe_exact_keys"] == [
         "commandment_count",

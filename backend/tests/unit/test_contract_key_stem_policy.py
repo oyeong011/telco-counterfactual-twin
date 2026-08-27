@@ -41,11 +41,14 @@ REVIEWER_CASES: Final[tuple[StemCase, ...]] = (
     ("redirect_uri_config", "authority_shaped_key"),
     ("customerrecordidvalue", "pii_shaped_key"),
     ("apiuserkeyhash", "secret_shaped_key"),
+    ("serviceapiuserkeyhash", "secret_shaped_key"),
+    ("keyuserapihash", "secret_shaped_key"),
+    ("rapidapikey", "secret_shaped_key"),
+    ("apiusersecret", "secret_shaped_key"),
+    ("tokenserviceapi", "secret_shaped_key"),
     ("accesssessionkeyvalue", "secret_shaped_key"),
 )
 NEUTRAL_GROUP_CASES: Final[tuple[CompositeCase, ...]] = (
-    (("api", "user", "key", "hash"), "secret_shaped_key"),
-    (("key", "user", "hash", "api"), "secret_shaped_key"),
     (("access", "session", "key", "value"), "secret_shaped_key"),
     (("customer", "record", "id", "value"), "pii_shaped_key"),
     (("id", "record", "subscriber", "hash"), "pii_shaped_key"),
@@ -54,10 +57,19 @@ NEUTRAL_GROUP_CASES: Final[tuple[CompositeCase, ...]] = (
     (("apply", "cell", "network", "value"), "authority_shaped_key"),
     (("config", "cell", "apply", "value"), "authority_shaped_key"),
 )
+API_GROUP_TOKEN_CASES: Final = (
+    ("api", "user", "key", "hash"),
+    ("service", "api", "user", "key", "hash"),
+    ("key", "user", "api", "hash"),
+    ("key", "user", "hash", "api"),
+    ("rapid", "api", "key"),
+)
 SAFE_FALSE_POSITIVES: Final = (
     "security_level",
     "duration_ms",
     "rapid_key",
+    "service_rapid_key_hash",
+    "key_rapid_service",
     "metric_id",
     "metric_key",
     "shellfish_count",
@@ -92,6 +104,8 @@ SAFE_TRANSFORM_CASES: Final = (
     ("security", "level"),
     ("duration", "ms"),
     ("rapid", "key"),
+    ("service", "rapid", "key", "hash"),
+    ("key", "rapid", "service"),
     ("metric", "id"),
     ("metric", "key"),
     ("shellfish", "count"),
@@ -186,6 +200,12 @@ def test_neutral_tokens_cannot_split_unordered_group(
 ) -> None:
     for key in _key_forms(tokens):
         _assert_rejected(key, expected_code)
+
+
+@pytest.mark.parametrize("tokens", API_GROUP_TOKEN_CASES)
+def test_api_group_rejects_at_every_position_and_order(tokens: tuple[str, ...]) -> None:
+    for key in _key_forms(tokens):
+        _assert_rejected(key, "secret_shaped_key")
 
 
 @pytest.mark.parametrize("key", SAFE_FALSE_POSITIVES)

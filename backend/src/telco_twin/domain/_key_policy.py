@@ -37,6 +37,9 @@ class KeyPolicySpec:
     authority_direct_stems: tuple[str, ...]
     secret_direct_stems: tuple[str, ...]
     authority_url_uri_stems: tuple[str, ...]
+    api_group_stems: tuple[str, ...]
+    api_group_targets: tuple[str, ...]
+    api_benign_embedded_lexemes: tuple[str, ...]
     pii_unordered_groups: tuple[LexemeGroup, ...]
     authority_unordered_groups: tuple[LexemeGroup, ...]
     secret_unordered_groups: tuple[LexemeGroup, ...]
@@ -81,6 +84,9 @@ KEY_POLICY: Final = KeyPolicySpec(
     ),
     secret_direct_stems=("credential", "passwd", "password", "secret", "token"),
     authority_url_uri_stems=("uri", "url"),
+    api_group_stems=("api",),
+    api_group_targets=("key", "secret", "token"),
+    api_benign_embedded_lexemes=("rapid",),
     pii_unordered_groups=(
         (("customer", "subscriber"), ("id", "identifier", "identifiers", "identity")),
     ),
@@ -96,15 +102,11 @@ KEY_POLICY: Final = KeyPolicySpec(
         (("command",), ("action", "network", "operation", "payload", "plan", "request")),
         (("revoke", "revocation"), ("id", "identifier", "reason", "status", "token")),
     ),
-    secret_unordered_groups=(
-        (("api",), ("key", "secret", "token")),
-        (("access",), ("key", "secret", "token")),
-    ),
+    secret_unordered_groups=((("access",), ("key", "secret", "token")),),
 )
 _CAMEL_ACRONYM_BOUNDARY: Final = re.compile(r"([A-Z]+)([A-Z][a-z])")
 _CAMEL_WORD_BOUNDARY: Final = re.compile(r"([a-z0-9])([A-Z])")
 _TOKEN_SEPARATOR: Final = re.compile(r"[^A-Za-z0-9]+")
-_EDGE_ONLY_GROUP_LEXEMES: Final = frozenset(("api",))
 
 
 def _key_tokens(value: str) -> frozenset[str]:
@@ -129,8 +131,6 @@ def _tokens_match_group(tokens: frozenset[str], group: LexemeGroup) -> bool:
 
 
 def _collapsed_contains_lexeme(value: str, lexeme: str) -> bool:
-    if lexeme in _EDGE_ONLY_GROUP_LEXEMES:
-        return value.startswith(lexeme) or value.endswith(lexeme)
     return lexeme in value
 
 
@@ -156,6 +156,19 @@ def _matches_groups(
     )
 
 
+def _matches_api_group(tokens: frozenset[str], normalized: str) -> bool:
+    parsed_match = any(stem in tokens for stem in KEY_POLICY.api_group_stems) and any(
+        target in tokens for target in KEY_POLICY.api_group_targets
+    )
+    shielded = normalized
+    for benign in KEY_POLICY.api_benign_embedded_lexemes:
+        shielded = shielded.replace(benign, "")
+    collapsed_match = _contains_any(shielded, KEY_POLICY.api_group_stems) and _contains_any(
+        shielded, KEY_POLICY.api_group_targets
+    )
+    return parsed_match or collapsed_match
+
+
 def _validate_semantic_key(value: str) -> None:
     normalized = _normalized_key(value)
     if normalized in _NORMALIZED_SAFE_KEYS:
@@ -173,8 +186,10 @@ def _validate_semantic_key(value: str) -> None:
         fail_validation(
             "authority_shaped_key", "execution and command authority keys are forbidden"
         )
-    if _contains_any(normalized, KEY_POLICY.secret_direct_stems) or _matches_groups(
-        tokens, normalized, KEY_POLICY.secret_unordered_groups
+    if (
+        _contains_any(normalized, KEY_POLICY.secret_direct_stems)
+        or _matches_groups(tokens, normalized, KEY_POLICY.secret_unordered_groups)
+        or _matches_api_group(tokens, normalized)
     ):
         fail_validation("secret_shaped_key", "secret-shaped keys are forbidden")
 

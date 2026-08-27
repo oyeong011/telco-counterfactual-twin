@@ -89,6 +89,17 @@
     }
   ],
   "x-telco-twin-key-policy": {
+    "api_benign_embedded_lexemes": [
+      "rapid"
+    ],
+    "api_group_stems": [
+      "api"
+    ],
+    "api_group_targets": [
+      "key",
+      "secret",
+      "token"
+    ],
     "authority_direct_stems": [
       "command",
       "execute",
@@ -233,16 +244,6 @@
       "token"
     ],
     "secret_unordered_groups": [
-      [
-        [
-          "api"
-        ],
-        [
-          "key",
-          "secret",
-          "token"
-        ]
-      ],
       [
         [
           "access"

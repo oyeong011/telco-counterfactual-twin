@@ -90,6 +90,9 @@ class KeyPolicyAnnotation(BaseModel):
     authority_direct_stems: tuple[str, ...]
     secret_direct_stems: tuple[str, ...]
     authority_url_uri_stems: tuple[str, ...]
+    api_group_stems: tuple[str, ...]
+    api_group_targets: tuple[str, ...]
+    api_benign_embedded_lexemes: tuple[str, ...]
     pii_unordered_groups: tuple[LexemeGroup, ...]
     authority_unordered_groups: tuple[LexemeGroup, ...]
     secret_unordered_groups: tuple[LexemeGroup, ...]
@@ -149,6 +152,9 @@ KEY_POLICY_ANNOTATION: Final = KeyPolicyAnnotation(
     authority_direct_stems=KEY_POLICY.authority_direct_stems,
     secret_direct_stems=KEY_POLICY.secret_direct_stems,
     authority_url_uri_stems=KEY_POLICY.authority_url_uri_stems,
+    api_group_stems=KEY_POLICY.api_group_stems,
+    api_group_targets=KEY_POLICY.api_group_targets,
+    api_benign_embedded_lexemes=KEY_POLICY.api_benign_embedded_lexemes,
     pii_unordered_groups=KEY_POLICY.pii_unordered_groups,
     authority_unordered_groups=KEY_POLICY.authority_unordered_groups,
     secret_unordered_groups=KEY_POLICY.secret_unordered_groups,
