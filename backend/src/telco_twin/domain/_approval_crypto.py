@@ -100,21 +100,35 @@ def validate_root_trust(
         raise ContractViolationError(ContractErrorCode.ROOT_UNTRUSTED)
 
 
-def _validate_root_window(context: ApprovalValidationContext) -> None:
-    if context.now < utc_datetime(context.root.not_before):
-        raise ContractViolationError(ContractErrorCode.ROOT_NOT_YET_VALID)
-    if context.now >= utc_datetime(context.root.not_after):
-        raise ContractViolationError(ContractErrorCode.ROOT_EXPIRED)
-
-
-def _validate_certificate_root_window(context: ApprovalValidationContext) -> None:
-    certificate = context.certificate
-    issued_at = utc_datetime(certificate.issued_at)
-    expires_at = utc_datetime(certificate.expires_at)
+def _validate_trust_time(
+    proof: ApprovalProof,
+    context: ApprovalValidationContext,
+) -> None:
     root_start = utc_datetime(context.root.not_before)
     root_end = utc_datetime(context.root.not_after)
-    if issued_at < root_start or expires_at > root_end:
+    if context.now < root_start:
+        raise ContractViolationError(ContractErrorCode.ROOT_NOT_YET_VALID)
+    if context.now >= root_end:
+        raise ContractViolationError(ContractErrorCode.ROOT_EXPIRED)
+    certificate = context.certificate
+    certificate_issued_at = utc_datetime(certificate.issued_at)
+    certificate_expires_at = utc_datetime(certificate.expires_at)
+    if certificate_issued_at < root_start or certificate_expires_at > root_end:
         raise ContractViolationError(ContractErrorCode.CERTIFICATE_OUTSIDE_ROOT_WINDOW)
+    approved_at = utc_datetime(proof.approved_at)
+    proof_expires_at = utc_datetime(proof.expires_at)
+    if context.now < approved_at:
+        raise ContractViolationError(ContractErrorCode.APPROVAL_NOT_YET_VALID)
+    if context.now < certificate_issued_at:
+        raise ContractViolationError(ContractErrorCode.CERTIFICATE_NOT_YET_VALID)
+    if context.now >= proof_expires_at:
+        raise ContractViolationError(ContractErrorCode.APPROVAL_EXPIRED)
+    if context.now >= certificate_expires_at:
+        raise ContractViolationError(ContractErrorCode.CERTIFICATE_EXPIRED)
+    if approved_at < certificate_issued_at:
+        raise ContractViolationError(ContractErrorCode.PROOF_BEFORE_CERTIFICATE)
+    if proof_expires_at > certificate_expires_at:
+        raise ContractViolationError(ContractErrorCode.PROOF_AFTER_CERTIFICATE)
 
 
 def _validate_certificate(context: ApprovalValidationContext) -> None:
@@ -125,10 +139,6 @@ def _validate_certificate(context: ApprovalValidationContext) -> None:
         or certificate.session_id != context.request.session_id
     ):
         raise ContractViolationError(ContractErrorCode.CERTIFICATE_BINDING_MISMATCH)
-    if context.now < utc_datetime(certificate.issued_at):
-        raise ContractViolationError(ContractErrorCode.CERTIFICATE_NOT_YET_VALID)
-    if context.now >= utc_datetime(certificate.expires_at):
-        raise ContractViolationError(ContractErrorCode.CERTIFICATE_EXPIRED)
     _verify_signature(
         _SignatureClaim(
             message=certificate_signing_bytes(certificate),
@@ -142,24 +152,7 @@ def _validate_certificate(context: ApprovalValidationContext) -> None:
 def validate_approval_chain(proof: ApprovalProof, context: ApprovalValidationContext) -> None:
     """Validate root, certificate, request binding, signature, time, and replay state."""
     validate_root_trust(context.root, context.environment, context.trusted_root_hashes)
-    _validate_root_window(context)
-    _validate_certificate_root_window(context)
-    approved_at = utc_datetime(proof.approved_at)
-    proof_expires_at = utc_datetime(proof.expires_at)
-    certificate_issued_at = utc_datetime(context.certificate.issued_at)
-    certificate_expires_at = utc_datetime(context.certificate.expires_at)
-    if context.now < approved_at:
-        raise ContractViolationError(ContractErrorCode.APPROVAL_NOT_YET_VALID)
-    if context.now < certificate_issued_at:
-        raise ContractViolationError(ContractErrorCode.CERTIFICATE_NOT_YET_VALID)
-    if context.now >= proof_expires_at:
-        raise ContractViolationError(ContractErrorCode.APPROVAL_EXPIRED)
-    if context.now >= certificate_expires_at:
-        raise ContractViolationError(ContractErrorCode.CERTIFICATE_EXPIRED)
-    if approved_at < certificate_issued_at:
-        raise ContractViolationError(ContractErrorCode.PROOF_BEFORE_CERTIFICATE)
-    if proof_expires_at > certificate_expires_at:
-        raise ContractViolationError(ContractErrorCode.PROOF_AFTER_CERTIFICATE)
+    _validate_trust_time(proof, context)
     _validate_certificate(context)
     request = context.request
     certificate = context.certificate

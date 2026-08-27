@@ -13,9 +13,9 @@ from ._contract import (
     Sha256Hex,
     StrictContract,
     UtcTimestamp,
-    fail_validation,
     utc_datetime,
 )
+from ._validation import fail_validation
 
 
 class MetricDelta(StrictContract):

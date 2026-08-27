@@ -18,9 +18,9 @@ from ._contract import (
     Sha256Hex,
     StrictContract,
     UtcTimestamp,
-    fail_validation,
     utc_datetime,
 )
+from ._validation import fail_validation
 from .canonical import canonical_model_bytes
 
 if TYPE_CHECKING:
@@ -71,8 +71,8 @@ class ContractErrorCode(StrEnum):
     CERTIFICATE_NOT_YET_VALID = "certificate-not-yet-valid"
     CERTIFICATE_HASH_MISMATCH = "certificate-hash-mismatch"
     APPROVAL_BINDING_MISMATCH = "approval-binding-mismatch"
-    PROOF_BEFORE_CERTIFICATE = "proof_before_certificate"
-    PROOF_AFTER_CERTIFICATE = "proof_after_certificate"
+    PROOF_BEFORE_CERTIFICATE = "proof-before-certificate"
+    PROOF_AFTER_CERTIFICATE = "proof-after-certificate"
     PROOF_SIGNATURE_INVALID = "approval-signature-invalid"
     APPROVAL_EXPIRED = "approval-expired"
     APPROVAL_NOT_YET_VALID = "approval-not-yet-valid"

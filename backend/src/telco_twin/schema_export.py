@@ -10,11 +10,16 @@ from typing import TYPE_CHECKING, Annotated, ClassVar, Final, Literal, Never
 import typer
 from pydantic import BaseModel, ConfigDict, JsonValue, TypeAdapter, ValidationError
 
-from telco_twin.domain._contract import (
+from telco_twin.domain._key_policy import (
     AUTHORITY_KEY_TOKENS,
-    COLLAPSED_AUTHORITY_KEYS,
-    COLLAPSED_PII_KEYS,
-    COLLAPSED_SECRET_KEYS,
+    COLLAPSED_ACTION_PREFIXES,
+    COLLAPSED_ACTION_TARGETS,
+    COLLAPSED_ARBITRARY_URL_STEMS,
+    COLLAPSED_AUTHORITY_STEMS,
+    COLLAPSED_DIRECT_PII_STEMS,
+    COLLAPSED_IDENTIFIER_STEMS,
+    COLLAPSED_IDENTITY_SUBJECTS,
+    COLLAPSED_SECRET_STEMS,
     FORBIDDEN_KEY_COMBINATIONS,
     IDENTIFIER_TOKENS,
     IDENTITY_SUBJECT_TOKENS,
@@ -101,9 +106,14 @@ class KeyPolicyAnnotation(BaseModel):
     identifier_tokens: tuple[str, ...]
     authority_tokens: tuple[str, ...]
     secret_tokens: tuple[str, ...]
-    collapsed_pii_keys: tuple[str, ...]
-    collapsed_authority_keys: tuple[str, ...]
-    collapsed_secret_keys: tuple[str, ...]
+    collapsed_direct_pii_stems: tuple[str, ...]
+    collapsed_identity_subjects: tuple[str, ...]
+    collapsed_identifier_stems: tuple[str, ...]
+    collapsed_authority_stems: tuple[str, ...]
+    collapsed_action_prefixes: tuple[str, ...]
+    collapsed_action_targets: tuple[str, ...]
+    collapsed_arbitrary_url_stems: tuple[str, ...]
+    collapsed_secret_stems: tuple[str, ...]
     forbidden_combinations: tuple[tuple[str, ...], ...]
     allow_examples: tuple[str, ...]
     json_schema_support: Literal["annotation_only"]
@@ -119,7 +129,7 @@ class CertificateWindowInvariant(BaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
 
-    code: Literal["proof_certificate_window"]
+    code: Literal["proof-certificate-window"]
     kind: Literal["contained_interval"]
     proof_start_field: Literal["approved_at"]
     proof_end_field: Literal["expires_at"]
@@ -161,16 +171,21 @@ KEY_POLICY_ANNOTATION: Final = KeyPolicyAnnotation(
     identifier_tokens=IDENTIFIER_TOKENS,
     authority_tokens=AUTHORITY_KEY_TOKENS,
     secret_tokens=SECRET_KEY_TOKENS,
-    collapsed_pii_keys=COLLAPSED_PII_KEYS,
-    collapsed_authority_keys=COLLAPSED_AUTHORITY_KEYS,
-    collapsed_secret_keys=COLLAPSED_SECRET_KEYS,
+    collapsed_direct_pii_stems=COLLAPSED_DIRECT_PII_STEMS,
+    collapsed_identity_subjects=COLLAPSED_IDENTITY_SUBJECTS,
+    collapsed_identifier_stems=COLLAPSED_IDENTIFIER_STEMS,
+    collapsed_authority_stems=COLLAPSED_AUTHORITY_STEMS,
+    collapsed_action_prefixes=COLLAPSED_ACTION_PREFIXES,
+    collapsed_action_targets=COLLAPSED_ACTION_TARGETS,
+    collapsed_arbitrary_url_stems=COLLAPSED_ARBITRARY_URL_STEMS,
+    collapsed_secret_stems=COLLAPSED_SECRET_STEMS,
     forbidden_combinations=FORBIDDEN_KEY_COMBINATIONS,
     allow_examples=KEY_POLICY_ALLOW_EXAMPLES,
     json_schema_support="annotation_only",
     enforced_by="scripts/validate_contract.py",
 )
 PROOF_CERTIFICATE_WINDOW: Final = CertificateWindowInvariant(
-    code="proof_certificate_window",
+    code="proof-certificate-window",
     kind="contained_interval",
     proof_start_field="approved_at",
     proof_end_field="expires_at",

@@ -14,8 +14,8 @@ from ._contract import (
     Sha256Hex,
     StrictContract,
     UtcTimestamp,
-    fail_validation,
 )
+from ._validation import fail_validation
 
 
 @unique

@@ -85,6 +85,40 @@ def test_chain_preserves_stable_certificate_future_and_expiry_codes() -> None:
     assert expired_error.value.code.value == "certificate-expired"
 
 
+@pytest.mark.parametrize(
+    ("chain_start", "now", "expected_code"),
+    [
+        (
+            datetime(2026, 8, 27, 0, 1, 0, tzinfo=UTC),
+            datetime(2026, 8, 27, 0, 0, 30, tzinfo=UTC),
+            "approval-not-yet-valid",
+        ),
+        (
+            datetime(2026, 8, 26, 23, 58, 0, tzinfo=UTC),
+            datetime(2026, 8, 27, 0, 0, 30, tzinfo=UTC),
+            "approval-expired",
+        ),
+    ],
+)
+def test_combined_proof_and_certificate_time_failures_keep_precedence(
+    chain_start: datetime,
+    now: datetime,
+    expected_code: str,
+) -> None:
+    chain = signed_temporal_chain(
+        ApprovalTimes(
+            certificate_issued_at=chain_start,
+            proof_approved_at=chain_start,
+            now=now,
+        )
+    )
+
+    with pytest.raises(ContractViolationError) as caught:
+        validate_approval_chain(chain.proof, chain.context)
+
+    assert caught.value.code.value == expected_code
+
+
 def test_valid_signed_proof_cannot_predate_certificate_issuance() -> None:
     chain = signed_temporal_chain(
         ApprovalTimes(
@@ -97,7 +131,7 @@ def test_valid_signed_proof_cannot_predate_certificate_issuance() -> None:
     with pytest.raises(ContractViolationError) as caught:
         validate_approval_chain(chain.proof, chain.context)
 
-    assert caught.value.code.value == "proof_before_certificate"
+    assert caught.value.code.value == "proof-before-certificate"
 
 
 def test_equal_certificate_and_proof_windows_are_valid() -> None:
@@ -129,4 +163,4 @@ def test_proof_starting_after_certificate_exceeds_certificate_window(
     with pytest.raises(ContractViolationError) as caught:
         validate_approval_chain(chain.proof, chain.context)
 
-    assert caught.value.code.value == "proof_after_certificate"
+    assert caught.value.code.value == "proof-after-certificate"

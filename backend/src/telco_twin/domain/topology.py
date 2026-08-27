@@ -14,8 +14,8 @@ from ._contract import (
     Seed,
     StrictContract,
     UtcTimestamp,
-    fail_validation,
 )
+from ._validation import fail_validation
 
 MIN_CELLS: Final = 2
 MAX_CELLS: Final = 4

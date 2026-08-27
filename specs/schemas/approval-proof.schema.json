@@ -117,7 +117,7 @@
   "x-telco-twin-certificate-window": {
     "certificate_end_field": "expires_at",
     "certificate_start_field": "issued_at",
-    "code": "proof_certificate_window",
+    "code": "proof-certificate-window",
     "enforced_by": "scripts/validate_contract.py",
     "json_schema_support": "annotation_only",
     "kind": "contained_interval",
@@ -138,7 +138,11 @@
   ],
   "x-telco-twin-key-policy": {
     "allow_examples": [
+      "commandment_count",
       "config_history",
+      "executioner_state",
+      "shellfish_count",
+      "tokenization_mode",
       "ue_cohort_id"
     ],
     "authority_tokens": [
@@ -151,18 +155,52 @@
       "uri",
       "url"
     ],
-    "collapsed_authority_keys": [
-      "applytonetwork",
-      "pushpayload",
-      "shellcommand"
+    "collapsed_action_prefixes": [
+      "apply",
+      "push"
     ],
-    "collapsed_pii_keys": [
-      "customerid",
-      "emailaddress",
-      "subscriberid"
+    "collapsed_action_targets": [
+      "config",
+      "network",
+      "payload"
     ],
-    "collapsed_secret_keys": [
-      "accesstoken"
+    "collapsed_arbitrary_url_stems": [
+      "arbitrary",
+      "url"
+    ],
+    "collapsed_authority_stems": [
+      "command",
+      "execute",
+      "execution",
+      "revoke",
+      "revocation",
+      "shell"
+    ],
+    "collapsed_direct_pii_stems": [
+      "email",
+      "gpsi",
+      "imei",
+      "imsi",
+      "msisdn",
+      "phone",
+      "supi"
+    ],
+    "collapsed_identifier_stems": [
+      "id",
+      "identifier",
+      "identifiers",
+      "identity"
+    ],
+    "collapsed_identity_subjects": [
+      "customer",
+      "subscriber"
+    ],
+    "collapsed_secret_stems": [
+      "credential",
+      "passwd",
+      "password",
+      "secret",
+      "token"
     ],
     "enforced_by": "scripts/validate_contract.py",
     "forbidden_combinations": [
