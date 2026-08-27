@@ -36,10 +36,10 @@ def test_plan_binds_exact_repositories_and_immutable_owner_id() -> None:
     assert "oyeong011/mcp-evidence-plane" in result.stdout
 
 
-def test_apply_returns_blocked_when_gcloud_authority_is_absent() -> None:
+def test_apply_returns_blocked_when_gcloud_authority_is_absent(tmp_path: Path) -> None:
     # Given
     environment = {
-        "PATH": "/usr/bin:/bin",
+        "PATH": str(tmp_path),
         "GCP_PROJECT_ID": "",
         "GCP_REGION": "",
         "GCP_BILLING_ACCOUNT_ID": "",
