@@ -7,9 +7,9 @@ import anyio
 from telco_twin.domain.event import Event
 from telco_twin.state.demo_token import DemoTokenKey
 from telco_twin.state.limits import MAX_EVENTS_PER_SESSION, MAX_LIVE_SESSIONS
-from telco_twin.state.memory_store import (
+from telco_twin.state.memory_store import DemoSessionStore
+from telco_twin.state.store_models import (
     AppendEventRequest,
-    DemoSessionStore,
     EventAppendAccepted,
     EventAppendDenied,
     SessionAccess,

@@ -11,8 +11,8 @@ from pydantic import JsonValue, TypeAdapter
 
 from telco_twin.domain.canonical import canonical_json_bytes
 from telco_twin.state.demo_token import DemoTokenClaims, DemoTokenKey, encode_demo_token
-from telco_twin.state.memory_store import (
-    DemoSessionStore,
+from telco_twin.state.memory_store import DemoSessionStore
+from telco_twin.state.store_models import (
     SessionAccess,
     SessionAccessCode,
     SessionAccessDenied,

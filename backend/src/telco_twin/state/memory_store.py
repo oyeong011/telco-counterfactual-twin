@@ -1,11 +1,11 @@
-"""Bounded append-only process-memory demo session store."""
+"""Bounded append-only process-memory store with catalog-owned slot leases."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum, unique
-from typing import TYPE_CHECKING, Literal, assert_never, final, override
+from typing import TYPE_CHECKING, assert_never, final
 
 import anyio
 
@@ -21,118 +21,25 @@ from telco_twin.state.demo_token import (
     DemoTokenValid,
 )
 from telco_twin.state.limits import MAX_EVENTS_PER_SESSION, MAX_LIVE_SESSIONS
+from telco_twin.state.store_models import (
+    AppendEventRequest,
+    EventAppendAccepted,
+    EventAppendDenied,
+    EventAppendResult,
+    SessionAccess,
+    SessionAccessCode,
+    SessionAccessDenied,
+    SessionAccessGranted,
+    SessionAccessResult,
+    SessionCreate,
+    SessionCreated,
+    SessionCreateDenied,
+    SessionCreateResult,
+    SessionSnapshot,
+)
 
 if TYPE_CHECKING:
     from telco_twin.domain._contract import ContractId, Sha256Hex, UtcTimestamp
-    from telco_twin.domain.event import Event
-
-
-@unique
-class SessionAccessCode(StrEnum):
-    """Stable domain results for later HTTP mapping."""
-
-    INVALID = "demo_token_invalid"
-    EXPIRED = "demo_token_expired"
-    LOST = "demo_session_lost"
-    NOT_FOUND = "demo_session_not_found"
-    SESSION_EXISTS = "demo_session_exists"
-    SESSION_CAPACITY = "demo_session_capacity"
-    EVENT_CAPACITY = "demo_event_capacity"
-    IDEMPOTENCY_CONFLICT = "idempotency_conflict"
-
-
-@dataclass(frozen=True, slots=True)
-class SessionCreate:
-    """Inputs for one bounded live session."""
-
-    session_id: ContractId
-    now: datetime
-    nonce: bytes
-
-
-@dataclass(frozen=True, slots=True)
-class SessionCreated:
-    """Opaque bootstrap token returned once and never persisted."""
-
-    session_id: ContractId
-    token: str
-    expires_at: UtcTimestamp
-    startup_epoch: ContractId
-
-
-@dataclass(frozen=True, slots=True)
-class SessionCreateDenied:
-    """Fail-closed session creation result."""
-
-    code: SessionAccessCode
-
-
-type SessionCreateResult = SessionCreated | SessionCreateDenied
-
-
-@dataclass(frozen=True, slots=True)
-class AppendEventRequest:
-    """One idempotent append request with an independently computed body hash."""
-
-    session_id: ContractId
-    idempotency_key: ContractId
-    body_hash: Sha256Hex
-    event: Event
-
-
-@dataclass(frozen=True, slots=True)
-class EventAppendAccepted:
-    """Stored immutable event or same-body replay of its original result."""
-
-    event: FrozenEvent
-    replayed: bool
-
-
-@dataclass(frozen=True, slots=True)
-class EventAppendDenied:
-    """Fail-closed append result."""
-
-    code: SessionAccessCode
-
-
-type EventAppendResult = EventAppendAccepted | EventAppendDenied
-
-
-@dataclass(frozen=True, slots=True)
-class SessionAccess:
-    """Opaque token and caller-supplied assessment instant."""
-
-    token: str
-    now: datetime
-
-
-@dataclass(frozen=True, slots=True)
-class SessionSnapshot:
-    """Downloadable live-session evidence with no token or signing key."""
-
-    session_id: ContractId
-    startup_epoch: ContractId
-    created_at: UtcTimestamp
-    expires_at: UtcTimestamp
-    events: tuple[FrozenEvent, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class SessionAccessGranted:
-    """Authenticated current-epoch live evidence snapshot."""
-
-    snapshot: SessionSnapshot
-
-
-@dataclass(frozen=True, slots=True)
-class SessionAccessDenied:
-    """Stable status semantic for a later API adapter."""
-
-    code: SessionAccessCode
-    http_status: Literal[401, 404, 410]
-
-
-type SessionAccessResult = SessionAccessGranted | SessionAccessDenied
 
 
 class _TokenAccessResult(StrictContract):
@@ -164,9 +71,18 @@ class _IdempotencyRecord:
 
 @final
 class _SessionSlot:
-    """Intentionally mutable bounded state serialized by its sole AnyIO lock."""
+    """Mutable bounded session state serialized by its sole AnyIO lock."""
 
-    __slots__ = ("created_at", "events", "expires_at", "idempotency", "lock", "session_id")
+    __slots__ = (
+        "created_at",
+        "events",
+        "expires_at",
+        "idempotency",
+        "lease_count",
+        "lock",
+        "prune_requested",
+        "session_id",
+    )
 
     def __init__(
         self,
@@ -179,27 +95,96 @@ class _SessionSlot:
         self.expires_at = expires_at
         self.events: list[FrozenEvent] = []
         self.idempotency: dict[ContractId, _IdempotencyRecord] = {}
+        self.lease_count = 0
+        self.prune_requested = False
         self.lock = anyio.Lock()
 
 
-@final
+@unique
+class _LeaseStatus(StrEnum):
+    ACTIVE = "active"
+    EXPIRED = "expired"
+    MISSING = "missing"
+
+
+@dataclass(frozen=True, slots=True)
+class _LeaseResult:
+    status: _LeaseStatus
+    slot: _SessionSlot | None
+
+
 class DemoSessionStore:
     """Non-durable C1 store bounded by fixed session/event ceilings."""
+
+    _codec: DemoTokenCodec
+    _catalog_lock: anyio.Lock
+    _sessions: dict[ContractId, _SessionSlot]
+    _observed_at: datetime | None
 
     def __init__(self, *, signing_key: DemoTokenKey, startup_epoch: ContractId) -> None:
         """Bind bounded process state to one secret and startup epoch."""
         self._codec = DemoTokenCodec(signing_key, startup_epoch)
         self._catalog_lock = anyio.Lock()
-        self._sessions: dict[ContractId, _SessionSlot] = {}
+        self._sessions = {}
+        self._observed_at = None
 
-    def _prune_expired(self, now: datetime) -> None:
-        expired = tuple(
-            session_id
-            for session_id, slot in sorted(self._sessions.items())
-            if now >= datetime.fromisoformat(slot.expires_at)
+    def _observe(self, now: datetime) -> None:
+        if self._observed_at is None or now > self._observed_at:
+            self._observed_at = now
+
+    def _expired(self, slot: _SessionSlot) -> bool:
+        return self._observed_at is not None and self._observed_at >= datetime.fromisoformat(
+            slot.expires_at
         )
-        for session_id in expired:
-            del self._sessions[session_id]
+
+    def _prune_expired(self) -> None:
+        for session_id, slot in tuple(sorted(self._sessions.items())):
+            if not self._expired(slot):
+                continue
+            if slot.lease_count > 0:
+                slot.prune_requested = True
+            else:
+                del self._sessions[session_id]
+
+    async def _lease_slot(
+        self,
+        session_id: ContractId,
+        now: datetime | None,
+    ) -> _LeaseResult:
+        async with self._catalog_lock:
+            if now is not None:
+                self._observe(now)
+            self._prune_expired()
+            slot = self._sessions.get(session_id)
+            if slot is None:
+                return _LeaseResult(_LeaseStatus.MISSING, None)
+            if slot.prune_requested or self._expired(slot):
+                return _LeaseResult(_LeaseStatus.EXPIRED, None)
+            slot.lease_count += 1
+            return _LeaseResult(_LeaseStatus.ACTIVE, slot)
+
+    async def _lease_status(
+        self,
+        session_id: ContractId,
+        slot: _SessionSlot,
+    ) -> _LeaseStatus:
+        async with self._catalog_lock:
+            if self._sessions.get(session_id) is not slot:
+                return _LeaseStatus.MISSING
+            if slot.prune_requested or self._expired(slot):
+                return _LeaseStatus.EXPIRED
+            return _LeaseStatus.ACTIVE
+
+    async def _release_slot(self, session_id: ContractId, slot: _SessionSlot) -> None:
+        with anyio.CancelScope(shield=True):
+            async with self._catalog_lock:
+                slot.lease_count -= 1
+                if (
+                    slot.lease_count == 0
+                    and (slot.prune_requested or self._expired(slot))
+                    and self._sessions.get(session_id) is slot
+                ):
+                    del self._sessions[session_id]
 
     async def create_session(self, request: SessionCreate) -> SessionCreateResult:
         """Create a live session or fail closed at exact capacity."""
@@ -207,7 +192,8 @@ class DemoSessionStore:
             DemoTokenIssue(session_id=request.session_id, now=request.now, nonce=request.nonce)
         )
         async with self._catalog_lock:
-            self._prune_expired(request.now)
+            self._observe(request.now)
+            self._prune_expired()
             if request.session_id in self._sessions:
                 return SessionCreateDenied(SessionAccessCode.SESSION_EXISTS)
             if len(self._sessions) >= MAX_LIVE_SESSIONS:
@@ -225,58 +211,73 @@ class DemoSessionStore:
         )
 
     async def append_event(self, request: AppendEventRequest) -> EventAppendResult:
-        """Append once per session/key or replay the exact same-body result."""
-        async with self._catalog_lock:
-            slot = self._sessions.get(request.session_id)
-        if slot is None:
+        """Append under a cancellation-safe lease or replay the same-body result."""
+        lease = await self._lease_slot(request.session_id, None)
+        if lease.slot is None:
             return EventAppendDenied(SessionAccessCode.NOT_FOUND)
-        async with slot.lock:
-            prior = slot.idempotency.get(request.idempotency_key)
-            if prior is not None:
-                if prior.body_hash != request.body_hash:
-                    return EventAppendDenied(SessionAccessCode.IDEMPOTENCY_CONFLICT)
-                return EventAppendAccepted(event=prior.result.event, replayed=True)
-            if len(slot.events) >= MAX_EVENTS_PER_SESSION:
-                return EventAppendDenied(SessionAccessCode.EVENT_CAPACITY)
-            frozen = snapshot_event(request.event)
-            accepted = EventAppendAccepted(event=frozen, replayed=False)
-            slot.events.append(frozen)
-            slot.idempotency[request.idempotency_key] = _IdempotencyRecord(
-                body_hash=request.body_hash,
-                result=accepted,
-            )
-            return accepted
+        try:
+            async with lease.slot.lock:
+                status = await self._lease_status(request.session_id, lease.slot)
+                if status is not _LeaseStatus.ACTIVE:
+                    return EventAppendDenied(SessionAccessCode.NOT_FOUND)
+                prior = lease.slot.idempotency.get(request.idempotency_key)
+                if prior is not None:
+                    if prior.body_hash != request.body_hash:
+                        return EventAppendDenied(SessionAccessCode.IDEMPOTENCY_CONFLICT)
+                    return EventAppendAccepted(event=prior.result.event, replayed=True)
+                if len(lease.slot.events) >= MAX_EVENTS_PER_SESSION:
+                    return EventAppendDenied(SessionAccessCode.EVENT_CAPACITY)
+                frozen = snapshot_event(request.event)
+                accepted = EventAppendAccepted(event=frozen, replayed=False)
+                lease.slot.events.append(frozen)
+                lease.slot.idempotency[request.idempotency_key] = _IdempotencyRecord(
+                    body_hash=request.body_hash,
+                    result=accepted,
+                )
+                return accepted
+        finally:
+            await self._release_slot(request.session_id, lease.slot)
 
     async def access(self, request: SessionAccess) -> SessionAccessResult:
-        """Resolve cryptographic, restart, expiry, and live-state semantics."""
+        """Resolve token semantics and snapshot state under a leased slot."""
         token_result = _TokenAccessResult(result=self._codec.validate(request.token, request.now))
         match token_result.result:
             case DemoTokenRejected() as rejected:
                 return _token_denial(rejected)
             case DemoTokenValid(claims=claims):
-                async with self._catalog_lock:
-                    slot = self._sessions.get(claims.session_id)
-                if slot is None:
-                    return SessionAccessDenied(SessionAccessCode.NOT_FOUND, 404)
-                async with slot.lock:
-                    return SessionAccessGranted(
-                        SessionSnapshot(
-                            session_id=slot.session_id,
-                            startup_epoch=claims.startup_epoch,
-                            created_at=slot.created_at,
-                            expires_at=slot.expires_at,
-                            events=tuple(slot.events),
-                        )
-                    )
+                lease = await self._lease_slot(claims.session_id, request.now)
             case _:
                 assert_never(token_result.result)
+        if lease.slot is None:
+            match lease.status:
+                case _LeaseStatus.EXPIRED:
+                    return SessionAccessDenied(SessionAccessCode.EXPIRED, 401)
+                case _LeaseStatus.MISSING:
+                    return SessionAccessDenied(SessionAccessCode.NOT_FOUND, 404)
+                case _LeaseStatus.ACTIVE:
+                    return SessionAccessDenied(SessionAccessCode.NOT_FOUND, 404)
+                case _:
+                    assert_never(lease.status)
+        try:
+            async with lease.slot.lock:
+                lease_status = await self._lease_status(claims.session_id, lease.slot)
+                if lease_status is not _LeaseStatus.ACTIVE:
+                    return SessionAccessDenied(SessionAccessCode.EXPIRED, 401)
+                return SessionAccessGranted(
+                    SessionSnapshot(
+                        session_id=lease.slot.session_id,
+                        startup_epoch=claims.startup_epoch,
+                        created_at=lease.slot.created_at,
+                        expires_at=lease.slot.expires_at,
+                        events=tuple(lease.slot.events),
+                    )
+                )
+        finally:
+            await self._release_slot(claims.session_id, lease.slot)
 
     async def live_session_count(self, now: datetime) -> int:
-        """Return the live count after deterministic expiry pruning."""
+        """Return retained live/leased count after deterministic pruning."""
         async with self._catalog_lock:
-            self._prune_expired(now)
+            self._observe(now)
+            self._prune_expired()
             return len(self._sessions)
-
-    @override
-    def __repr__(self) -> str:
-        return f"DemoSessionStore(startup_epoch={self._codec.startup_epoch!r})"
