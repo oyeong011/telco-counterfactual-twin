@@ -235,6 +235,19 @@
       "uri",
       "url"
     ],
+    "collapsed_authority_keys": [
+      "applytonetwork",
+      "pushpayload",
+      "shellcommand"
+    ],
+    "collapsed_pii_keys": [
+      "customerid",
+      "emailaddress",
+      "subscriberid"
+    ],
+    "collapsed_secret_keys": [
+      "accesstoken"
+    ],
     "enforced_by": "scripts/validate_contract.py",
     "forbidden_combinations": [
       [

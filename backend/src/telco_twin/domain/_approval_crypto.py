@@ -28,6 +28,9 @@ PROOF_DOMAIN: Final = b"telco-twin/approval-proof/v1\0"
 TEST_ONLY_ROOT_HASHES: Final[frozenset[str]] = frozenset(
     {"0a0ac92bec879131e15c2b22d6fdeff8f88b7e6e753dcaa8f23568fe9e0300c9"}
 )
+TEST_ONLY_PUBLIC_KEY_FINGERPRINTS: Final[frozenset[str]] = frozenset(
+    {"21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9"}
+)
 PRODUCTION_ENVIRONMENTS: Final[frozenset[Environment]] = frozenset({Environment.PRODUCTION})
 
 
@@ -84,10 +87,12 @@ def validate_root_trust(
     if descriptor_hash(root) != root.descriptor_hash:
         raise ContractViolationError(ContractErrorCode.ROOT_HASH_MISMATCH)
     if environment in PRODUCTION_ENVIRONMENTS:
+        public_key_fingerprint = hashlib.sha256(decode_base64url(root.public_key_jwk.x)).hexdigest()
         is_test_root = (
             root.environment is Environment.TEST
             or root.root_key_id.startswith("test-only-")
             or root.descriptor_hash in TEST_ONLY_ROOT_HASHES
+            or public_key_fingerprint in TEST_ONLY_PUBLIC_KEY_FINGERPRINTS
         )
         if is_test_root:
             raise ContractViolationError(ContractErrorCode.TEST_ROOT_FORBIDDEN)
@@ -139,10 +144,22 @@ def validate_approval_chain(proof: ApprovalProof, context: ApprovalValidationCon
     validate_root_trust(context.root, context.environment, context.trusted_root_hashes)
     _validate_root_window(context)
     _validate_certificate_root_window(context)
-    if context.now < utc_datetime(proof.approved_at):
+    approved_at = utc_datetime(proof.approved_at)
+    proof_expires_at = utc_datetime(proof.expires_at)
+    certificate_issued_at = utc_datetime(context.certificate.issued_at)
+    certificate_expires_at = utc_datetime(context.certificate.expires_at)
+    if context.now < approved_at:
         raise ContractViolationError(ContractErrorCode.APPROVAL_NOT_YET_VALID)
-    if context.now >= utc_datetime(proof.expires_at):
+    if context.now < certificate_issued_at:
+        raise ContractViolationError(ContractErrorCode.CERTIFICATE_NOT_YET_VALID)
+    if context.now >= proof_expires_at:
         raise ContractViolationError(ContractErrorCode.APPROVAL_EXPIRED)
+    if context.now >= certificate_expires_at:
+        raise ContractViolationError(ContractErrorCode.CERTIFICATE_EXPIRED)
+    if approved_at < certificate_issued_at:
+        raise ContractViolationError(ContractErrorCode.PROOF_BEFORE_CERTIFICATE)
+    if proof_expires_at > certificate_expires_at:
+        raise ContractViolationError(ContractErrorCode.PROOF_AFTER_CERTIFICATE)
     _validate_certificate(context)
     request = context.request
     certificate = context.certificate
@@ -158,7 +175,6 @@ def validate_approval_chain(proof: ApprovalProof, context: ApprovalValidationCon
         and proof.nonce == request.nonce
         and utc_datetime(proof.approved_at) >= utc_datetime(request.requested_at)
         and utc_datetime(proof.expires_at) <= utc_datetime(request.expires_at)
-        and utc_datetime(proof.expires_at) <= utc_datetime(certificate.expires_at)
     )
     if not bindings_match:
         raise ContractViolationError(ContractErrorCode.APPROVAL_BINDING_MISMATCH)

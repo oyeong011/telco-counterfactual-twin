@@ -195,6 +195,22 @@ def test_ttl_limitation_is_annotated_and_project_validator_is_normative(
     assert "contract-invalid:approval-request:ttl_60_seconds" in project.stderr
 
 
+def test_approval_proof_schema_declares_equal_certificate_window_consequence() -> None:
+    schema = _read_json(REPO_ROOT / "specs/schemas/approval-proof.schema.json")
+
+    assert schema["x-telco-twin-certificate-window"] == {
+        "code": "proof_certificate_window",
+        "kind": "contained_interval",
+        "proof_start_field": "approved_at",
+        "proof_end_field": "expires_at",
+        "certificate_start_field": "issued_at",
+        "certificate_end_field": "expires_at",
+        "ttl_consequence": "equal_window_required_when_both_are_60_seconds",
+        "json_schema_support": "annotation_only",
+        "enforced_by": "scripts/validate_contract.py",
+    }
+
+
 def test_semantic_key_limitation_is_annotated_and_project_validator_is_normative(
     tmp_path: Path,
 ) -> None:
@@ -252,3 +268,35 @@ def test_project_validator_rejects_stale_invariant_annotation(
 
     assert caught.value.exit_code == 3
     assert capsys.readouterr().err == ("contract-schema-annotations-stale:approval-request\n")
+
+
+def test_separator_free_key_policy_is_declared_and_normatively_rejected(
+    tmp_path: Path,
+) -> None:
+    _, payload = next(case for case in valid_domain_cases() if case[0].__name__ == "Scenario")
+    payload["extensions"] = {
+        "schema_version": "1.0",
+        "values": {"customerid": "synthetic"},
+    }
+    input_path = tmp_path / "scenario-collapsed-key.json"
+    _write_json(input_path, payload)
+    schema = _read_json(REPO_ROOT / "specs/schemas/scenario.schema.json")
+    key_policy = JSON_OBJECT_ADAPTER.validate_python(schema["x-telco-twin-key-policy"])
+
+    structural = _check_schema("scenario", input_path)
+    project = _run_project_validator("scenario", input_path)
+
+    assert structural.returncode == 0
+    assert key_policy["collapsed_pii_keys"] == [
+        "customerid",
+        "emailaddress",
+        "subscriberid",
+    ]
+    assert key_policy["collapsed_authority_keys"] == [
+        "applytonetwork",
+        "pushpayload",
+        "shellcommand",
+    ]
+    assert key_policy["collapsed_secret_keys"] == ["accesstoken"]
+    assert project.returncode == 3
+    assert "contract-invalid:scenario:pii_shaped_key" in project.stderr

@@ -9,9 +9,11 @@ import typer
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from telco_twin.schema_export import (
+    CERTIFICATE_WINDOW_INVARIANTS,
     CONTRACT_INVARIANTS,
     CONTRACT_MODELS,
     KEY_POLICY_ANNOTATION,
+    CertificateWindowInvariant,
     DurationInvariant,
     KeyPolicyAnnotation,
 )
@@ -26,6 +28,10 @@ class ContractSchemaMetadata(BaseModel):
 
     invariants: tuple[DurationInvariant, ...] = Field(alias="x-telco-twin-invariants")
     key_policy: KeyPolicyAnnotation = Field(alias="x-telco-twin-key-policy")
+    certificate_window: CertificateWindowInvariant | None = Field(
+        alias="x-telco-twin-certificate-window",
+        default=None,
+    )
 
 
 def _fail(code: str) -> Never:
@@ -51,7 +57,12 @@ def validate_contract(schema_name: str, input_path: Path, schema_dir: Path) -> N
     except ValidationError:
         _fail(f"contract-schema-annotations-invalid:{schema_name}")
     expected = CONTRACT_INVARIANTS.get(schema_name, ())
-    if metadata.invariants != expected or metadata.key_policy != KEY_POLICY_ANNOTATION:
+    expected_window = CERTIFICATE_WINDOW_INVARIANTS.get(schema_name)
+    if (
+        metadata.invariants != expected
+        or metadata.key_policy != KEY_POLICY_ANNOTATION
+        or metadata.certificate_window != expected_window
+    ):
         _fail(f"contract-schema-annotations-stale:{schema_name}")
     try:
         _ = model.model_validate_json(input_path.read_bytes())

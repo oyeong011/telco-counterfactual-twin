@@ -114,6 +114,17 @@
   ],
   "title": "ApprovalProof",
   "type": "object",
+  "x-telco-twin-certificate-window": {
+    "certificate_end_field": "expires_at",
+    "certificate_start_field": "issued_at",
+    "code": "proof_certificate_window",
+    "enforced_by": "scripts/validate_contract.py",
+    "json_schema_support": "annotation_only",
+    "kind": "contained_interval",
+    "proof_end_field": "expires_at",
+    "proof_start_field": "approved_at",
+    "ttl_consequence": "equal_window_required_when_both_are_60_seconds"
+  },
   "x-telco-twin-invariants": [
     {
       "code": "ttl_60_seconds",
@@ -139,6 +150,19 @@
       "shell",
       "uri",
       "url"
+    ],
+    "collapsed_authority_keys": [
+      "applytonetwork",
+      "pushpayload",
+      "shellcommand"
+    ],
+    "collapsed_pii_keys": [
+      "customerid",
+      "emailaddress",
+      "subscriberid"
+    ],
+    "collapsed_secret_keys": [
+      "accesstoken"
     ],
     "enforced_by": "scripts/validate_contract.py",
     "forbidden_combinations": [

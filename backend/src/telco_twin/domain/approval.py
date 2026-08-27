@@ -1,6 +1,7 @@
 """Public approval-contract facade."""
 
 from ._approval_crypto import (
+    TEST_ONLY_PUBLIC_KEY_FINGERPRINTS,
     certificate_hash,
     certificate_signing_bytes,
     descriptor_hash,
@@ -26,6 +27,7 @@ from ._approval_models import (
 from .canonical import canonical_json_bytes, canonical_model_bytes
 
 __all__ = [
+    "TEST_ONLY_PUBLIC_KEY_FINGERPRINTS",
     "ApprovalDecision",
     "ApprovalProof",
     "ApprovalRequest",

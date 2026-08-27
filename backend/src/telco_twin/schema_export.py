@@ -12,6 +12,9 @@ from pydantic import BaseModel, ConfigDict, JsonValue, TypeAdapter, ValidationEr
 
 from telco_twin.domain._contract import (
     AUTHORITY_KEY_TOKENS,
+    COLLAPSED_AUTHORITY_KEYS,
+    COLLAPSED_PII_KEYS,
+    COLLAPSED_SECRET_KEYS,
     FORBIDDEN_KEY_COMBINATIONS,
     IDENTIFIER_TOKENS,
     IDENTITY_SUBJECT_TOKENS,
@@ -98,8 +101,31 @@ class KeyPolicyAnnotation(BaseModel):
     identifier_tokens: tuple[str, ...]
     authority_tokens: tuple[str, ...]
     secret_tokens: tuple[str, ...]
+    collapsed_pii_keys: tuple[str, ...]
+    collapsed_authority_keys: tuple[str, ...]
+    collapsed_secret_keys: tuple[str, ...]
     forbidden_combinations: tuple[tuple[str, ...], ...]
     allow_examples: tuple[str, ...]
+    json_schema_support: Literal["annotation_only"]
+    enforced_by: Literal["scripts/validate_contract.py"]
+
+    def as_json(self) -> JsonValue:
+        """Return a typed JSON value for schema annotation."""
+        return JSON_ADAPTER.validate_json(self.model_dump_json())
+
+
+class CertificateWindowInvariant(BaseModel):
+    """Proof interval containment rule beyond plain JSON Schema."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
+
+    code: Literal["proof_certificate_window"]
+    kind: Literal["contained_interval"]
+    proof_start_field: Literal["approved_at"]
+    proof_end_field: Literal["expires_at"]
+    certificate_start_field: Literal["issued_at"]
+    certificate_end_field: Literal["expires_at"]
+    ttl_consequence: Literal["equal_window_required_when_both_are_60_seconds"]
     json_schema_support: Literal["annotation_only"]
     enforced_by: Literal["scripts/validate_contract.py"]
 
@@ -135,10 +161,27 @@ KEY_POLICY_ANNOTATION: Final = KeyPolicyAnnotation(
     identifier_tokens=IDENTIFIER_TOKENS,
     authority_tokens=AUTHORITY_KEY_TOKENS,
     secret_tokens=SECRET_KEY_TOKENS,
+    collapsed_pii_keys=COLLAPSED_PII_KEYS,
+    collapsed_authority_keys=COLLAPSED_AUTHORITY_KEYS,
+    collapsed_secret_keys=COLLAPSED_SECRET_KEYS,
     forbidden_combinations=FORBIDDEN_KEY_COMBINATIONS,
     allow_examples=KEY_POLICY_ALLOW_EXAMPLES,
     json_schema_support="annotation_only",
     enforced_by="scripts/validate_contract.py",
+)
+PROOF_CERTIFICATE_WINDOW: Final = CertificateWindowInvariant(
+    code="proof_certificate_window",
+    kind="contained_interval",
+    proof_start_field="approved_at",
+    proof_end_field="expires_at",
+    certificate_start_field="issued_at",
+    certificate_end_field="expires_at",
+    ttl_consequence="equal_window_required_when_both_are_60_seconds",
+    json_schema_support="annotation_only",
+    enforced_by="scripts/validate_contract.py",
+)
+CERTIFICATE_WINDOW_INVARIANTS: Final[Mapping[str, CertificateWindowInvariant]] = MappingProxyType(
+    {"approval-proof": PROOF_CERTIFICATE_WINDOW}
 )
 
 
@@ -149,6 +192,9 @@ def render_schema(name: str, model: type[BaseModel]) -> bytes:
         invariant.as_json() for invariant in CONTRACT_INVARIANTS.get(name, ())
     ]
     schema["x-telco-twin-key-policy"] = KEY_POLICY_ANNOTATION.as_json()
+    certificate_window = CERTIFICATE_WINDOW_INVARIANTS.get(name)
+    if certificate_window is not None:
+        schema["x-telco-twin-certificate-window"] = certificate_window.as_json()
     rendered = json.dumps(schema, ensure_ascii=False, indent=2, sort_keys=True)
     return f"{rendered}\n".encode()
 
@@ -181,6 +227,12 @@ def _validate_contract(schema_name: str, input_path: Path | None) -> None:
 
 
 def _check(out_dir: Path) -> None:
+    expected_files = frozenset(f"{name}.schema.json" for name in CONTRACT_MODELS)
+    actual_files = frozenset(path.name for path in out_dir.glob("*.schema.json") if path.is_file())
+    extra_files = sorted(actual_files - expected_files)
+    if extra_files:
+        slug = extra_files[0].removesuffix(".schema.json")
+        _fail(f"contract-schema-extra:{slug}")
     for name, model in CONTRACT_MODELS.items():
         path = out_dir / f"{name}.schema.json"
         if not path.is_file():

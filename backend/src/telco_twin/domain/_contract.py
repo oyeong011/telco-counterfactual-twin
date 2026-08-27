@@ -89,6 +89,17 @@ FORBIDDEN_KEY_COMBINATIONS: Final = (
     ("push", "payload"),
 )
 KEY_POLICY_ALLOW_EXAMPLES: Final = ("config_history", "ue_cohort_id")
+COLLAPSED_PII_KEYS: Final = (
+    "customerid",
+    "emailaddress",
+    "subscriberid",
+)
+COLLAPSED_AUTHORITY_KEYS: Final = (
+    "applytonetwork",
+    "pushpayload",
+    "shellcommand",
+)
+COLLAPSED_SECRET_KEYS: Final = ("accesstoken",)
 _CAMEL_ACRONYM_BOUNDARY: Final = re.compile(r"([A-Z]+)([A-Z][a-z])")
 _CAMEL_WORD_BOUNDARY: Final = re.compile(r"([a-z0-9])([A-Z])")
 _TOKEN_SEPARATOR: Final = re.compile(r"[^A-Za-z0-9]+")
@@ -98,6 +109,9 @@ _IDENTIFIER_SET: Final = frozenset(IDENTIFIER_TOKENS)
 _AUTHORITY_TOKEN_SET: Final = frozenset(AUTHORITY_KEY_TOKENS)
 _SECRET_TOKEN_SET: Final = frozenset(SECRET_KEY_TOKENS)
 _PUSH_PAYLOAD: Final = frozenset(("push", "payload"))
+_COLLAPSED_PII_SET: Final = frozenset(COLLAPSED_PII_KEYS)
+_COLLAPSED_AUTHORITY_SET: Final = frozenset(COLLAPSED_AUTHORITY_KEYS)
+_COLLAPSED_SECRET_SET: Final = frozenset(COLLAPSED_SECRET_KEYS)
 
 
 def _key_tokens(value: str) -> tuple[str, ...]:
@@ -106,17 +120,30 @@ def _key_tokens(value: str) -> tuple[str, ...]:
     return tuple(token.lower() for token in _TOKEN_SEPARATOR.split(expanded) if token)
 
 
+def _collapsed_key(value: str) -> str:
+    return "".join(character for character in value.lower() if character.isalnum())
+
+
 def _validate_semantic_key(value: str) -> None:
     tokens = frozenset(_key_tokens(value))
+    collapsed = _collapsed_key(value)
     has_identity_subject = bool(tokens & _IDENTITY_SUBJECT_SET)
     has_identifier = bool(tokens & _IDENTIFIER_SET)
-    if tokens & _PII_TOKEN_SET or (has_identity_subject and has_identifier):
+    if (
+        tokens & _PII_TOKEN_SET
+        or (has_identity_subject and has_identifier)
+        or collapsed in _COLLAPSED_PII_SET
+    ):
         fail_validation("pii_shaped_key", "PII-shaped keys are forbidden")
-    if tokens & _AUTHORITY_TOKEN_SET or tokens >= _PUSH_PAYLOAD:
+    if (
+        tokens & _AUTHORITY_TOKEN_SET
+        or tokens >= _PUSH_PAYLOAD
+        or collapsed in _COLLAPSED_AUTHORITY_SET
+    ):
         fail_validation(
             "authority_shaped_key", "execution and command authority keys are forbidden"
         )
-    if tokens & _SECRET_TOKEN_SET:
+    if tokens & _SECRET_TOKEN_SET or collapsed in _COLLAPSED_SECRET_SET:
         fail_validation("secret_shaped_key", "secret-shaped keys are forbidden")
 
 
