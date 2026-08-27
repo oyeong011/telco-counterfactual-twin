@@ -9,7 +9,9 @@ import pytest
 from pydantic import ValidationError
 
 from telco_twin.data.synthetic import SimulationManifest, generate_manifest
+from telco_twin.domain.event import Event
 from telco_twin.simulator.engine import ManifestIntegrityError, run_simulation
+from telco_twin.simulator.frozen_event import FrozenEvent
 from telco_twin.simulator.hashing import (
     EmptyTraceError,
     HashContext,
@@ -19,6 +21,43 @@ from telco_twin.simulator.hashing import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+
+INVALID_EVENT_CASES = (
+    (
+        (
+            '{"event_id":"event-0001","scenario_id":"scenario-0001",'
+            '"timestamp":"2026-08-27T00:00:00Z","priority":0,"sequence_id":1,'
+            '"event_type":"parser-test","payload":{"nested":{"x":1}},"schema_version":"1.0"}'
+        ),
+        "string_type",
+    ),
+    (
+        (
+            '{"event_id":"event-0001","scenario_id":"scenario-0001",'
+            '"timestamp":"2026-08-27T00:00:00Z","priority":1001,"sequence_id":1,'
+            '"event_type":"parser-test","payload":{"count":1},"schema_version":"1.0"}'
+        ),
+        "less_than_equal",
+    ),
+    (
+        (
+            '{"event_id":"event-0001","scenario_id":"scenario-0001",'
+            '"timestamp":"2026-08-27T00:00:00Z","priority":0,"sequence_id":1,'
+            '"event_type":"parser-test","payload":{"count":1},"unexpected":"x",'
+            '"schema_version":"1.0"}'
+        ),
+        "extra_forbidden",
+    ),
+    (
+        (
+            '{"event_id":"event-0001","scenario_id":"scenario-0001",'
+            '"timestamp":"2026-08-27T00:00:00Z","priority":0,"sequence_id":1,'
+            '"event_type":"parser-test","payload":{"count":1},"extensions":'
+            '{"schema_version":"1.0","values":{"nested":{"x":1}}},"schema_version":"1.0"}'
+        ),
+        "string_type",
+    ),
+)
 
 
 def test_same_manifest_produces_one_nonempty_trace_hash_across_100_runs() -> None:
@@ -56,6 +95,22 @@ def test_exposed_trace_payload_rejects_mutation_and_keeps_canonical_hash() -> No
     assert trace.trace_hash == before == after
 
 
+@pytest.mark.parametrize(("encoded", "expected_code"), INVALID_EVENT_CASES)
+def test_frozen_event_parser_uses_authoritative_event_boundary(
+    encoded: str,
+    expected_code: str,
+) -> None:
+    # Given: JSON invalid under the authoritative Event contract.
+    # When: both public parsers receive the same untrusted JSON.
+    with pytest.raises(ValidationError) as event_error:
+        _ = Event.model_validate_json(encoded)
+    with pytest.raises(ValidationError) as frozen_error:
+        _ = FrozenEvent.model_validate_json(encoded)
+    # Then: the snapshot parser preserves the stable Event error code.
+    assert expected_code in {item["type"] for item in event_error.value.errors()}
+    assert expected_code in {item["type"] for item in frozen_error.value.errors()}
+
+
 def test_same_manifest_is_byte_stable_across_isolated_processes(tmp_path: Path) -> None:
     # Given: one serialized manifest and two distinct process hash seeds.
     manifest_path = tmp_path / "manifest.json"
@@ -63,6 +118,7 @@ def test_same_manifest_is_byte_stable_across_isolated_processes(tmp_path: Path) 
     code = (
         "from pathlib import Path;"
         "from telco_twin.data.synthetic import SimulationManifest;"
+        "from telco_twin.domain._contract import VersionedExtensions;"
         "from telco_twin.domain.event import Event;"
         "from telco_twin.simulator.engine import run_simulation;"
         "from telco_twin.simulator.hashing import HashContext,TraceHashInput,hash_trace;"
@@ -72,16 +128,16 @@ def test_same_manifest_is_byte_stable_across_isolated_processes(tmp_path: Path) 
         "trace=run_simulation(manifest);"
         "source=Event(event_id='event-0099',scenario_id='scenario-0001',"
         "timestamp='2026-08-27T00:00:00Z',priority=0,sequence_id=99,"
-        "event_type='nested-test',payload={},schema_version='1.0');"
-        "source=source.model_copy(update={'payload':"
-        "{'settings':{'mode':'original'},'values':[1,2]}});"
+        "event_type='extension-test',payload={'count':1},"
+        "extensions=VersionedExtensions(schema_version='1.0',"
+        "values={'flag':'original'}),schema_version='1.0');"
         "scheduler=DeterministicScheduler();scheduler.schedule(source);"
         "stored=scheduler.drain().events[0];"
         "context=HashContext(schema_version='1.0',input_name='simulation-trace',"
         "input_version='1.0.0',seed=71);"
-        "nested_hash=hash_trace(TraceHashInput("
+        "extension_hash=hash_trace(TraceHashInput("
         "manifest_hash=manifest.manifest_hash,events=(stored,)),context);"
-        "print(trace.trace_hash+':'+nested_hash+':'+stored.model_dump_json())"
+        "print(trace.trace_hash+':'+extension_hash+':'+stored.model_dump_json())"
     )
     outputs: list[str] = []
     # When: independent interpreters execute with different PYTHONHASHSEED values.

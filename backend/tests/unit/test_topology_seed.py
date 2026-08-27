@@ -2,10 +2,12 @@
 
 import random
 
+import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
+from pydantic import ValidationError
 
-from telco_twin.data.synthetic import generate_manifest
+from telco_twin.data.synthetic import SimulationManifest, generate_manifest
 from telco_twin.domain.topology import MAX_CELLS, MIN_CELLS, NodeKind
 
 MAX_SEED = (2**53) - 1
@@ -69,3 +71,38 @@ def test_generator_does_not_consume_global_random_state() -> None:
     _ = generate_manifest(19)
     # Then: the process-global RNG remains untouched.
     assert random.getstate() == state_before
+
+
+def test_manifest_boundary_rejects_unsupported_input_version() -> None:
+    # Given: valid manifest JSON with an unsupported input version.
+    encoded = generate_manifest(1).model_dump_json()
+    changed = encoded.replace('"input_version":"1.0.0"', '"input_version":"2.0.0"', 1)
+    # When: the JSON crosses the manifest boundary.
+    with pytest.raises(ValidationError, match="unsupported_input_version"):
+        _ = SimulationManifest.model_validate_json(changed)
+    # Then: unsupported generator semantics never enter the engine.
+
+
+def test_manifest_boundary_rejects_seed_mismatch() -> None:
+    # Given: valid manifest JSON whose top-level seed no longer matches its inputs.
+    encoded = generate_manifest(1).model_dump_json()
+    changed = encoded.replace('"seed":1', '"seed":2', 1)
+    # When: the JSON crosses the manifest boundary.
+    with pytest.raises(ValidationError, match="manifest_seed_mismatch"):
+        _ = SimulationManifest.model_validate_json(changed)
+    # Then: mixed-seed replay is rejected.
+
+
+def test_manifest_boundary_rejects_topology_identity_mismatch() -> None:
+    # Given: valid manifest JSON whose topology identity no longer matches its scenario.
+    manifest = generate_manifest(1)
+    encoded = manifest.model_dump_json()
+    changed = encoded.replace(
+        f'"topology_id":"{manifest.topology.topology_id}"',
+        '"topology_id":"topology-mismatched"',
+        1,
+    )
+    # When: the JSON crosses the manifest boundary.
+    with pytest.raises(ValidationError, match="manifest_topology_mismatch"):
+        _ = SimulationManifest.model_validate_json(changed)
+    # Then: cross-topology scenarios are rejected.

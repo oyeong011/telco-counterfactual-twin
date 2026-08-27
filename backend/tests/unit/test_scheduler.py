@@ -1,6 +1,6 @@
 """Deterministic scheduler contract tests."""
 
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 import pytest
 from hypothesis import given, settings
@@ -15,9 +15,6 @@ from telco_twin.simulator.scheduler import (
     EventTrace,
 )
 
-if TYPE_CHECKING:
-    from pydantic import JsonValue
-
 TIED_TIMESTAMP = "2026-08-27T00:00:01Z"
 
 
@@ -26,17 +23,8 @@ class StringSettable(Protocol):
     def __setitem__(self, key: str, value: str) -> None: ...
 
 
-@runtime_checkable
-class IntegerSettable(Protocol):
-    def __setitem__(self, key: int, value: int) -> None: ...
-
-
 def mutate_string(target: StringSettable) -> None:
     target["mode"] = "returned-mutated"
-
-
-def mutate_integer(target: IntegerSettable) -> None:
-    target[0] = 99
 
 
 def make_event(timestamp: str, priority: int, sequence_id: int) -> Event:
@@ -48,6 +36,23 @@ def make_event(timestamp: str, priority: int, sequence_id: int) -> Event:
         sequence_id=sequence_id,
         event_type="test-event",
         payload={},
+        schema_version="1.0",
+    )
+
+
+def make_extension_event(sequence_id: int) -> Event:
+    return Event(
+        event_id=f"event-{sequence_id:04d}",
+        scenario_id="scenario-0001",
+        timestamp=TIED_TIMESTAMP,
+        priority=0,
+        sequence_id=sequence_id,
+        event_type="extension-test",
+        payload={"count": 1},
+        extensions=VersionedExtensions(
+            schema_version="1.0",
+            values={"flag": "original"},
+        ),
         schema_version="1.0",
     )
 
@@ -126,82 +131,75 @@ def test_event_trace_appends_without_mutating_prior_versions() -> None:
     assert tuple(event.event_id for event in two_events.events) == ("event-0001", "event-0002")
 
 
-def test_scheduler_deeply_snapshots_payload_when_caller_and_returned_values_mutate() -> None:
-    # Given: an Event carrying nested dict/list values through Pydantic model_copy.
-    settings: dict[str, JsonValue] = {"mode": "original"}
-    values: list[JsonValue] = [1, 2]
-    nested_payload: dict[str, JsonValue] = {
-        "scalars": [None, True, "text", 1, 1.5],
-        "settings": settings,
-        "values": values,
-    }
-    source = make_event(TIED_TIMESTAMP, 0, 7).model_copy(update={"payload": nested_payload})
+def test_scheduler_snapshots_valid_payload_and_extension_values() -> None:
+    # Given: a fully validated Event with scalar payload and extension values.
+    source = make_extension_event(7)
     scheduler = DeterministicScheduler()
     scheduler.schedule(source)
     stored = scheduler.drain().events[0]
-    # When: caller-owned nested values change after scheduling.
-    settings["mode"] = "caller-mutated"
-    values.append(3)
+    # When: caller-owned payload and extension mappings change after scheduling.
+    source.payload["count"] = 2
     source.payload["late_change"] = "caller-mutated"
-    nested_map = stored.payload["settings"]
-    nested_list = stored.payload["values"]
-    assert isinstance(nested_map, StringSettable)
-    assert isinstance(nested_list, IntegerSettable)
-    # And: mutation is attempted through both returned nested containers.
+    assert source.extensions is not None
+    source.extensions.values["flag"] = "caller-mutated"
+    assert stored.extensions is not None
+    assert isinstance(stored.payload, StringSettable)
+    assert isinstance(stored.extensions.values, StringSettable)
+    # And: mutation is attempted through both returned mappings.
     with pytest.raises(TypeError, match="immutable"):
-        mutate_string(nested_map)
+        mutate_string(stored.payload)
     with pytest.raises(TypeError, match="immutable"):
-        mutate_integer(nested_list)
-    # Then: the stored event remains a detached recursive snapshot.
-    assert len(stored.payload) == 3
-    with pytest.raises(KeyError, match="missing"):
-        _ = stored.payload["missing"]
-    assert stored.model_dump()["payload"] == {
-        "scalars": [None, True, "text", 1, 1.5],
-        "settings": {"mode": "original"},
-        "values": [1, 2],
+        mutate_string(stored.extensions.values)
+    # Then: the stored event remains a detached scalar snapshot.
+    assert stored.model_dump() == {
+        "event_id": "event-0007",
+        "scenario_id": "scenario-0001",
+        "timestamp": TIED_TIMESTAMP,
+        "priority": 0,
+        "sequence_id": 7,
+        "event_type": "extension-test",
+        "payload": {"count": 1},
+        "schema_version": "1.0",
+        "extensions": {
+            "schema_version": "1.0",
+            "values": {"flag": "original"},
+        },
     }
 
 
-def test_nested_snapshot_copy_dump_roundtrip_keeps_one_canonical_hash() -> None:
-    # Given: one stored event with nested JSON values.
-    source = make_event(TIED_TIMESTAMP, 0, 8).model_copy(
-        update={
-            "extensions": VersionedExtensions(
-                schema_version="1.0",
-                values={"snapshot_kind": "nested"},
-            ),
-            "payload": {
-                "scalars": [None, True, "text", 1, 1.5],
-                "settings": {"mode": "original"},
-                "values": [1, 2],
-            },
-        }
-    )
+def test_extension_snapshot_copy_dump_roundtrip_keeps_one_canonical_hash() -> None:
+    # Given: one stored Event with fully validated extension values.
+    source = make_extension_event(8)
     scheduler = DeterministicScheduler()
     scheduler.schedule(source)
     stored = scheduler.drain().events[0]
-    copied = stored.model_copy()
-    roundtripped = type(stored).model_validate_json(stored.model_dump_json())
-    dumped = stored.model_dump()
-    dumped["payload"]["settings"] = {"mode": "dump-mutated"}
-    dumped["payload"]["values"] = [99]
     context = HashContext(
         schema_version="1.0",
         input_name="simulation-trace",
         input_version="1.0.0",
         seed=8,
     )
+    before = hash_trace(TraceHashInput(manifest_hash="a" * 64, events=(stored,)), context)
+    assert source.extensions is not None
+    source.extensions.values["flag"] = "caller-mutated"
+    copied = stored.model_copy()
+    roundtripped = type(stored).model_validate_json(stored.model_dump_json())
+    dumped = stored.model_dump()
+    dumped["payload"]["count"] = 99
+    dumped["extensions"] = {
+        "schema_version": "1.0",
+        "values": {"flag": "dump-mutated"},
+    }
     # When: each exposed representation is independently hashed.
     hashes = tuple(
         hash_trace(TraceHashInput(manifest_hash="a" * 64, events=(event,)), context)
         for event in (stored, copied, roundtripped)
     )
     # Then: copy, dump/roundtrip, and original expose one canonical event.
-    assert hashes == (hashes[0],) * 3
+    assert (before, *hashes) == (before,) * 4
     assert stored.model_dump() == copied.model_dump() == roundtripped.model_dump()
-    assert stored.model_dump()["payload"] == {
-        "scalars": [None, True, "text", 1, 1.5],
-        "settings": {"mode": "original"},
-        "values": [1, 2],
+    assert stored.model_dump()["payload"] == {"count": 1}
+    assert stored.model_dump().get("extensions") == {
+        "schema_version": "1.0",
+        "values": {"flag": "original"},
     }
