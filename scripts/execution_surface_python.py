@@ -9,9 +9,9 @@ from typing import final, override
 from scripts.execution_surface_bindings import (
     ScopeFrame,
     child_function_scope,
-    iteration_provenance,
     target_bindings,
 )
+from scripts.execution_surface_loops import LoopAnalysisContext, visit_for_loop
 from scripts.execution_surface_policy import (
     is_dangerous_call,
     is_mutation_name,
@@ -224,10 +224,8 @@ class _PythonSurfaceVisitor(ast.NodeVisitor):
 
     def _visit_for(self, node: ast.For | ast.AsyncFor) -> None:
         self.visit(node.iter)
-        self.visit(node.target)
-        self._bind(node.target, iteration_provenance(self._provenance(node.iter)))
-        for statement in (*node.body, *node.orelse):
-            self.visit(statement)
+        context = LoopAnalysisContext(self, self._scopes, self._bind)
+        visit_for_loop(context, node, self._provenance(node.iter))
 
     @override
     def visit_For(self, node: ast.For) -> None:

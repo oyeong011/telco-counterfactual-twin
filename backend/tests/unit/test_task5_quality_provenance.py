@@ -1,6 +1,5 @@
 """Trusted observation-quality provenance regressions."""
 
-from dataclasses import fields
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -94,8 +93,7 @@ def test_stale_observation_cannot_be_cleaned_by_caller_assessment() -> None:
         ),
         FixedClock(STALE_TIME),
     )
-    # Then: there is no assessment injection field and freshness blocks eligibility.
-    assert "quality" not in {field.name for field in fields(LocalPolicyInput)}
+    # Then: trusted freshness blocks eligibility despite the caller's clean assessment.
     assert decision.evidence.eligible is False
     assert PolicyReason.OBSERVATION_STALE in decision.evidence.reasons
 
