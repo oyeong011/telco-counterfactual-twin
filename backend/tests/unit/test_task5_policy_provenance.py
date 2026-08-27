@@ -1,0 +1,231 @@
+"""Adversarial policy provenance regressions."""
+
+import hashlib
+
+import anyio
+import pytest
+
+from telco_twin.approval.authority import ApprovalRequestIssue, issue_approval_request
+from telco_twin.approval.state_machine import (
+    ApprovalStateError,
+    ApprovalStateErrorCode,
+    ApprovalStateMachine,
+)
+from telco_twin.domain.approval import ApprovalRequest
+from telco_twin.domain.canonical import canonical_model_bytes
+from telco_twin.safety.local_policy import (
+    LOCAL_POLICY_DEFINITION_HASH,
+    LocalPolicyInput,
+    PolicyDecision,
+    PolicyDecisionCreationError,
+    PolicyDecisionIssuer,
+    PolicyDecisionPayload,
+    PolicyDecisionRejected,
+    PolicyEvaluation,
+    PolicyVerificationCode,
+    evaluate_local_policy,
+    revalidate_policy_decision,
+)
+from telco_twin.simulator.metrics import ObservationQualityFlag, QualityAssessment
+
+from .test_approval_state import approval_chain
+from .test_local_policy import local_policy_input, real_policy_decision
+
+
+def _arbitrary_eligible_policy() -> PolicyEvaluation:
+    draft = PolicyEvaluation.model_construct(
+        eligible=True,
+        reasons=(),
+        patch_hash="a" * 64,
+        simulation_hash="b" * 64,
+        policy_definition_hash=LOCAL_POLICY_DEFINITION_HASH,
+        policy_hash="0" * 64,
+    )
+    forged = draft.model_copy(
+        update={
+            "policy_hash": hashlib.sha256(
+                canonical_model_bytes(draft, exclude=frozenset({"policy_hash"}))
+            ).hexdigest()
+        }
+    )
+    return PolicyEvaluation.model_validate_json(forged.model_dump_json())
+
+
+def _request(policy: PolicyEvaluation) -> ApprovalRequest:
+    return issue_approval_request(
+        ApprovalRequestIssue(
+            request_id="approval-request-forged",
+            session_id="session-forged",
+            patch_hash=policy.patch_hash or "a" * 64,
+            simulation_hash=policy.simulation_hash or "b" * 64,
+            policy_hash=policy.policy_hash,
+            requested_at="2026-08-27T00:00:00Z",
+            nonce=b"\x0a" * 16,
+        )
+    )
+
+
+def test_policy_evaluation_has_no_public_eligible_builder() -> None:
+    # Given: the serializable policy evidence boundary.
+    # When: its public class surface is inspected.
+    # Then: clients cannot mint eligible evidence with arbitrary hashes.
+    assert not hasattr(PolicyEvaluation, "build")
+
+
+def test_internal_policy_capability_is_not_a_serializable_boundary_model() -> None:
+    # Given: a real evaluator-issued capability and its separate evidence projection.
+    decision = real_policy_decision()
+    encoded = decision.evidence.model_dump_json()
+    # When: ordinary boundary construction/copy methods are inspected.
+    model_methods = {"model_validate", "model_copy", "model_dump", "model_dump_json"}
+    # Then: only evidence round-trips; the internal capability cannot.
+    assert not any(hasattr(decision, name) for name in model_methods)
+    assert PolicyEvaluation.model_validate_json(encoded) == decision.evidence
+
+
+def test_policy_capability_rejects_non_module_issuer() -> None:
+    # Given: real receipt/evidence combined with a different issuer identity.
+    decision = real_policy_decision()
+    payload = PolicyDecisionPayload(
+        quality=decision.quality,
+        receipt=decision.receipt,
+        evidence=decision.evidence,
+    )
+    # When/Then: ordinary direct construction cannot mint the capability.
+    with pytest.raises(PolicyDecisionCreationError):
+        _ = PolicyDecision(PolicyDecisionIssuer(), payload)
+
+
+def test_policy_revalidation_rejects_mutated_serializable_evidence() -> None:
+    # Given: a real capability whose evidence object is forcibly changed in memory.
+    decision = real_policy_decision()
+    object.__setattr__(decision.evidence, "policy_hash", "0" * 64)
+    # When: state-level provenance is recomputed.
+    result = revalidate_policy_decision(decision)
+    # Then: the changed serialized projection fails closed.
+    assert result == PolicyDecisionRejected(PolicyVerificationCode.EVIDENCE_CHANGED)
+
+
+def test_arbitrary_eligible_policy_without_simulator_never_reaches_pending() -> None:
+    async def scenario() -> None:
+        # Given: a self-hashed eligible object created without runner/comparison/evaluator calls.
+        policy = _arbitrary_eligible_policy()
+        machine = ApprovalStateMachine()
+        # When: request admission receives only fabricated serializable evidence.
+        with pytest.raises(ApprovalStateError):
+            _ = await machine.record_request(_request(policy), policy)
+
+    anyio.run(scenario)
+
+
+def test_deserialized_eligible_policy_without_simulator_never_reaches_pending() -> None:
+    async def scenario() -> None:
+        # Given: fabricated eligible evidence round-tripped through the public JSON boundary.
+        source = _arbitrary_eligible_policy()
+        policy = PolicyEvaluation.model_validate_json(source.model_dump_json())
+        machine = ApprovalStateMachine()
+        # When: deserialized evidence is presented as approval provenance.
+        with pytest.raises(ApprovalStateError):
+            _ = await machine.record_request(_request(policy), policy)
+
+    anyio.run(scenario)
+
+
+def test_model_copy_eligible_policy_without_simulator_never_reaches_pending() -> None:
+    async def scenario() -> None:
+        # Given: a copied/rehashed eligible model with no simulator-owned capability.
+        source = _arbitrary_eligible_policy()
+        draft = source.model_copy(update={"simulation_hash": "c" * 64, "policy_hash": "0" * 64})
+        policy = draft.model_copy(
+            update={
+                "policy_hash": hashlib.sha256(
+                    canonical_model_bytes(draft, exclude=frozenset({"policy_hash"}))
+                ).hexdigest()
+            }
+        )
+        machine = ApprovalStateMachine()
+        # When: model-copy forgery is presented as approval provenance.
+        with pytest.raises(ApprovalStateError):
+            _ = await machine.record_request(_request(policy), policy)
+
+    anyio.run(scenario)
+
+
+def test_changed_comparison_cannot_rebind_into_policy_eligibility() -> None:
+    # Given: a real comparison whose candidate metric is changed after simulation.
+    policy_input = local_policy_input()
+    assert policy_input.comparison is not None
+    first_delta = policy_input.comparison.result.metric_deltas[0]
+    changed_result = policy_input.comparison.result.model_copy(
+        update={
+            "metric_deltas": (
+                first_delta.model_copy(update={"candidate": first_delta.candidate + 1}),
+                *policy_input.comparison.result.metric_deltas[1:],
+            )
+        }
+    )
+    comparison = policy_input.comparison.model_copy(update={"result": changed_result})
+    # When: the changed comparison is evaluated with the original run.
+    policy = evaluate_local_policy(
+        LocalPolicyInput(
+            quality=policy_input.quality,
+            run=policy_input.run,
+            comparison=comparison,
+        )
+    ).evidence
+    # Then: simulator provenance, not caller-recomputed hashes, controls eligibility.
+    assert policy.eligible is False
+
+
+def test_zero_event_equivalent_comparison_cannot_be_policy_eligible() -> None:
+    # Given: a model-copy comparison stripped of all simulator result evidence.
+    policy_input = local_policy_input()
+    assert policy_input.comparison is not None
+    empty_result = policy_input.comparison.result.model_copy(
+        update={"metric_deltas": (), "constraints": (), "approval_eligible": True}
+    )
+    comparison = policy_input.comparison.model_copy(update={"result": empty_result})
+    # When: the zero-evidence comparison is evaluated.
+    policy = evaluate_local_policy(
+        LocalPolicyInput(
+            quality=policy_input.quality,
+            run=policy_input.run,
+            comparison=comparison,
+        )
+    ).evidence
+    # Then: empty simulator evidence is fail-closed.
+    assert policy.eligible is False
+
+
+def test_state_revalidates_receipt_again_before_recording_proof() -> None:
+    async def scenario() -> None:
+        # Given: pending state whose retained baseline is mutated after admission.
+        policy, request, proof, context = approval_chain()
+        machine = ApprovalStateMachine()
+        _ = await machine.record_request(request, policy)
+        assert policy.receipt is not None
+        policy.receipt.run.baseline_manifest.topology.nodes[0].attributes["capacity_ues"] = 999
+        # When/Then: proof recording re-runs provenance and fails closed.
+        with pytest.raises(ApprovalStateError):
+            _ = await machine.record_proof(proof, context)
+
+    anyio.run(scenario)
+
+
+def test_ineligible_policy_with_real_receipt_never_creates_pending_state() -> None:
+    async def scenario() -> None:
+        # Given: real simulator provenance with stale observation quality.
+        _, request, _, _ = approval_chain()
+        policy = real_policy_decision(
+            quality=QualityAssessment(
+                flags=(ObservationQualityFlag.STALE,),
+                approval_eligible=False,
+            )
+        )
+        # When: approval admission revalidates the decision.
+        with pytest.raises(ApprovalStateError) as caught:
+            _ = await ApprovalStateMachine().record_request(request, policy)
+        # Then: provenance remains necessary but cannot override ineligibility.
+        assert caught.value.code is ApprovalStateErrorCode.POLICY_INELIGIBLE
+
+    anyio.run(scenario)

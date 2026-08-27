@@ -33,12 +33,19 @@ from telco_twin.domain.approval import (
     Environment,
     validate_approval_chain,
 )
-from telco_twin.safety.local_policy import evaluate_local_policy
+from telco_twin.safety.local_policy import LocalPolicyInput, evaluate_local_policy
 from telco_twin.simulator.engine import ManifestIntegrityError, run_simulation
 from telco_twin.simulator.metrics import ObservationQualityFlag, QualityAssessment
-from telco_twin.state.memory_store import (
+from telco_twin.state.memory_store import DemoSessionStore
+from telco_twin.state.probe_evidence import (
+    CleanupEvidence,
+    ConcurrencyEvidence,
+    NegativeEvidence,
+    PositiveEvidence,
+    ProbeArtifact,
+)
+from telco_twin.state.store_models import (
     AppendEventRequest,
-    DemoSessionStore,
     EventAppendAccepted,
     SessionAccess,
     SessionAccessDenied,
@@ -50,18 +57,16 @@ from telco_twin.state.memory_store import (
 from scripts.task5_probe_support import (
     DEMO_KEY,
     NOW,
-    CleanupEvidence,
-    ConcurrencyEvidence,
-    NegativeEvidence,
-    PositiveEvidence,
-    ProbeArtifact,
     ProbeInvariantCode,
     ProbeInvariantError,
     ProbeUsageError,
+    probe_approval_negatives,
     probe_event,
+    probe_idempotency_race,
     probe_patch,
     probe_policy_input,
     probe_snapshot_hash,
+    require_proof_hash,
 )
 
 
@@ -76,6 +81,7 @@ async def _run_probe() -> ProbeArtifact:
     simulation_hash = hash_comparison(comparison)
     policy_input = probe_policy_input(run, comparison)
     policy = evaluate_local_policy(policy_input)
+    policy_evidence = policy.evidence
     authority = load_approval_authority(AuthorityMode.LOCAL)
     session = authority.issue_session(
         SessionIssue(session_id="session-probe-0001", issued_at="2026-08-27T00:00:00Z")
@@ -86,7 +92,7 @@ async def _run_probe() -> ProbeArtifact:
             session_id="session-probe-0001",
             patch_hash=run.patch_hash,
             simulation_hash=simulation_hash,
-            policy_hash=policy.policy_hash,
+            policy_hash=policy_evidence.policy_hash,
             requested_at="2026-08-27T00:00:00Z",
             nonce=b"\x09" * 16,
         )
@@ -112,6 +118,8 @@ async def _run_probe() -> ProbeArtifact:
     machine = ApprovalStateMachine()
     _ = await machine.record_request(request, policy)
     record = await machine.record_proof(proof, context)
+    recorded_proof_hash = require_proof_hash(record.proof_hash)
+    approval_negatives = probe_approval_negatives(proof, context, authority)
     store = DemoSessionStore(signing_key=DEMO_KEY, startup_epoch="epoch-probe-0001")
     created = await store.create_session(
         SessionCreate(session_id="session-probe-0001", now=NOW, nonce=b"\x08" * 16)
@@ -122,8 +130,8 @@ async def _run_probe() -> ProbeArtifact:
         ("scenario-recorded", manifest.manifest_hash),
         ("patch-recorded", run.patch_hash),
         ("simulation-recorded", simulation_hash),
-        ("policy-recorded", policy.policy_hash),
-        ("approval-recorded", record.proof_hash or "0" * 64),
+        ("policy-recorded", policy_evidence.policy_hash),
+        ("approval-recorded", recorded_proof_hash),
     )
     for index, (event_type, value) in enumerate(references, start=1):
         result = await store.append_event(
@@ -136,24 +144,11 @@ async def _run_probe() -> ProbeArtifact:
         )
         if not isinstance(result, EventAppendAccepted):
             raise ProbeInvariantError(ProbeInvariantCode.EVENT_APPEND)
-    race_results: list[EventAppendAccepted] = []
-
-    async def race_append() -> None:
-        result = await store.append_event(
-            AppendEventRequest(
-                session_id=created.session_id,
-                idempotency_key="idem-probe-race",
-                body_hash="f" * 64,
-                event=probe_event(99, "concurrency-recorded", simulation_hash),
-            )
-        )
-        if isinstance(result, EventAppendAccepted):
-            race_results.append(result)
-
-    with anyio.fail_after(5):
-        async with anyio.create_task_group() as group:
-            for _ in range(12):
-                _ = group.start_soon(race_append)
+    race_results = await probe_idempotency_race(
+        store,
+        created.session_id,
+        simulation_hash,
+    )
     access = await store.access(SessionAccess(token=created.token, now=NOW))
     if not isinstance(access, SessionAccessGranted):
         raise ProbeInvariantError(ProbeInvariantCode.SESSION_ACCESS)
@@ -167,24 +162,21 @@ async def _run_probe() -> ProbeArtifact:
     )
     if not isinstance(unsafe, PatchRejected):
         raise ProbeInvariantError(ProbeInvariantCode.UNSAFE_REJECTION)
-    stale_input = policy_input.model_copy(
-        update={
-            "quality": QualityAssessment(
-                flags=(ObservationQualityFlag.STALE,), approval_eligible=False
-            )
-        }
+    stale_input = LocalPolicyInput(
+        quality=QualityAssessment(
+            flags=(ObservationQualityFlag.STALE,), approval_eligible=False
+        ),
+        run=policy_input.run,
+        comparison=policy_input.comparison,
     )
-    stale = evaluate_local_policy(stale_input)
+    stale = evaluate_local_policy(stale_input).evidence
     missing_simulation = evaluate_local_policy(
-        policy_input.model_copy(
-            update={
-                "comparison": None,
-                "bindings": policy_input.bindings.model_copy(
-                    update={"observed_simulation_hash": None}
-                ),
-            }
+        LocalPolicyInput(
+            quality=policy_input.quality,
+            run=None,
+            comparison=None,
         )
-    )
+    ).evidence
     forged_code = "missing"
     try:
         validate_approval_chain(
@@ -219,9 +211,9 @@ async def _run_probe() -> ProbeArtifact:
             baseline_hash_after=run_simulation(manifest).trace_hash,
             candidate_hash=run.candidate_trace.trace_hash,
             comparison_hash=simulation_hash,
-            policy_hash=policy.policy_hash,
+            policy_hash=policy_evidence.policy_hash,
             certificate_hash=proof.certificate_hash,
-            proof_hash=record.proof_hash or "0" * 64,
+            proof_hash=recorded_proof_hash,
             evidence_snapshot_hash=snapshot_hash,
             approval_state="approved",
             offline_chain_verified=True,
@@ -237,6 +229,8 @@ async def _run_probe() -> ProbeArtifact:
             ),
             forged_proof_code=forged_code,
             dirty_baseline_code=dirty_code,
+            expired_proof_code=approval_negatives.expired,
+            cross_session_code=approval_negatives.cross_session,
         ),
         concurrency=ConcurrencyEvidence(
             requests=len(race_results),

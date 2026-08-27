@@ -9,10 +9,10 @@ import pytest
 from pydantic import ValidationError
 
 from telco_twin.domain.approval import encode_base64url
+from telco_twin.domain.canonical import canonical_model_bytes
 from telco_twin.safety.local_policy import (
-    LOCAL_POLICY_DEFINITION_HASH,
+    LocalPolicyInput,
     PolicyEvaluation,
-    PolicyEvaluationInput,
     PolicyReason,
     evaluate_local_policy,
 )
@@ -28,9 +28,9 @@ from telco_twin.state.demo_token import (
     DemoTokenKey,
     DemoTokenRejected,
 )
-from telco_twin.state.memory_store import (
+from telco_twin.state.memory_store import DemoSessionStore
+from telco_twin.state.store_models import (
     AppendEventRequest,
-    DemoSessionStore,
     EventAppendDenied,
     SessionAccessCode,
     SessionCreate,
@@ -43,66 +43,59 @@ from .test_memory_store import NOW, SECRET, store_event
 
 def test_policy_result_rejects_altered_hash_and_inconsistent_eligibility() -> None:
     # Given: one valid hashed local policy result.
-    valid = evaluate_local_policy(local_policy_input())
+    valid = evaluate_local_policy(local_policy_input()).evidence
     altered = valid.model_dump(mode="json")
     altered["policy_hash"] = "0" * 64
     # When/Then: hash alteration and both eligibility inconsistencies fail validation.
     with pytest.raises(ValidationError, match="policy result hash mismatch"):
         _ = PolicyEvaluation.model_validate(altered)
+    inconsistent = valid.model_copy(
+        update={"reasons": (PolicyReason.UNSAFE_CONSTRAINT,), "policy_hash": "0" * 64}
+    )
+    inconsistent = inconsistent.model_copy(
+        update={
+            "policy_hash": hashlib.sha256(
+                canonical_model_bytes(inconsistent, exclude=frozenset({"policy_hash"}))
+            ).hexdigest()
+        }
+    )
     with pytest.raises(ValidationError, match="eligible policy result lacks"):
-        _ = PolicyEvaluation.build(
-            PolicyEvaluationInput(
-                eligible=True,
-                reasons=(PolicyReason.UNSAFE_CONSTRAINT,),
-                patch_hash="a" * 64,
-                simulation_hash="b" * 64,
-                policy_definition_hash=LOCAL_POLICY_DEFINITION_HASH,
-            )
+        _ = PolicyEvaluation.model_validate_json(inconsistent.model_dump_json())
+    denied = evaluate_local_policy(
+        LocalPolicyInput(
+            quality=local_policy_input().quality,
+            run=None,
+            comparison=None,
         )
+    ).evidence
+    no_reasons = denied.model_copy(update={"reasons": (), "policy_hash": "0" * 64})
+    no_reasons = no_reasons.model_copy(
+        update={
+            "policy_hash": hashlib.sha256(
+                canonical_model_bytes(no_reasons, exclude=frozenset({"policy_hash"}))
+            ).hexdigest()
+        }
+    )
     with pytest.raises(ValidationError, match="requires a reason"):
-        _ = PolicyEvaluation.build(
-            PolicyEvaluationInput(
-                eligible=False,
-                reasons=(),
-                patch_hash="a" * 64,
-                simulation_hash="b" * 64,
-                policy_definition_hash=LOCAL_POLICY_DEFINITION_HASH,
-            )
-        )
+        _ = PolicyEvaluation.model_validate_json(no_reasons.model_dump_json())
 
 
-def test_policy_covers_future_missing_and_comparison_only_hash_changes() -> None:
-    # Given: a future observation and absent policy-definition evidence.
+def test_policy_covers_future_and_missing_simulator_reasons() -> None:
+    # Given: a future observation over valid simulator provenance.
     policy_input = local_policy_input(
         quality=QualityAssessment(
             flags=(ObservationQualityFlag.FUTURE,),
             approval_eligible=False,
         )
     )
-    missing_policy = policy_input.bindings.model_copy(
-        update={"observed_policy_definition_hash": None}
-    )
-    # When: quality and binding reasons are evaluated.
-    first = evaluate_local_policy(policy_input.model_copy(update={"bindings": missing_policy}))
+    # When: quality and missing simulator paths are evaluated.
+    first = evaluate_local_policy(policy_input).evidence
+    missing = evaluate_local_policy(
+        LocalPolicyInput(quality=local_policy_input().quality, run=None, comparison=None)
+    ).evidence
+    # Then: both failure classes remain explicit.
     assert PolicyReason.OBSERVATION_FUTURE in first.reasons
-    assert PolicyReason.POLICY_HASH_MISSING in first.reasons
-    assert policy_input.comparison is not None
-    comparison_only = policy_input.bindings.model_copy(
-        update={
-            "expected_patch_hash": "d" * 64,
-            "observed_patch_hash": "d" * 64,
-            "expected_simulation_hash": "e" * 64,
-            "observed_simulation_hash": "e" * 64,
-        }
-    )
-    second = evaluate_local_policy(
-        policy_input.model_copy(
-            update={"quality": local_policy_input().quality, "bindings": comparison_only}
-        )
-    )
-    # Then: comparison mismatches are detected even when expected/observed pairs agree.
-    assert PolicyReason.PATCH_HASH_CHANGED in second.reasons
-    assert PolicyReason.SIMULATION_HASH_CHANGED in second.reasons
+    assert PolicyReason.SIMULATION_MISSING in missing.reasons
 
 
 def _signed_token(payload: bytes, key: bytes) -> str:
@@ -156,6 +149,16 @@ def test_demo_token_rejects_valid_hmac_for_invalid_or_noncanonical_payload() -> 
     # Then: authentication alone cannot bypass the canonical typed boundary.
     assert invalid_result == DemoTokenRejected(DemoTokenFailureCode.INVALID)
     assert noncanonical_result == DemoTokenRejected(DemoTokenFailureCode.INVALID)
+
+
+def test_demo_token_rejects_naive_validation_time() -> None:
+    # Given: one valid current-epoch token.
+    codec = DemoTokenCodec(SECRET, "epoch-0001")
+    token, _ = codec.issue(DemoTokenIssue("session-0001", NOW, b"\x08" * 16))
+    # When: validation receives a timezone-naive instant.
+    result = codec.validate(token, NOW.replace(tzinfo=None))
+    # Then: ambiguous wall-clock interpretation fails closed.
+    assert result == DemoTokenRejected(DemoTokenFailureCode.INVALID)
 
 
 @pytest.mark.parametrize("malformed", ["=.", "A.A", "AB.AQ"])

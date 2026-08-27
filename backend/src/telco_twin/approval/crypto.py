@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import base64
 import binascii
-import hashlib
 from dataclasses import dataclass
 from enum import StrEnum, unique
 from typing import Final, override
@@ -70,11 +69,6 @@ def parse_signing_key(encoded: str) -> SigningKey:
     if len(seed) != ED25519_SEED_BYTES:
         raise SigningMaterialError(SigningMaterialErrorCode.LENGTH)
     return SigningKey(seed)
-
-
-def public_key_fingerprint(signing_key: SigningKey) -> str:
-    """Return the SHA-256 fingerprint used for test-key rejection."""
-    return hashlib.sha256(bytes(signing_key.verify_key)).hexdigest()
 
 
 def sign_certificate(

@@ -24,7 +24,6 @@ from telco_twin.approval.crypto import (
     SigningMaterialError,
     SigningMaterialErrorCode,
     parse_signing_key,
-    public_key_fingerprint,
 )
 from telco_twin.approval.state_machine import (
     ApprovalStateError,
@@ -96,15 +95,6 @@ def test_root_signing_material_parser_rejects_each_malformed_class(
     # Then: a stable parser code is returned without material disclosure.
     assert caught.value.code is code
     assert str(caught.value) == code.value
-
-
-def test_raw_root_key_fingerprint_is_stable() -> None:
-    # Given: one valid raw Ed25519 seed.
-    key = parse_signing_key(encode_base64url(b"\x55" * 32))
-    # When: its public fingerprint is calculated.
-    fingerprint = public_key_fingerprint(key)
-    # Then: the result is a lowercase SHA-256 identity.
-    assert fingerprint == hashlib.sha256(bytes(key.verify_key)).hexdigest()
 
 
 def test_authority_rejects_out_of_window_session_late_proof_and_bad_nonce() -> None:
@@ -229,7 +219,7 @@ def test_changed_policy_definition_never_creates_pending_state() -> None:
     async def scenario() -> None:
         # Given: a self-consistent policy result carrying a different definition hash.
         policy, request, _, _ = approval_chain()
-        draft = policy.model_copy(
+        draft = policy.evidence.model_copy(
             update={"policy_definition_hash": "d" * 64, "policy_hash": "0" * 64}
         )
         forged = draft.model_copy(
@@ -246,6 +236,6 @@ def test_changed_policy_definition_never_creates_pending_state() -> None:
         with pytest.raises(ApprovalStateError) as caught:
             _ = await machine.record_request(changed_request, validated)
         # Then: a rehashed but changed policy definition still fails closed.
-        assert caught.value.code is ApprovalStateErrorCode.EVIDENCE_BINDING_MISMATCH
+        assert caught.value.code is ApprovalStateErrorCode.POLICY_PROVENANCE_REQUIRED
 
     anyio.run(scenario)

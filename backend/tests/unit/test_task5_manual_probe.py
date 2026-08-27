@@ -36,5 +36,14 @@ def test_probe_runs_complete_evidence_flow_and_negative_paths(tmp_path: Path) ->
     assert isinstance(negative, dict)
     assert negative["replay_code"] == "nonce-replayed"
     assert negative["epoch_code"] == "demo_session_lost"
+    assert negative["malformed_code"] == "demo_token_invalid"
     assert negative["unsafe_patch_code"] == "patch-parameter-range"
+    assert negative["stale_policy_code"] == "observation-stale"
+    assert negative["unsimulated_policy_code"] == (
+        "patch-hash-missing,simulation-hash-missing,simulation-missing"
+    )
+    assert negative["forged_proof_code"] == "approval-signature-invalid"
+    assert negative["dirty_baseline_code"] == "manifest-integrity"
+    assert negative["expired_proof_code"] == "approval-expired"
+    assert negative["cross_session_code"] == "certificate-binding-mismatch"
     assert "APPROVAL_ROOT_KEY_SECRET" not in output.read_text(encoding="utf-8")

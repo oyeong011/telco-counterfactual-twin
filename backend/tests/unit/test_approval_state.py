@@ -32,12 +32,9 @@ from telco_twin.domain.approval import (
     ContractViolationError,
     Environment,
 )
-from telco_twin.safety.local_policy import (
-    LOCAL_POLICY_DEFINITION_HASH,
-    PolicyEvaluation,
-    PolicyEvaluationInput,
-    PolicyReason,
-)
+from telco_twin.safety.local_policy import LocalPolicyInput, PolicyDecision, evaluate_local_policy
+
+from .test_local_policy import real_policy_decision
 
 
 @unique
@@ -55,20 +52,8 @@ class _MutationInput(BaseModel):
     mutation: ProofMutation
 
 
-def _policy(*, eligible: bool = True) -> PolicyEvaluation:
-    return PolicyEvaluation.build(
-        PolicyEvaluationInput(
-            eligible=eligible,
-            reasons=() if eligible else (PolicyReason.UNSAFE_CONSTRAINT,),
-            patch_hash="a" * 64,
-            simulation_hash="b" * 64,
-            policy_definition_hash=LOCAL_POLICY_DEFINITION_HASH,
-        )
-    )
-
-
 def approval_chain() -> tuple[
-    PolicyEvaluation,
+    PolicyDecision,
     ApprovalRequest,
     ApprovalProof,
     ApprovalValidationContext,
@@ -77,14 +62,17 @@ def approval_chain() -> tuple[
     session = authority.issue_session(
         SessionIssue(session_id="session-0001", issued_at="2026-08-27T00:00:00Z")
     )
-    policy = _policy()
+    policy = real_policy_decision()
+    evidence = policy.evidence
+    assert evidence.patch_hash is not None
+    assert evidence.simulation_hash is not None
     request = issue_approval_request(
         ApprovalRequestIssue(
             request_id="approval-request-0001",
             session_id="session-0001",
-            patch_hash="a" * 64,
-            simulation_hash="b" * 64,
-            policy_hash=policy.policy_hash,
+            patch_hash=evidence.patch_hash,
+            simulation_hash=evidence.simulation_hash,
+            policy_hash=evidence.policy_hash,
             requested_at="2026-08-27T00:00:00Z",
             nonce=b"\x01" * 16,
         )
@@ -110,7 +98,7 @@ def approval_chain() -> tuple[
 
 
 def _rejected_chain() -> tuple[
-    PolicyEvaluation,
+    PolicyDecision,
     ApprovalRequest,
     ApprovalProof,
     ApprovalValidationContext,
@@ -119,14 +107,17 @@ def _rejected_chain() -> tuple[
     session = authority.issue_session(
         SessionIssue(session_id="session-0001", issued_at="2026-08-27T00:00:00Z")
     )
-    policy = _policy()
+    policy = real_policy_decision()
+    evidence = policy.evidence
+    assert evidence.patch_hash is not None
+    assert evidence.simulation_hash is not None
     request = issue_approval_request(
         ApprovalRequestIssue(
             request_id="approval-request-0001",
             session_id="session-0001",
-            patch_hash="a" * 64,
-            simulation_hash="b" * 64,
-            policy_hash=policy.policy_hash,
+            patch_hash=evidence.patch_hash,
+            simulation_hash=evidence.simulation_hash,
+            policy_hash=evidence.policy_hash,
             requested_at="2026-08-27T00:00:00Z",
             nonce=b"\x02" * 16,
         )
@@ -173,10 +164,17 @@ def test_missing_simulation_policy_evidence_never_creates_pending_state() -> Non
         _, request, _, _ = approval_chain()
         machine = ApprovalStateMachine()
         # When: request admission is attempted without eligible simulation evidence.
+        policy = evaluate_local_policy(
+            LocalPolicyInput(
+                quality=real_policy_decision().quality,
+                run=None,
+                comparison=None,
+            )
+        )
         with pytest.raises(ApprovalStateError) as caught:
-            _ = await machine.record_request(request, _policy(eligible=False))
+            _ = await machine.record_request(request, policy)
         # Then: the stable evidence-required code is returned.
-        assert caught.value.code is ApprovalStateErrorCode.POLICY_INELIGIBLE
+        assert caught.value.code is ApprovalStateErrorCode.POLICY_PROVENANCE_REQUIRED
 
     anyio.run(scenario)
 

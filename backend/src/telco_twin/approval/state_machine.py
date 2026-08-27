@@ -16,11 +16,16 @@ from telco_twin.domain.approval import (
     proof_hash,
     validate_approval_chain,
 )
-from telco_twin.safety.local_policy import LOCAL_POLICY_DEFINITION_HASH
+from telco_twin.safety.local_policy import (
+    PolicyAdmission,
+    PolicyDecision,
+    PolicyDecisionRejected,
+    PolicyEvaluation,
+    revalidate_policy_decision,
+)
 
 if TYPE_CHECKING:
     from telco_twin.domain._contract import ContractId, Sha256Hex
-    from telco_twin.safety.local_policy import PolicyEvaluation
 
 
 @unique
@@ -38,6 +43,7 @@ class ApprovalStateErrorCode(StrEnum):
 
     POLICY_INELIGIBLE = "policy-ineligible"
     EVIDENCE_BINDING_MISMATCH = "evidence-binding-mismatch"
+    POLICY_PROVENANCE_REQUIRED = "policy-provenance-required"
     REQUEST_EXISTS = "approval-request-exists"
     REQUEST_UNKNOWN = "approval-request-unknown"
     REQUEST_CONTEXT_MISMATCH = "approval-request-context-mismatch"
@@ -71,21 +77,35 @@ class ApprovalStateMachine:
         """Create an empty append-only evidence ledger."""
         self._lock = anyio.Lock()
         self._records: dict[ContractId, ApprovalEvidenceRecord] = {}
+        self._policies: dict[ContractId, PolicyDecision] = {}
         self._consumed_nonces: set[str] = set()
 
     async def record_request(
         self,
         request: ApprovalRequest,
-        policy: PolicyEvaluation,
+        policy: PolicyAdmission,
     ) -> ApprovalEvidenceRecord:
-        """Admit pending state only from eligible exactly bound local policy evidence."""
-        if not policy.eligible:
+        """Admit pending state only after re-resolving internal policy provenance."""
+        match policy:
+            case PolicyEvaluation():
+                raise ApprovalStateError(ApprovalStateErrorCode.POLICY_PROVENANCE_REQUIRED)
+            case PolicyDecision():
+                verification = revalidate_policy_decision(policy)
+            case _:
+                assert_never(policy)
+        match verification:
+            case PolicyDecisionRejected():
+                raise ApprovalStateError(ApprovalStateErrorCode.POLICY_PROVENANCE_REQUIRED)
+            case PolicyEvaluation():
+                evidence = verification
+            case _:
+                assert_never(verification)
+        if not evidence.eligible:
             raise ApprovalStateError(ApprovalStateErrorCode.POLICY_INELIGIBLE)
         if (
-            request.patch_hash != policy.patch_hash
-            or request.simulation_hash != policy.simulation_hash
-            or request.policy_hash != policy.policy_hash
-            or policy.policy_definition_hash != LOCAL_POLICY_DEFINITION_HASH
+            request.patch_hash != evidence.patch_hash
+            or request.simulation_hash != evidence.simulation_hash
+            or request.policy_hash != evidence.policy_hash
         ):
             raise ApprovalStateError(ApprovalStateErrorCode.EVIDENCE_BINDING_MISMATCH)
         async with self._lock:
@@ -97,6 +117,7 @@ class ApprovalStateMachine:
                 proof_hash=None,
             )
             self._records[request.request_id] = record
+            self._policies[request.request_id] = policy
             return record
 
     async def record_proof(
@@ -116,6 +137,15 @@ class ApprovalStateMachine:
                 raise ApprovalStateError(ApprovalStateErrorCode.REQUEST_UNKNOWN)
             if record.request != context.request:
                 raise ApprovalStateError(ApprovalStateErrorCode.REQUEST_CONTEXT_MISMATCH)
+            policy = self._policies[record.request.request_id]
+            verification = revalidate_policy_decision(policy)
+            match verification:
+                case PolicyDecisionRejected():
+                    raise ApprovalStateError(ApprovalStateErrorCode.POLICY_PROVENANCE_REQUIRED)
+                case PolicyEvaluation():
+                    pass
+                case _:
+                    assert_never(verification)
             match proof.decision:
                 case ApprovalDecision.APPROVED:
                     state = ApprovalEvidenceState.APPROVED

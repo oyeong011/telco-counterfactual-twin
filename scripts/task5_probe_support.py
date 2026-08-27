@@ -3,18 +3,27 @@
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass
-from datetime import UTC, datetime
+from dataclasses import dataclass, replace
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum, unique
-from typing import ClassVar, Final, Literal, override
+from typing import Final, assert_never, override
 
-from pydantic import BaseModel, ConfigDict, JsonValue, TypeAdapter
+import anyio
+from pydantic import JsonValue, TypeAdapter
+from telco_twin.approval.authority import RootApprovalAuthority, SessionIssue
 from telco_twin.counterfactual.comparison import (
     CounterfactualComparison,
-    hash_comparison,
 )
 from telco_twin.counterfactual.runner import CounterfactualRun
 from telco_twin.data.synthetic import generate_manifest
+from telco_twin.domain._contract import Sha256Hex, utc_datetime
+from telco_twin.domain.approval import (
+    ApprovalProof,
+    ApprovalValidationContext,
+    ContractViolationError,
+    SessionKeyCertificate,
+    validate_approval_chain,
+)
 from telco_twin.domain.canonical import canonical_json_bytes
 from telco_twin.domain.event import Event
 from telco_twin.domain.intervention import (
@@ -25,13 +34,17 @@ from telco_twin.domain.intervention import (
     TypedPatch,
 )
 from telco_twin.safety.local_policy import (
-    LOCAL_POLICY_DEFINITION_HASH,
     LocalPolicyInput,
-    PolicyBindings,
 )
 from telco_twin.simulator.frozen_event import FrozenEvent
 from telco_twin.simulator.metrics import QualityAssessment
 from telco_twin.state.demo_token import DemoTokenKey
+from telco_twin.state.memory_store import DemoSessionStore
+from telco_twin.state.store_models import (
+    AppendEventRequest,
+    EventAppendAccepted,
+    EventAppendDenied,
+)
 
 NOW: Final = datetime(2026, 8, 27, 0, 0, 0, tzinfo=UTC)
 DEMO_KEY: Final = DemoTokenKey(b"task5-probe-demo-key-material-32b")
@@ -48,6 +61,7 @@ class ProbeInvariantCode(StrEnum):
     SESSION_ACCESS = "session-access-failed"
     UNSAFE_REJECTION = "unsafe-rejection-missing"
     NEGATIVE_SESSION = "negative-session-result-missing"
+    PROOF_RECORD = "approval-proof-record-missing"
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,54 +84,51 @@ class ProbeUsageError(Exception):
         return "usage: task5_safety_probe.py --out PATH"
 
 
-class _ArtifactModel(BaseModel):
-    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
+@dataclass(frozen=True, slots=True)
+class ApprovalNegativeCodes:
+    """Stable expired and cross-session approval failures."""
+
+    expired: str
+    cross_session: str
 
 
-class PositiveEvidence(_ArtifactModel):
-    baseline_hash_before: str
-    baseline_hash_after: str
-    candidate_hash: str
-    comparison_hash: str
-    policy_hash: str
-    certificate_hash: str
-    proof_hash: str
-    evidence_snapshot_hash: str
-    approval_state: Literal["approved"]
-    offline_chain_verified: Literal[True]
+def require_proof_hash(value: Sha256Hex | None) -> Sha256Hex:
+    """Reject a missing proof hash instead of masking it with zeroes."""
+    if value is None:
+        raise ProbeInvariantError(ProbeInvariantCode.PROOF_RECORD)
+    return value
 
 
-class NegativeEvidence(_ArtifactModel):
-    replay_code: str
-    epoch_code: str
-    malformed_code: str
-    unsafe_patch_code: str
-    stale_policy_code: str
-    unsimulated_policy_code: str
-    forged_proof_code: str
-    dirty_baseline_code: str
+def probe_approval_negatives(
+    proof: ApprovalProof,
+    context: ApprovalValidationContext,
+    authority: RootApprovalAuthority,
+) -> ApprovalNegativeCodes:
+    """Run real expired and cross-session approval-chain negatives."""
+    expired = "missing"
+    expired_now = utc_datetime(proof.expires_at) + timedelta(seconds=1)
+    try:
+        validate_approval_chain(proof, replace(context, now=expired_now))
+    except ContractViolationError as error:
+        expired = error.code.value
+    other = authority.issue_session(
+        SessionIssue(session_id="session-probe-other", issued_at=proof.approved_at)
+    )
+    cross_session = _cross_session_code(proof, context, other.certificate)
+    return ApprovalNegativeCodes(expired=expired, cross_session=cross_session)
 
 
-class ConcurrencyEvidence(_ArtifactModel):
-    requests: int
-    original_appends: int
-    replays: int
-    event_count: int
-
-
-class CleanupEvidence(_ArtifactModel):
-    external_resources_created: Literal[False]
-    in_memory_only: Literal[True]
-    cancellation_required: Literal[False]
-
-
-class ProbeArtifact(_ArtifactModel):
-    schema_version: Literal["1.0"]
-    result: Literal["pass"]
-    positive: PositiveEvidence
-    negative: NegativeEvidence
-    concurrency: ConcurrencyEvidence
-    cleanup: CleanupEvidence
+def _cross_session_code(
+    proof: ApprovalProof,
+    context: ApprovalValidationContext,
+    certificate: SessionKeyCertificate,
+) -> str:
+    code = "missing"
+    try:
+        validate_approval_chain(proof, replace(context, certificate=certificate))
+    except ContractViolationError as error:
+        code = error.code.value
+    return code
 
 
 def probe_patch() -> TypedPatch:
@@ -145,19 +156,11 @@ def probe_policy_input(
     run: CounterfactualRun,
     comparison: CounterfactualComparison,
 ) -> LocalPolicyInput:
-    """Bind one clean comparison to the local policy definition."""
-    comparison_digest = hash_comparison(comparison)
+    """Bind one clean comparison to its actual deterministic run."""
     return LocalPolicyInput(
         quality=QualityAssessment(flags=(), approval_eligible=True),
+        run=run,
         comparison=comparison,
-        bindings=PolicyBindings(
-            expected_patch_hash=run.patch_hash,
-            observed_patch_hash=run.patch_hash,
-            expected_simulation_hash=comparison_digest,
-            observed_simulation_hash=comparison_digest,
-            expected_policy_definition_hash=LOCAL_POLICY_DEFINITION_HASH,
-            observed_policy_definition_hash=LOCAL_POLICY_DEFINITION_HASH,
-        ),
     )
 
 
@@ -173,6 +176,38 @@ def probe_event(index: int, event_type: str, value: str) -> Event:
         payload={"evidence_ref": value},
         schema_version="1.0",
     )
+
+
+async def probe_idempotency_race(
+    store: DemoSessionStore,
+    session_id: str,
+    simulation_hash: Sha256Hex,
+) -> tuple[EventAppendAccepted, ...]:
+    """Run the bounded twelve-request same-key probe race."""
+    results: list[EventAppendAccepted] = []
+
+    async def append() -> None:
+        result = await store.append_event(
+            AppendEventRequest(
+                session_id=session_id,
+                idempotency_key="idem-probe-race",
+                body_hash="f" * 64,
+                event=probe_event(99, "concurrency-recorded", simulation_hash),
+            )
+        )
+        match result:
+            case EventAppendAccepted():
+                results.append(result)
+            case EventAppendDenied():
+                pass
+            case _:
+                assert_never(result)
+
+    with anyio.fail_after(5):
+        async with anyio.create_task_group() as group:
+            for _ in range(12):
+                _ = group.start_soon(append)
+    return tuple(results)
 
 
 def probe_snapshot_hash(events: tuple[FrozenEvent, ...]) -> str:
