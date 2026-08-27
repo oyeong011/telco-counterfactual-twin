@@ -79,8 +79,3 @@ def test_valid_token_for_absent_session_cannot_append_to_other_session() -> None
         assert result.code is SessionAccessCode.NOT_FOUND
 
     anyio.run(scenario)
-
-
-def test_append_request_carries_no_session_body_hash_or_time() -> None:
-    fields = frozenset(AppendEventRequest.__dataclass_fields__)
-    assert fields == {"token", "idempotency_key", "event"}

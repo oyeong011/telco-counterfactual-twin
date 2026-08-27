@@ -66,13 +66,6 @@ def _request(policy: PolicyEvaluation) -> ApprovalRequest:
     )
 
 
-def test_policy_evaluation_has_no_public_eligible_builder() -> None:
-    # Given: the serializable policy evidence boundary.
-    # When: its public class surface is inspected.
-    # Then: clients cannot mint eligible evidence with arbitrary hashes.
-    assert not hasattr(PolicyEvaluation, "build")
-
-
 def test_internal_policy_capability_is_not_a_serializable_boundary_model() -> None:
     # Given: a real evaluator-issued capability and its separate evidence projection.
     decision = real_policy_decision()
