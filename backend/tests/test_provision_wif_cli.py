@@ -26,6 +26,15 @@ case "$*" in
   "run list"*) printf '%s\\n' '[]' ;;
   "workflow run"*) printf '%s\\n' 'https://example.invalid/actions/runs/123' ;;
   "run watch"*) if test "${{FAKE_DENY_ACCEPTED:-0}}" = 1; then exit 1; fi ;;
+  *"--json headSha,status,conclusion,url"*)
+    if test "${{FAKE_DENY_ACCEPTED:-0}}" = 1; then
+      conclusion=failure
+    else
+      conclusion=success
+    fi
+    metadata='{{"headSha":"{FAKE_HEAD_SHA}","status":"completed","conclusion":"%s","url":"x"}}'
+    printf "$metadata\\n" "$conclusion"
+    ;;
   *"--json headSha,conclusion,url"*)
     if test "${{FAKE_DENY_ACCEPTED:-0}}" = 1; then
       conclusion=failure
@@ -35,6 +44,7 @@ case "$*" in
     printf '{{"headSha":"{FAKE_HEAD_SHA}","conclusion":"%s","url":"x"}}\\n' "$conclusion"
     ;;
   *"--log"*)
+    printf 'job\\tassert\\t2026-08-27T00:00:00Z workflow-result=deny-control-succeeded\\n'
     if test "${{FAKE_DENY_ACCEPTED:-0}}" = 1; then
       marker=deny-unexpected-success
     else

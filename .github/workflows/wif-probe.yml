@@ -16,6 +16,10 @@ on:
         description: Full temporary deny-provider resource name
         required: false
         type: string
+      matching_provider:
+        description: Full persistent matching-provider resource name
+        required: false
+        type: string
       service_account:
         description: Deploy service account for the deny probe
         required: false
@@ -41,12 +45,13 @@ jobs:
           GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
           GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
           DENY_PROVIDER: ${{ inputs.provider }}
+          MATCHING_PROVIDER: ${{ inputs.matching_provider }}
           DENY_SERVICE_ACCOUNT: ${{ inputs.service_account }}
           DENY_PROJECT_ID: ${{ inputs.project_id }}
         run: |
           set -euo pipefail
           if [[ "${{ inputs.mode }}" == "deny-probe" ]]; then
-            if [[ -z "$DENY_PROVIDER" || -z "$DENY_SERVICE_ACCOUNT" || -z "$DENY_PROJECT_ID" ]]; then
+            if [[ -z "$DENY_PROVIDER" || -z "$MATCHING_PROVIDER" || -z "$DENY_SERVICE_ACCOUNT" || -z "$DENY_PROJECT_ID" ]]; then
               echo "workflow-result=deny-invalid-input"
               exit 1
             fi
@@ -68,9 +73,18 @@ jobs:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
           create_credentials_file: true
+      - name: Prove the matching provider can exchange this GitHub claim
+        id: control_auth
+        if: inputs.mode == 'deny-probe'
+        continue-on-error: true
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          workload_identity_provider: ${{ inputs.matching_provider }}
+          service_account: ${{ inputs.service_account }}
+          create_credentials_file: false
       - name: Attempt the temporary deny-provider exchange
         id: deny_auth
-        if: inputs.mode == 'deny-probe'
+        if: inputs.mode == 'deny-probe' && steps.control_auth.outcome == 'success'
         continue-on-error: true
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
         with:
@@ -78,10 +92,15 @@ jobs:
           service_account: ${{ inputs.service_account }}
           create_credentials_file: false
       - name: Assert the deny-provider rejected GitHub OIDC
-        if: inputs.mode == 'deny-probe'
+        if: always() && inputs.mode == 'deny-probe'
         shell: bash
         run: |
           set -euo pipefail
+          if [[ "${{ steps.control_auth.outcome }}" != "success" ]]; then
+            echo "workflow-result=deny-control-failed"
+            exit 1
+          fi
+          echo "workflow-result=deny-control-succeeded"
           if [[ "${{ steps.deny_auth.outcome }}" == "success" ]]; then
             echo "workflow-result=deny-unexpected-success"
             exit 1

@@ -29,9 +29,19 @@ class ProvisioningError(Exception):
         return self.code
 
 
-def run_command(arguments: tuple[str, ...]) -> subprocess.CompletedProcess[str]:
+def run_command(
+    arguments: tuple[str, ...],
+    *,
+    timeout_seconds: float | None = None,
+) -> subprocess.CompletedProcess[str]:
     """Run an argv-only provider command while keeping output captured."""
-    return subprocess.run(arguments, check=False, capture_output=True, text=True)
+    return subprocess.run(
+        arguments,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=timeout_seconds,
+    )
 
 
 def run_gcloud(arguments: tuple[str, ...]) -> subprocess.CompletedProcess[str]:

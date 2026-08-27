@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 import time
 from typing import ClassVar, Literal
 from urllib.parse import urlparse
@@ -16,8 +17,29 @@ from telco_twin.bootstrap.probe_errors import ProviderProbeError
 LOG_PREFIX = r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z"
 DENY_REJECTED_LINE = re.compile(f"{LOG_PREFIX} workflow-result=deny-rejected$")
 DENY_UNEXPECTED_LINE = re.compile(f"{LOG_PREFIX} workflow-result=deny-unexpected-success$")
+DENY_CONTROL_SUCCEEDED_LINE = re.compile(f"{LOG_PREFIX} workflow-result=deny-control-succeeded$")
+DENY_CONTROL_FAILED_LINE = re.compile(f"{LOG_PREFIX} workflow-result=deny-control-failed$")
 RUN_DISCOVERY_TIMEOUT_SECONDS = 60.0
 RUN_DISCOVERY_POLL_SECONDS = 2.0
+RUN_COMPLETION_TIMEOUT_SECONDS = 180.0
+GH_COMMAND_TIMEOUT_SECONDS = 15.0
+
+type RunStatus = Literal["queued", "in_progress", "completed", "waiting", "requested", "pending"]
+type RunConclusion = (
+    Literal[
+        "success",
+        "failure",
+        "cancelled",
+        "skipped",
+        "timed_out",
+        "action_required",
+        "neutral",
+        "startup_failure",
+        "stale",
+        "",
+    ]
+    | None
+)
 
 
 class DenyRunMetadata(BaseModel):
@@ -26,7 +48,8 @@ class DenyRunMetadata(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
 
     head_sha: str = Field(alias="headSha", pattern=r"^[0-9a-f]{40}$")
-    conclusion: Literal["success", "failure"]
+    status: RunStatus
+    conclusion: RunConclusion
     url: str = Field(min_length=1)
 
 
@@ -66,8 +89,17 @@ def _run_id(output: str) -> int | None:
     return int(path_component)
 
 
+def _run_gh(arguments: tuple[str, ...]) -> subprocess.CompletedProcess[str]:
+    """Run one GitHub command with a per-process timeout."""
+    try:
+        return run_command(arguments, timeout_seconds=GH_COMMAND_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired:
+        code = "deny-workflow-command-timeout"
+        raise _error(code) from None
+
+
 def _list_runs() -> tuple[DenyRunCandidate, ...]:
-    result = run_command(
+    result = _run_gh(
         (
             "gh",
             "run",
@@ -115,10 +147,51 @@ def _resolve_run_id(
         time.sleep(RUN_DISCOVERY_POLL_SECONDS)
 
 
+def _wait_for_completion(run_id: int, expected_head: str) -> DenyRunMetadata:
+    """Poll the exact run until completion or a stable bounded timeout."""
+    deadline = time.monotonic() + RUN_COMPLETION_TIMEOUT_SECONDS
+    while True:
+        result = _run_gh(
+            (
+                "gh",
+                "run",
+                "view",
+                str(run_id),
+                "--json",
+                "headSha,status,conclusion,url",
+            )
+        )
+        if result.returncode != 0:
+            code = "deny-workflow-evidence-read-failed"
+            raise _error(code)
+        try:
+            metadata = DenyRunMetadata.model_validate_json(result.stdout)
+        except ValidationError:
+            code = "deny-workflow-metadata-invalid"
+            raise _error(code) from None
+        if metadata.head_sha != expected_head:
+            code = "deny-workflow-head-mismatch"
+            raise _error(code)
+        if metadata.status == "completed":
+            return metadata
+        if time.monotonic() >= deadline:
+            code = "deny-workflow-timeout"
+            raise _error(code)
+        time.sleep(RUN_DISCOVERY_POLL_SECONDS)
+
+
 def _has_marker(logs: str, marker: re.Pattern[str]) -> bool:
     return any(
         marker.fullmatch(line.rsplit("\t", 1)[-1].strip()) is not None for line in logs.splitlines()
     )
+
+
+def _matching_provider_resource(deny_provider_resource: str) -> str:
+    prefix, separator, _provider_id = deny_provider_resource.rpartition("/providers/")
+    if not separator or not prefix:
+        code = "deny-provider-resource-invalid"
+        raise _error(code)
+    return f"{prefix}/providers/github-oidc"
 
 
 def assert_deny_exchange(
@@ -133,7 +206,8 @@ def assert_deny_exchange(
         code = "deny-workflow-head-unavailable"
         raise _error(code)
     known_ids = frozenset(run.database_id for run in _list_runs())
-    dispatch = run_command(
+    matching_provider = _matching_provider_resource(provider_resource)
+    dispatch = _run_gh(
         (
             "gh",
             "workflow",
@@ -146,6 +220,8 @@ def assert_deny_exchange(
             "-f",
             f"provider={provider_resource}",
             "-f",
+            f"matching_provider={matching_provider}",
+            "-f",
             f"service_account={service_account}",
             "-f",
             f"project_id={project_id}",
@@ -155,35 +231,20 @@ def assert_deny_exchange(
         code = "deny-workflow-dispatch-failed"
         raise _error(code)
     run_id = _resolve_run_id(dispatch.stdout, known_ids, expected_head)
-    watched = run_command(("gh", "run", "watch", str(run_id), "--exit-status"))
-    metadata_result = run_command(
-        (
-            "gh",
-            "run",
-            "view",
-            str(run_id),
-            "--json",
-            "headSha,conclusion,url",
-        )
-    )
-    logs_result = run_command(("gh", "run", "view", str(run_id), "--log"))
-    if metadata_result.returncode != 0 or logs_result.returncode != 0:
+    metadata = _wait_for_completion(run_id, expected_head)
+    logs_result = _run_gh(("gh", "run", "view", str(run_id), "--log"))
+    if logs_result.returncode != 0:
         code = "deny-workflow-evidence-read-failed"
         raise _error(code)
-    try:
-        metadata = DenyRunMetadata.model_validate_json(metadata_result.stdout)
-    except ValidationError:
-        code = "deny-workflow-metadata-invalid"
-        raise _error(code) from None
-    if metadata.head_sha != expected_head:
-        code = "deny-workflow-head-mismatch"
+    if _has_marker(logs_result.stdout, DENY_CONTROL_FAILED_LINE):
+        code = "deny-exchange-control-failed"
         raise _error(code)
     if _has_marker(logs_result.stdout, DENY_UNEXPECTED_LINE):
         code = "deny-exchange-unexpected-success"
         raise _error(code)
     if (
-        watched.returncode != 0
-        or metadata.conclusion != "success"
+        metadata.conclusion != "success"
+        or not _has_marker(logs_result.stdout, DENY_CONTROL_SUCCEEDED_LINE)
         or not _has_marker(logs_result.stdout, DENY_REJECTED_LINE)
     ):
         code = "deny-exchange-rejection-unproven"
