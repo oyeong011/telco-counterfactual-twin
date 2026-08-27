@@ -10,24 +10,7 @@ from typing import TYPE_CHECKING, Annotated, ClassVar, Final, Literal, Never
 import typer
 from pydantic import BaseModel, ConfigDict, JsonValue, TypeAdapter, ValidationError
 
-from telco_twin.domain._key_policy import (
-    AUTHORITY_KEY_TOKENS,
-    COLLAPSED_ACTION_PREFIXES,
-    COLLAPSED_ACTION_TARGETS,
-    COLLAPSED_ARBITRARY_URL_STEMS,
-    COLLAPSED_AUTHORITY_STEMS,
-    COLLAPSED_DIRECT_PII_STEMS,
-    COLLAPSED_IDENTIFIER_STEMS,
-    COLLAPSED_IDENTITY_SUBJECTS,
-    COLLAPSED_SECRET_STEMS,
-    FORBIDDEN_KEY_COMBINATIONS,
-    IDENTIFIER_TOKENS,
-    IDENTITY_SUBJECT_TOKENS,
-    KEY_POLICY_ALLOW_EXAMPLES,
-    KEY_POLICY_VERSION,
-    PII_KEY_TOKENS,
-    SECRET_KEY_TOKENS,
-)
+from telco_twin.domain._key_policy import KEY_POLICY, LexemeGroup
 from telco_twin.domain.approval import ApprovalProof, ApprovalRequest, SessionKeyCertificate
 from telco_twin.domain.build_info import ServiceBuildInfo, UiBuildInfo
 from telco_twin.domain.event import Event
@@ -100,22 +83,17 @@ class KeyPolicyAnnotation(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
 
     version: str
+    normalization: Literal["lowercase_alphanumeric"]
     recursive: Literal[True]
-    pii_tokens: tuple[str, ...]
-    identity_subject_tokens: tuple[str, ...]
-    identifier_tokens: tuple[str, ...]
-    authority_tokens: tuple[str, ...]
-    secret_tokens: tuple[str, ...]
-    collapsed_direct_pii_stems: tuple[str, ...]
-    collapsed_identity_subjects: tuple[str, ...]
-    collapsed_identifier_stems: tuple[str, ...]
-    collapsed_authority_stems: tuple[str, ...]
-    collapsed_action_prefixes: tuple[str, ...]
-    collapsed_action_targets: tuple[str, ...]
-    collapsed_arbitrary_url_stems: tuple[str, ...]
-    collapsed_secret_stems: tuple[str, ...]
-    forbidden_combinations: tuple[tuple[str, ...], ...]
-    allow_examples: tuple[str, ...]
+    safe_exact_keys: tuple[str, ...]
+    direct_pii_lexemes: tuple[str, ...]
+    exact_authority_keys: tuple[str, ...]
+    direct_secret_lexemes: tuple[str, ...]
+    authority_edge_lexemes: tuple[str, ...]
+    authority_collapsed_phrases: tuple[str, ...]
+    pii_unordered_groups: tuple[LexemeGroup, ...]
+    authority_unordered_groups: tuple[LexemeGroup, ...]
+    secret_unordered_groups: tuple[LexemeGroup, ...]
     json_schema_support: Literal["annotation_only"]
     enforced_by: Literal["scripts/validate_contract.py"]
 
@@ -164,23 +142,18 @@ CONTRACT_INVARIANTS: Final[Mapping[str, tuple[DurationInvariant, ...]]] = Mappin
     }
 )
 KEY_POLICY_ANNOTATION: Final = KeyPolicyAnnotation(
-    version=KEY_POLICY_VERSION,
+    version=KEY_POLICY.version,
+    normalization=KEY_POLICY.normalization,
     recursive=True,
-    pii_tokens=PII_KEY_TOKENS,
-    identity_subject_tokens=IDENTITY_SUBJECT_TOKENS,
-    identifier_tokens=IDENTIFIER_TOKENS,
-    authority_tokens=AUTHORITY_KEY_TOKENS,
-    secret_tokens=SECRET_KEY_TOKENS,
-    collapsed_direct_pii_stems=COLLAPSED_DIRECT_PII_STEMS,
-    collapsed_identity_subjects=COLLAPSED_IDENTITY_SUBJECTS,
-    collapsed_identifier_stems=COLLAPSED_IDENTIFIER_STEMS,
-    collapsed_authority_stems=COLLAPSED_AUTHORITY_STEMS,
-    collapsed_action_prefixes=COLLAPSED_ACTION_PREFIXES,
-    collapsed_action_targets=COLLAPSED_ACTION_TARGETS,
-    collapsed_arbitrary_url_stems=COLLAPSED_ARBITRARY_URL_STEMS,
-    collapsed_secret_stems=COLLAPSED_SECRET_STEMS,
-    forbidden_combinations=FORBIDDEN_KEY_COMBINATIONS,
-    allow_examples=KEY_POLICY_ALLOW_EXAMPLES,
+    safe_exact_keys=KEY_POLICY.safe_exact_keys,
+    direct_pii_lexemes=KEY_POLICY.direct_pii_lexemes,
+    exact_authority_keys=KEY_POLICY.exact_authority_keys,
+    direct_secret_lexemes=KEY_POLICY.direct_secret_lexemes,
+    authority_edge_lexemes=KEY_POLICY.authority_edge_lexemes,
+    authority_collapsed_phrases=KEY_POLICY.authority_collapsed_phrases,
+    pii_unordered_groups=KEY_POLICY.pii_unordered_groups,
+    authority_unordered_groups=KEY_POLICY.authority_unordered_groups,
+    secret_unordered_groups=KEY_POLICY.secret_unordered_groups,
     json_schema_support="annotation_only",
     enforced_by="scripts/validate_contract.py",
 )

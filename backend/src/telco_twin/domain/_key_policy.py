@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from functools import singledispatch
-from typing import Final
+from typing import Final, Literal
 
 from pydantic import BaseModel
 
@@ -21,71 +22,72 @@ type KeyPolicyInput = (
     | dict[str, "KeyPolicyInput"]
     | None
 )
+type LexemeFamily = tuple[str, ...]
+type LexemeGroup = tuple[LexemeFamily, LexemeFamily]
 
-KEY_POLICY_VERSION: Final = "1.0"
-PII_KEY_TOKENS: Final = ("email", "gpsi", "imei", "imsi", "msisdn", "phone", "supi")
-IDENTITY_SUBJECT_TOKENS: Final = ("customer", "subscriber")
-IDENTIFIER_TOKENS: Final = ("id", "identifier", "identifiers", "identity")
-AUTHORITY_KEY_TOKENS: Final = (
-    "command",
-    "execute",
-    "execution",
-    "revoke",
-    "revocation",
-    "shell",
-    "uri",
-    "url",
+
+@dataclass(frozen=True, slots=True)
+class KeyPolicySpec:
+    """Immutable source shared by runtime matching and schema metadata."""
+
+    version: str
+    normalization: Literal["lowercase_alphanumeric"]
+    safe_exact_keys: tuple[str, ...]
+    direct_pii_lexemes: tuple[str, ...]
+    exact_authority_keys: tuple[str, ...]
+    direct_secret_lexemes: tuple[str, ...]
+    authority_edge_lexemes: tuple[str, ...]
+    authority_collapsed_phrases: tuple[str, ...]
+    pii_unordered_groups: tuple[LexemeGroup, ...]
+    authority_unordered_groups: tuple[LexemeGroup, ...]
+    secret_unordered_groups: tuple[LexemeGroup, ...]
+
+
+KEY_POLICY: Final = KeyPolicySpec(
+    version="1.0",
+    normalization="lowercase_alphanumeric",
+    safe_exact_keys=(
+        "commandment_count",
+        "config_history",
+        "executioner_state",
+        "shellfish_count",
+        "tokenization_mode",
+        "ue_cohort_id",
+    ),
+    direct_pii_lexemes=("email", "gpsi", "imei", "imsi", "msisdn", "phone", "supi"),
+    exact_authority_keys=(
+        "command",
+        "execute",
+        "execution",
+        "revoke",
+        "revocation",
+        "shell",
+        "uri",
+        "url",
+    ),
+    direct_secret_lexemes=("credential", "passwd", "password", "secret", "token"),
+    authority_edge_lexemes=("uri", "url"),
+    authority_collapsed_phrases=("arbitraryuri", "arbitraryurl"),
+    pii_unordered_groups=(
+        (("customer", "subscriber"), ("id", "identifier", "identifiers", "identity")),
+    ),
+    authority_unordered_groups=(
+        (("push",), ("config", "network", "payload")),
+        (("apply",), ("config", "network", "payload")),
+        (("shell",), ("command",)),
+        (
+            ("execute", "execution"),
+            ("action", "command", "network", "operation", "payload", "plan", "request"),
+        ),
+        (("command",), ("action", "network", "operation", "payload", "plan", "request")),
+        (("revoke", "revocation"), ("id", "identifier", "reason", "status", "token")),
+    ),
+    secret_unordered_groups=((("access", "api"), ("key", "secret", "token")),),
 )
-SECRET_KEY_TOKENS: Final = (
-    "credential",
-    "credentials",
-    "passwd",
-    "password",
-    "passwords",
-    "secret",
-    "secrets",
-    "token",
-    "tokens",
-)
-FORBIDDEN_KEY_COMBINATIONS: Final = (
-    ("customer", "id"),
-    ("customer", "identifier"),
-    ("subscriber", "id"),
-    ("subscriber", "identifier"),
-    ("push", "payload"),
-)
-KEY_POLICY_ALLOW_EXAMPLES: Final = (
-    "commandment_count",
-    "config_history",
-    "executioner_state",
-    "shellfish_count",
-    "tokenization_mode",
-    "ue_cohort_id",
-)
-COLLAPSED_DIRECT_PII_STEMS: Final = PII_KEY_TOKENS
-COLLAPSED_IDENTITY_SUBJECTS: Final = IDENTITY_SUBJECT_TOKENS
-COLLAPSED_IDENTIFIER_STEMS: Final = IDENTIFIER_TOKENS
-COLLAPSED_AUTHORITY_STEMS: Final = (
-    "command",
-    "execute",
-    "execution",
-    "revoke",
-    "revocation",
-    "shell",
-)
-COLLAPSED_ACTION_PREFIXES: Final = ("apply", "push")
-COLLAPSED_ACTION_TARGETS: Final = ("config", "network", "payload")
-COLLAPSED_ARBITRARY_URL_STEMS: Final = ("arbitrary", "url")
-COLLAPSED_SECRET_STEMS: Final = ("credential", "passwd", "password", "secret", "token")
 _CAMEL_ACRONYM_BOUNDARY: Final = re.compile(r"([A-Z]+)([A-Z][a-z])")
 _CAMEL_WORD_BOUNDARY: Final = re.compile(r"([a-z0-9])([A-Z])")
 _TOKEN_SEPARATOR: Final = re.compile(r"[^A-Za-z0-9]+")
-_PII_TOKEN_SET: Final = frozenset(PII_KEY_TOKENS)
-_IDENTITY_SUBJECT_SET: Final = frozenset(IDENTITY_SUBJECT_TOKENS)
-_IDENTIFIER_SET: Final = frozenset(IDENTIFIER_TOKENS)
-_AUTHORITY_TOKEN_SET: Final = frozenset(AUTHORITY_KEY_TOKENS)
-_SECRET_TOKEN_SET: Final = frozenset(SECRET_KEY_TOKENS)
-_PUSH_PAYLOAD: Final = frozenset(("push", "payload"))
+_EDGE_ONLY_GROUP_LEXEMES: Final = frozenset(("api", "id", "key", "uri", "url"))
 
 
 def _key_tokens(value: str) -> frozenset[str]:
@@ -94,60 +96,77 @@ def _key_tokens(value: str) -> frozenset[str]:
     return frozenset(token.lower() for token in _TOKEN_SEPARATOR.split(expanded) if token)
 
 
-def _collapsed_key(value: str) -> str:
+def _normalized_key(value: str) -> str:
     return "".join(character for character in value.lower() if character.isalnum())
+
+
+_NORMALIZED_SAFE_KEYS: Final = frozenset(_normalized_key(key) for key in KEY_POLICY.safe_exact_keys)
 
 
 def _contains_any(value: str, stems: tuple[str, ...]) -> bool:
     return any(stem in value for stem in stems)
 
 
-def _contains_ordered_pair(
-    value: str,
-    prefixes: tuple[str, ...],
-    suffixes: tuple[str, ...],
+def _tokens_match_group(tokens: frozenset[str], group: LexemeGroup) -> bool:
+    return all(any(lexeme in tokens for lexeme in family) for family in group)
+
+
+def _collapsed_contains_lexeme(value: str, lexeme: str) -> bool:
+    if lexeme in _EDGE_ONLY_GROUP_LEXEMES:
+        return value.startswith(lexeme) or value.endswith(lexeme)
+    return lexeme in value
+
+
+def _collapsed_matches_group(value: str, group: LexemeGroup) -> bool:
+    left, right = group
+    families_present = all(
+        any(_collapsed_contains_lexeme(value, lexeme) for lexeme in family) for family in group
+    )
+    adjacent_pair = any(
+        first + second in value or second + first in value for first in left for second in right
+    )
+    return families_present or adjacent_pair
+
+
+def _matches_groups(
+    tokens: frozenset[str],
+    normalized: str,
+    groups: tuple[LexemeGroup, ...],
 ) -> bool:
     return any(
-        prefix in value and _contains_any(value.partition(prefix)[2], suffixes)
-        for prefix in prefixes
+        _tokens_match_group(tokens, group) or _collapsed_matches_group(normalized, group)
+        for group in groups
     )
 
 
 def _validate_semantic_key(value: str) -> None:
-    if value in KEY_POLICY_ALLOW_EXAMPLES:
+    normalized = _normalized_key(value)
+    if normalized in _NORMALIZED_SAFE_KEYS:
         return
     tokens = _key_tokens(value)
-    collapsed = _collapsed_key(value)
     if (
-        tokens & _PII_TOKEN_SET
-        or (tokens & _IDENTITY_SUBJECT_SET and tokens & _IDENTIFIER_SET)
-        or _contains_any(collapsed, COLLAPSED_DIRECT_PII_STEMS)
-        or _contains_ordered_pair(
-            collapsed,
-            COLLAPSED_IDENTITY_SUBJECTS,
-            COLLAPSED_IDENTIFIER_STEMS,
-        )
+        any(lexeme in tokens for lexeme in KEY_POLICY.direct_pii_lexemes)
+        or _contains_any(normalized, KEY_POLICY.direct_pii_lexemes)
+        or _matches_groups(tokens, normalized, KEY_POLICY.pii_unordered_groups)
     ):
         fail_validation("pii_shaped_key", "PII-shaped keys are forbidden")
     if (
-        tokens & _AUTHORITY_TOKEN_SET
-        or tokens >= _PUSH_PAYLOAD
-        or _contains_any(collapsed, COLLAPSED_AUTHORITY_STEMS)
-        or _contains_ordered_pair(
-            collapsed,
-            COLLAPSED_ACTION_PREFIXES,
-            COLLAPSED_ACTION_TARGETS,
+        normalized in KEY_POLICY.exact_authority_keys
+        or any(
+            normalized.startswith(lexeme) or normalized.endswith(lexeme)
+            for lexeme in KEY_POLICY.authority_edge_lexemes
         )
-        or _contains_ordered_pair(
-            collapsed,
-            COLLAPSED_ARBITRARY_URL_STEMS[:1],
-            COLLAPSED_ARBITRARY_URL_STEMS[1:],
-        )
+        or _contains_any(normalized, KEY_POLICY.authority_collapsed_phrases)
+        or _matches_groups(tokens, normalized, KEY_POLICY.authority_unordered_groups)
     ):
         fail_validation(
             "authority_shaped_key", "execution and command authority keys are forbidden"
         )
-    if tokens & _SECRET_TOKEN_SET or _contains_any(collapsed, COLLAPSED_SECRET_STEMS):
+    if (
+        any(lexeme in tokens for lexeme in KEY_POLICY.direct_secret_lexemes)
+        or _contains_any(normalized, KEY_POLICY.direct_secret_lexemes)
+        or _matches_groups(tokens, normalized, KEY_POLICY.secret_unordered_groups)
+    ):
         fail_validation("secret_shaped_key", "secret-shaped keys are forbidden")
 
 

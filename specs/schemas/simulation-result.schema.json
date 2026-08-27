@@ -227,15 +227,103 @@
   "type": "object",
   "x-telco-twin-invariants": [],
   "x-telco-twin-key-policy": {
-    "allow_examples": [
-      "commandment_count",
-      "config_history",
-      "executioner_state",
-      "shellfish_count",
-      "tokenization_mode",
-      "ue_cohort_id"
+    "authority_collapsed_phrases": [
+      "arbitraryuri",
+      "arbitraryurl"
     ],
-    "authority_tokens": [
+    "authority_edge_lexemes": [
+      "uri",
+      "url"
+    ],
+    "authority_unordered_groups": [
+      [
+        [
+          "push"
+        ],
+        [
+          "config",
+          "network",
+          "payload"
+        ]
+      ],
+      [
+        [
+          "apply"
+        ],
+        [
+          "config",
+          "network",
+          "payload"
+        ]
+      ],
+      [
+        [
+          "shell"
+        ],
+        [
+          "command"
+        ]
+      ],
+      [
+        [
+          "execute",
+          "execution"
+        ],
+        [
+          "action",
+          "command",
+          "network",
+          "operation",
+          "payload",
+          "plan",
+          "request"
+        ]
+      ],
+      [
+        [
+          "command"
+        ],
+        [
+          "action",
+          "network",
+          "operation",
+          "payload",
+          "plan",
+          "request"
+        ]
+      ],
+      [
+        [
+          "revoke",
+          "revocation"
+        ],
+        [
+          "id",
+          "identifier",
+          "reason",
+          "status",
+          "token"
+        ]
+      ]
+    ],
+    "direct_pii_lexemes": [
+      "email",
+      "gpsi",
+      "imei",
+      "imsi",
+      "msisdn",
+      "phone",
+      "supi"
+    ],
+    "direct_secret_lexemes": [
+      "credential",
+      "passwd",
+      "password",
+      "secret",
+      "token"
+    ],
+    "enforced_by": "scripts/validate_contract.py",
+    "exact_authority_keys": [
       "command",
       "execute",
       "execution",
@@ -245,107 +333,43 @@
       "uri",
       "url"
     ],
-    "collapsed_action_prefixes": [
-      "apply",
-      "push"
-    ],
-    "collapsed_action_targets": [
-      "config",
-      "network",
-      "payload"
-    ],
-    "collapsed_arbitrary_url_stems": [
-      "arbitrary",
-      "url"
-    ],
-    "collapsed_authority_stems": [
-      "command",
-      "execute",
-      "execution",
-      "revoke",
-      "revocation",
-      "shell"
-    ],
-    "collapsed_direct_pii_stems": [
-      "email",
-      "gpsi",
-      "imei",
-      "imsi",
-      "msisdn",
-      "phone",
-      "supi"
-    ],
-    "collapsed_identifier_stems": [
-      "id",
-      "identifier",
-      "identifiers",
-      "identity"
-    ],
-    "collapsed_identity_subjects": [
-      "customer",
-      "subscriber"
-    ],
-    "collapsed_secret_stems": [
-      "credential",
-      "passwd",
-      "password",
-      "secret",
-      "token"
-    ],
-    "enforced_by": "scripts/validate_contract.py",
-    "forbidden_combinations": [
+    "json_schema_support": "annotation_only",
+    "normalization": "lowercase_alphanumeric",
+    "pii_unordered_groups": [
       [
-        "customer",
-        "id"
-      ],
-      [
-        "customer",
-        "identifier"
-      ],
-      [
-        "subscriber",
-        "id"
-      ],
-      [
-        "subscriber",
-        "identifier"
-      ],
-      [
-        "push",
-        "payload"
+        [
+          "customer",
+          "subscriber"
+        ],
+        [
+          "id",
+          "identifier",
+          "identifiers",
+          "identity"
+        ]
       ]
     ],
-    "identifier_tokens": [
-      "id",
-      "identifier",
-      "identifiers",
-      "identity"
-    ],
-    "identity_subject_tokens": [
-      "customer",
-      "subscriber"
-    ],
-    "json_schema_support": "annotation_only",
-    "pii_tokens": [
-      "email",
-      "gpsi",
-      "imei",
-      "imsi",
-      "msisdn",
-      "phone",
-      "supi"
-    ],
     "recursive": true,
-    "secret_tokens": [
-      "credential",
-      "credentials",
-      "passwd",
-      "password",
-      "passwords",
-      "secret",
-      "secrets",
-      "token",
-      "tokens"
+    "safe_exact_keys": [
+      "commandment_count",
+      "config_history",
+      "executioner_state",
+      "shellfish_count",
+      "tokenization_mode",
+      "ue_cohort_id"
+    ],
+    "secret_unordered_groups": [
+      [
+        [
+          "access",
+          "api"
+        ],
+        [
+          "key",
+          "secret",
+          "token"
+        ]
+      ]
     ],
     "version": "1.0"
   }
