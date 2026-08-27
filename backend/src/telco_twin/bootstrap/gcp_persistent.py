@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import ClassVar, Literal
-
-from pydantic import AliasPath, BaseModel, ConfigDict, Field, ValidationError
+from pydantic import ValidationError
 
 from telco_twin.bootstrap.gcp_commands import (
     GcpContext,
@@ -13,78 +10,19 @@ from telco_twin.bootstrap.gcp_commands import (
     require_gcloud,
     run_gcloud,
 )
-from telco_twin.bootstrap.gcp_service_account import (
-    ServiceAccountState,
-    ensure_service_account,
+from telco_twin.bootstrap.gcp_persistent_contract import (
+    ISSUER,
+    MAPPING,
+    POOL_ID,
+    PROVIDER_ID,
+    REPOSITORIES,
+    PersistentState,
+    ProviderConfig,
+    ProviderSnapshot,
+    provider_command,
 )
-
-POOL_ID: Literal["github-actions"] = "github-actions"
-PROVIDER_ID: Literal["github-oidc"] = "github-oidc"
-ISSUER = "https://token.actions.githubusercontent.com"
-MAPPING = (
-    "google.subject=assertion.sub,"
-    "attribute.repository=assertion.repository,"
-    "attribute.repository_owner_id=assertion.repository_owner_id"
-)
-REPOSITORIES = (
-    "oyeong011/telco-counterfactual-twin",
-    "oyeong011/mcp-evidence-plane",
-)
-
-
-class ProviderSnapshot(BaseModel):
-    """Provider fields needed to restore an existing configuration."""
-
-    model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore", frozen=True)
-
-    issuer: str = Field(validation_alias=AliasPath("oidc", "issuerUri"))
-    mapping: dict[str, str] = Field(alias="attributeMapping")
-    condition: str = Field(alias="attributeCondition")
-
-
-@dataclass(frozen=True, slots=True)
-class PersistentState:
-    """WIF and service-account rollback state captured before mutation."""
-
-    service_account_state: ServiceAccountState
-    pool_created: bool
-    provider_created: bool
-    provider_snapshot: ProviderSnapshot | None
-
-    @property
-    def service_account(self) -> str:
-        """Return the deploy service-account email."""
-        return self.service_account_state.service_account
-
-
-@dataclass(frozen=True, slots=True)
-class ProviderConfig:
-    """Complete OIDC provider command configuration."""
-
-    context: GcpContext
-    provider_id: str
-    issuer: str
-    mapping: str
-    condition: str
-
-
-def provider_command(action: str, config: ProviderConfig) -> tuple[str, ...]:
-    """Build an exact argv tuple for create/update OIDC provider operations."""
-    return (
-        "gcloud",
-        "iam",
-        "workload-identity-pools",
-        "providers",
-        action,
-        config.provider_id,
-        f"--project={config.context.project_id}",
-        "--location=global",
-        f"--workload-identity-pool={POOL_ID}",
-        f"--issuer-uri={config.issuer}",
-        f"--attribute-mapping={config.mapping}",
-        f"--attribute-condition={config.condition}",
-        "--quiet",
-    )
+from telco_twin.bootstrap.gcp_rollback import restore_persistent
+from telco_twin.bootstrap.gcp_service_account import ensure_service_account
 
 
 def _condition(owner_id: str) -> str:
@@ -116,72 +54,91 @@ def ensure_persistent(context: GcpContext) -> PersistentState:
         "--location=global",
     )
     pool_created = run_gcloud(pool_args).returncode != 0
-    if pool_created:
-        _ = require_gcloud(
+    state = PersistentState(
+        service_account_state=service_account_state,
+        pool_created=pool_created,
+        provider_created=False,
+        provider_snapshot=None,
+    )
+    try:
+        if pool_created:
+            _ = require_gcloud(
+                (
+                    "gcloud",
+                    "iam",
+                    "workload-identity-pools",
+                    "create",
+                    POOL_ID,
+                    f"--project={context.project_id}",
+                    "--location=global",
+                    "--display-name=GitHub Actions",
+                    "--quiet",
+                ),
+                "wif-pool-create-failed",
+            )
+        provider_before = run_gcloud(
             (
                 "gcloud",
                 "iam",
                 "workload-identity-pools",
-                "create",
-                POOL_ID,
+                "providers",
+                "describe",
+                PROVIDER_ID,
                 f"--project={context.project_id}",
                 "--location=global",
-                "--display-name=GitHub Actions",
-                "--quiet",
-            ),
-            "wif-pool-create-failed",
+                f"--workload-identity-pool={POOL_ID}",
+                "--format=json",
+            )
         )
-    provider_before = run_gcloud(
-        (
-            "gcloud",
-            "iam",
-            "workload-identity-pools",
-            "providers",
-            "describe",
-            PROVIDER_ID,
-            f"--project={context.project_id}",
-            "--location=global",
-            f"--workload-identity-pool={POOL_ID}",
-            "--format=json",
+        provider_created = provider_before.returncode != 0
+        state = PersistentState(
+            service_account_state=service_account_state,
+            pool_created=pool_created,
+            provider_created=provider_created,
+            provider_snapshot=None,
         )
-    )
-    provider_created = provider_before.returncode != 0
-    snapshot: ProviderSnapshot | None = None
-    if not provider_created:
-        try:
-            snapshot = ProviderSnapshot.model_validate_json(provider_before.stdout)
-        except ValidationError:
-            code = "provider-snapshot-invalid"
-            raise ProvisioningError(code) from None
-    config = ProviderConfig(
-        context=context,
-        provider_id=PROVIDER_ID,
-        issuer=ISSUER,
-        mapping=MAPPING,
-        condition=_condition(context.owner_id),
-    )
-    action = "create-oidc" if provider_created else "update-oidc"
-    _ = require_gcloud(
-        provider_command(action, config),
-        "wif-provider-write-failed",
-    )
-    for repository in REPOSITORIES:
+        snapshot: ProviderSnapshot | None = None
+        if not provider_created:
+            try:
+                snapshot = ProviderSnapshot.model_validate_json(provider_before.stdout)
+            except ValidationError:
+                code = "provider-snapshot-invalid"
+                raise ProvisioningError(code) from None
+            state = PersistentState(
+                service_account_state=service_account_state,
+                pool_created=pool_created,
+                provider_created=False,
+                provider_snapshot=snapshot,
+            )
+        config = ProviderConfig(
+            context=context,
+            provider_id=PROVIDER_ID,
+            issuer=ISSUER,
+            mapping=MAPPING,
+            condition=_condition(context.owner_id),
+        )
+        action = "create-oidc" if provider_created else "update-oidc"
         _ = require_gcloud(
-            (
-                "gcloud",
-                "iam",
-                "service-accounts",
-                "add-iam-policy-binding",
-                service_account,
-                "--role=roles/iam.workloadIdentityUser",
-                f"--member={_principal(context, repository)}",
-                "--quiet",
-            ),
-            "wif-binding-write-failed",
+            provider_command(action, config),
+            "wif-provider-write-failed",
         )
-    return PersistentState(
-        service_account_state=service_account_state,
-        pool_created=pool_created,
-        provider_created=provider_created,
-        provider_snapshot=snapshot,
-    )
+        for repository in REPOSITORIES:
+            _ = require_gcloud(
+                (
+                    "gcloud",
+                    "iam",
+                    "service-accounts",
+                    "add-iam-policy-binding",
+                    service_account,
+                    "--role=roles/iam.workloadIdentityUser",
+                    f"--member={_principal(context, repository)}",
+                    "--quiet",
+                ),
+                "wif-binding-write-failed",
+            )
+    except ProvisioningError:
+        if not restore_persistent(context, state):
+            code = "persistent-rollback-failed"
+            raise ProvisioningError(code) from None
+        raise
+    return state

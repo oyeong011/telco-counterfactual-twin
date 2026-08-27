@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from telco_twin.bootstrap.gcp_commands import GcpContext, attempt_gcloud
-from telco_twin.bootstrap.gcp_persistent import (
+from telco_twin.bootstrap.gcp_persistent_contract import (
     POOL_ID,
     PROVIDER_ID,
     PersistentState,

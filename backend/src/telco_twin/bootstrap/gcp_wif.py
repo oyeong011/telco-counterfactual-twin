@@ -12,10 +12,10 @@ from telco_twin.bootstrap.gcp_commands import (
     ProvisioningError,
     require_gcloud,
 )
-from telco_twin.bootstrap.gcp_persistent import (
+from telco_twin.bootstrap.gcp_persistent import ensure_persistent
+from telco_twin.bootstrap.gcp_persistent_contract import (
     POOL_ID,
     PROVIDER_ID,
-    ensure_persistent,
 )
 from telco_twin.bootstrap.gcp_resource_probe import run_temporary_probes
 from telco_twin.bootstrap.gcp_rollback import restore_persistent
