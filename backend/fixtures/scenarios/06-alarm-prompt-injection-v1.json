@@ -43,6 +43,7 @@
     }],
     "config_history": [{
       "config_version": "config-alarm-v1",
+      "target_id": "alarm-source-0001",
       "recorded_at": "2026-08-27T00:00:00Z",
       "neighbor_relation_valid": true,
       "slice_scheduler_share_pct": 40.0,

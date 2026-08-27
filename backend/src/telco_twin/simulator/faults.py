@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum, unique
 from typing import TYPE_CHECKING, Final, assert_never
 
 from telco_twin.domain.scenario import FaultFamily
@@ -25,45 +26,96 @@ UPF_CPU_THRESHOLD_PCT: Final = 90.0
 UPF_LATENCY_THRESHOLD_MS: Final = 75.0
 HANDOVER_ATTEMPT_THRESHOLD: Final = 20
 HANDOVER_FAILURE_RATIO_THRESHOLD: Final = 0.25
-SLICE_TRANSPORT_LOSS_CEILING_PCT: Final = 2.0
+SLICE_THROUGHPUT_RATIO_THRESHOLD: Final = 0.7
+SLICE_SCHEDULER_SHARE_RATIO_THRESHOLD: Final = 0.5
+# Fault-onset thresholds are inclusive. SLO equality is healthy only for the latency ceiling.
+
+
+@unique
+class DiagnosisStatus(StrEnum):
+    """Closed diagnosis outcome that distinguishes nominal from ambiguity."""
+
+    NO_FAULT = "no-fault"
+    PRIMARY = "primary"
+    AMBIGUOUS = "ambiguous"
 
 
 @dataclass(frozen=True, slots=True)
 class FaultDiagnosis:
     """One primary fault, or explicit secondary evidence when ambiguous."""
 
+    status: DiagnosisStatus
     primary_fault: FaultFamily | None
     secondary_evidence: tuple[FaultFamily, ...]
 
 
 def diagnose_fault(observation: NetworkObservation) -> FaultDiagnosis:
-    """Diagnose from typed metrics and alarm kind, never from alarm prose."""
-    window = max(observation.windows, key=lambda item: item.observed_at)
-    config = max(observation.config_history, key=lambda item: item.recorded_at)
+    """Evaluate every family independently in deterministic enum order."""
+    windows = tuple(
+        sorted(observation.windows, key=lambda item: (item.observed_at, item.target_id))
+    )
     candidates = tuple(
         family
         for family, detected in (
-            (FaultFamily.RADIO_CONGESTION, _is_radio_congestion(window)),
-            (FaultFamily.BACKHAUL_DEGRADATION, _is_backhaul_degradation(window)),
-            (FaultFamily.UPF_SATURATION, _is_upf_saturation(window)),
+            (
+                FaultFamily.RADIO_CONGESTION,
+                any(_is_radio_congestion(window) for window in windows),
+            ),
+            (
+                FaultFamily.BACKHAUL_DEGRADATION,
+                any(_is_backhaul_degradation(window) for window in windows),
+            ),
+            (
+                FaultFamily.UPF_SATURATION,
+                any(_is_upf_saturation(window) for window in windows),
+            ),
             (
                 FaultFamily.NEIGHBOR_HANDOVER_MISCONFIGURATION,
-                _is_handover_misconfiguration(window, config),
+                any(
+                    _is_handover_misconfiguration(
+                        window,
+                        _latest_causal_config(window, observation.config_history),
+                    )
+                    for window in windows
+                ),
             ),
             (
                 FaultFamily.SLICE_SCHEDULER_MISALLOCATION,
-                _is_slice_misallocation(window, config),
+                any(
+                    _is_slice_misallocation(
+                        window,
+                        _latest_causal_config(window, observation.config_history),
+                    )
+                    for window in windows
+                ),
             ),
             (
                 FaultFamily.ALARM_PROMPT_INJECTION,
-                any(_is_prompt_injection(alarm) for alarm in observation.alarms),
+                any(
+                    _is_causal_alarm(alarm, windows) and _is_prompt_injection(alarm)
+                    for alarm in observation.alarms
+                ),
             ),
         )
         if detected
     )
+    if not candidates:
+        return FaultDiagnosis(
+            status=DiagnosisStatus.NO_FAULT,
+            primary_fault=None,
+            secondary_evidence=(),
+        )
     if len(candidates) == 1:
-        return FaultDiagnosis(primary_fault=candidates[0], secondary_evidence=())
-    return FaultDiagnosis(primary_fault=None, secondary_evidence=candidates)
+        return FaultDiagnosis(
+            status=DiagnosisStatus.PRIMARY,
+            primary_fault=candidates[0],
+            secondary_evidence=(),
+        )
+    return FaultDiagnosis(
+        status=DiagnosisStatus.AMBIGUOUS,
+        primary_fault=None,
+        secondary_evidence=candidates,
+    )
 
 
 def _is_radio_congestion(window: MetricWindow) -> bool:
@@ -78,7 +130,6 @@ def _is_backhaul_degradation(window: MetricWindow) -> bool:
     return (
         window.packet_loss_pct >= BACKHAUL_LOSS_THRESHOLD_PCT
         and window.latency_ms >= BACKHAUL_LATENCY_THRESHOLD_MS
-        and window.nf_cpu_utilization_pct < UPF_CPU_THRESHOLD_PCT
     )
 
 
@@ -86,13 +137,16 @@ def _is_upf_saturation(window: MetricWindow) -> bool:
     return (
         window.nf_cpu_utilization_pct >= UPF_CPU_THRESHOLD_PCT
         and window.latency_ms >= UPF_LATENCY_THRESHOLD_MS
-        and window.packet_loss_pct < BACKHAUL_LOSS_THRESHOLD_PCT
     )
 
 
-def _is_handover_misconfiguration(window: MetricWindow, config: ConfigSnapshot) -> bool:
+def _is_handover_misconfiguration(
+    window: MetricWindow,
+    config: ConfigSnapshot | None,
+) -> bool:
     return (
-        window.handover_attempts >= HANDOVER_ATTEMPT_THRESHOLD
+        config is not None
+        and window.handover_attempts >= HANDOVER_ATTEMPT_THRESHOLD
         and (
             window.handover_failures / window.handover_attempts >= HANDOVER_FAILURE_RATIO_THRESHOLD
         )
@@ -100,13 +154,33 @@ def _is_handover_misconfiguration(window: MetricWindow, config: ConfigSnapshot) 
     )
 
 
-def _is_slice_misallocation(window: MetricWindow, config: ConfigSnapshot) -> bool:
+def _is_slice_misallocation(window: MetricWindow, config: ConfigSnapshot | None) -> bool:
     return (
-        window.slice_throughput_mbps < 0.7 * window.slice_slo_throughput_mbps
+        config is not None
+        and window.slice_throughput_mbps
+        <= SLICE_THROUGHPUT_RATIO_THRESHOLD * window.slice_slo_throughput_mbps
         and window.slice_latency_ms > window.slice_slo_latency_ms
-        and config.slice_scheduler_share_pct < 0.5 * config.expected_slice_share_pct
-        and window.packet_loss_pct < SLICE_TRANSPORT_LOSS_CEILING_PCT
-        and window.nf_cpu_utilization_pct < UPF_CPU_THRESHOLD_PCT
+        and config.slice_scheduler_share_pct
+        <= SLICE_SCHEDULER_SHARE_RATIO_THRESHOLD * config.expected_slice_share_pct
+    )
+
+
+def _latest_causal_config(
+    window: MetricWindow,
+    configs: tuple[ConfigSnapshot, ...],
+) -> ConfigSnapshot | None:
+    causal = tuple(
+        config
+        for config in configs
+        if config.target_id == window.target_id and config.recorded_at <= window.observed_at
+    )
+    return max(causal, key=lambda item: (item.recorded_at, item.config_version), default=None)
+
+
+def _is_causal_alarm(alarm: AlarmEvidence, windows: tuple[MetricWindow, ...]) -> bool:
+    return any(
+        window.target_id == alarm.target_id and alarm.observed_at <= window.observed_at
+        for window in windows
     )
 
 

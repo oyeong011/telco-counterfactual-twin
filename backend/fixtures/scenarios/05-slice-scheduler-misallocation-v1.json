@@ -36,6 +36,7 @@
     "alarms": [],
     "config_history": [{
       "config_version": "config-slice-v1",
+      "target_id": "slice-0001",
       "recorded_at": "2026-08-27T00:00:00Z",
       "neighbor_relation_valid": true,
       "slice_scheduler_share_pct": 10.0,

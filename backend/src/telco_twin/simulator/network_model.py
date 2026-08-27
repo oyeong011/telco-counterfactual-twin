@@ -39,10 +39,11 @@ class ConfigSnapshot(StrictContract):
     """Typed synthetic configuration-history entry used as causal evidence."""
 
     config_version: ContractId
+    target_id: ContractId
     recorded_at: UtcTimestamp
     neighbor_relation_valid: bool
-    slice_scheduler_share_pct: Annotated[float, Field(ge=0, le=100)]
-    expected_slice_share_pct: Annotated[float, Field(gt=0, le=100)]
+    slice_scheduler_share_pct: Annotated[float, Field(strict=True, ge=0, le=100)]
+    expected_slice_share_pct: Annotated[float, Field(strict=True, gt=0, le=100)]
 
 
 class NetworkObservation(StrictContract):
@@ -63,7 +64,7 @@ class ScenarioManifest(RootContract):
 
     @model_validator(mode="after")
     def scenario_and_observation_are_bound(self) -> Self:
-        """Prevent telemetry from being attached to a different scenario or topology."""
+        """Require ID equality and a duplicate-free declared-target superset."""
         if (
             self.scenario.scenario_id != self.observation.scenario_id
             or self.scenario.topology_id != self.observation.topology_id
@@ -71,6 +72,22 @@ class ScenarioManifest(RootContract):
             fail_validation(
                 "scenario_observation_binding",
                 "scenario and observation identifiers do not match",
+            )
+        declared_targets = self.scenario.target_ids
+        if len(set(declared_targets)) != len(declared_targets):
+            fail_validation(
+                "duplicate_scenario_target",
+                "scenario target identifiers must be unique",
+            )
+        evidence_targets = (
+            *(window.target_id for window in self.observation.windows),
+            *(alarm.target_id for alarm in self.observation.alarms),
+            *(config.target_id for config in self.observation.config_history),
+        )
+        if any(target not in declared_targets for target in evidence_targets):
+            fail_validation(
+                "scenario_evidence_target",
+                "observation evidence target is not declared by the scenario",
             )
         return self
 

@@ -36,6 +36,7 @@
     "alarms": [],
     "config_history": [{
       "config_version": "config-neighbor-v1",
+      "target_id": "cell-0002",
       "recorded_at": "2026-08-27T00:00:00Z",
       "neighbor_relation_valid": false,
       "slice_scheduler_share_pct": 40.0,
