@@ -58,13 +58,26 @@ def reject_wall_clock() -> Never:
     pytest.fail("command-bound proof consulted the wall clock")
 
 
+def reject_sleep(_seconds: float) -> Never:
+    pytest.fail("command-bound proof consulted sleep")
+
+
 def test_command_timeout_returns_stable_result(
-    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Given
-    sleeper = tmp_path / "sleeper"
-    write_tool(sleeper, "exec sleep 0.5")
+    monkeypatch.setattr(time, "monotonic", reject_wall_clock)
+    monkeypatch.setattr(time, "perf_counter", reject_wall_clock)
+    monkeypatch.setattr(time, "sleep", reject_sleep)
+    calls: list[CommandInvocation] = []
+
+    def timeout_command(
+        arguments: tuple[str, ...], **options: Unpack[RunOptions]
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append(CommandInvocation(arguments, options["timeout"]))
+        raise subprocess.TimeoutExpired(arguments, options["timeout"])
+
+    monkeypatch.setattr(subprocess, "run", timeout_command)
     monkeypatch.setattr(
         gcp_commands,
         "DEFAULT_COMMAND_TIMEOUT_SECONDS",
@@ -73,13 +86,13 @@ def test_command_timeout_returns_stable_result(
     )
 
     # When
-    started = time.monotonic()
-    result = gcp_commands.run_command((str(sleeper),))
-    elapsed = time.monotonic() - started
+    result = gcp_commands.run_command(("/fixture/sleeper",))
 
     # Then
     assert result.returncode == 124
-    assert elapsed < 0.2
+    assert result.stdout == ""
+    assert result.stderr == ""
+    assert calls == [CommandInvocation(("/fixture/sleeper",), 0.05)]
 
 
 def test_command_os_error_returns_stable_result() -> None:
