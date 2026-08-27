@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from telco_twin.bootstrap.gcp_ownership import OperationOwnership
 from telco_twin.bootstrap.gcp_persistent_reconcile import cleanup_pool, restore_provider
 from telco_twin.bootstrap.gcp_resource_contract import ProviderRollbackIntent
 from telco_twin.bootstrap.gcp_temporary_mutations import cleanup_provider
@@ -22,6 +23,7 @@ def restore_persistent(context: GcpContext, state: PersistentState) -> bool:
                 context=context,
                 provider_id=state.provider_create_intent.provider_id,
                 condition=state.provider_create_intent.condition,
+                ownership=OperationOwnership.from_marker(state.provider_create_intent.description),
                 policy=state.policy,
             )
         )

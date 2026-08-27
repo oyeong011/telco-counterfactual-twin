@@ -7,6 +7,7 @@ import pytest
 
 from telco_twin.bootstrap import gcp_commands
 from telco_twin.bootstrap.gcp_commands import GcpContext, ProvisioningError
+from telco_twin.bootstrap.gcp_ownership import OperationOwnership
 from telco_twin.bootstrap.gcp_reconciliation import ReconciliationPolicy
 from telco_twin.bootstrap.gcp_resource_contract import (
     BudgetCleanupTarget,
@@ -23,6 +24,8 @@ CONTEXT = GcpContext(
     billing_account_id="ABC",
     owner_id="12345678",
 )
+OWNERSHIP = OperationOwnership("a" * 25)
+DISPLAY_NAME = OWNERSHIP.marker
 
 
 @pytest.mark.parametrize(
@@ -50,7 +53,7 @@ def test_cleanup_rejects_unowned_budget_and_continues(
         rendered = " ".join(arguments)
         commands.append(rendered)
         snapshot = budget_snapshot(
-            "twin-preflight-test",
+            DISPLAY_NAME,
             "projects/example-project/topics/twin-preflight-test",
             ("projects/987654321",),
             name=budget_name,
@@ -61,7 +64,7 @@ def test_cleanup_rejects_unowned_budget_and_continues(
     monkeypatch.setattr(gcp_commands, "run_gcloud", run)
     clock = FakeClock()
     policy = ReconciliationPolicy(monotonic=clock.monotonic, sleeper=clock.sleep)
-    intent = BudgetRollbackIntent(CONTEXT, "twin-preflight-test", policy)
+    intent = BudgetRollbackIntent(CONTEXT, "twin-preflight-test", OWNERSHIP, policy)
 
     # When
     cleaned = cleanup_budget(intent)
@@ -101,12 +104,12 @@ def budget_snapshot(
             ("projects/987654321",),
         ),
         (
-            "twin-preflight-test",
+            DISPLAY_NAME,
             "projects/example-project/topics/another-topic",
             ("projects/987654321",),
         ),
         (
-            "twin-preflight-test",
+            DISPLAY_NAME,
             "projects/example-project/topics/twin-preflight-test",
             ("projects/111111111",),
         ),
@@ -124,7 +127,7 @@ def test_budget_snapshot_rejects_probe_identity_mismatch(
     target = BudgetCleanupTarget(
         resource_name="billingAccounts/ABC/budgets/123",
         billing_account_id="ABC",
-        display_name="twin-preflight-test",
+        display_name=DISPLAY_NAME,
         topic_resource="projects/example-project/topics/twin-preflight-test",
         project_resource="projects/987654321",
     )
@@ -141,7 +144,7 @@ def test_budget_cleanup_fails_closed_without_one_exact_match(
     commands: list[str] = []
     snapshots = ",".join(
         budget_snapshot(
-            "twin-preflight-test",
+            DISPLAY_NAME,
             "projects/example-project/topics/twin-preflight-test",
             ("projects/987654321",),
             name=f"billingAccounts/ABC/budgets/{index}",
@@ -161,7 +164,7 @@ def test_budget_cleanup_fails_closed_without_one_exact_match(
     monkeypatch.setattr(gcp_commands, "run_gcloud", run)
     clock = FakeClock()
     policy = ReconciliationPolicy(monotonic=clock.monotonic, sleeper=clock.sleep)
-    intent = BudgetRollbackIntent(CONTEXT, "twin-preflight-test", policy)
+    intent = BudgetRollbackIntent(CONTEXT, "twin-preflight-test", OWNERSHIP, policy)
 
     # When
     cleaned = cleanup_budget(intent)

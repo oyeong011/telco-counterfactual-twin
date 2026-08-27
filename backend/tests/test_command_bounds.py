@@ -8,8 +8,11 @@ import pytest
 
 from telco_twin.bootstrap import cloudflare_probe, gcp_commands
 from telco_twin.bootstrap.cloudflare_probe import CloudflareContext
+from telco_twin.bootstrap.gcp_binding import BindingRollbackIntent
 from telco_twin.bootstrap.gcp_commands import GcpContext
+from telco_twin.bootstrap.gcp_iam_contract import IamPolicy
 from telco_twin.bootstrap.gcp_iam_probe import probe_gcp_iam
+from telco_twin.bootstrap.gcp_ownership import OperationOwnership
 from telco_twin.bootstrap.gcp_reconciliation import ReconciliationPolicy
 from telco_twin.bootstrap.gcp_resource_cleanup import (
     TemporaryCleanupPlan,
@@ -20,7 +23,6 @@ from telco_twin.bootstrap.gcp_resource_contract import (
     ProviderRollbackIntent,
     TopicRollbackIntent,
 )
-from telco_twin.bootstrap.gcp_service_account import ExistingServiceAccountSnapshot
 from telco_twin.bootstrap.probe_errors import ProviderProbeError
 
 from .conftest import run_project_script
@@ -147,24 +149,48 @@ def test_cleanup_timeout_records_failure_and_continues(
     fake.binding_exists = True
     fake.topic_exists = True
     fake.budget_exists = True
+    ownership = OperationOwnership("a" * 25)
+    fake.provider_description = ownership.marker
+    fake.binding_condition = {
+        "expression": "true",
+        "title": ownership.marker,
+        "description": ownership.marker,
+    }
+    fake.topic_labels = {
+        "managed-by": "telco-twin-preflight",
+        "operation-fingerprint": ownership.fingerprint,
+    }
+    fake.budget_display_name = ownership.marker
     clock = FakeClock()
     policy = ReconciliationPolicy(monotonic=clock.monotonic, sleeper=clock.sleep)
     monkeypatch.setattr(gcp_commands, "run_gcloud", fake.run)
     plan = TemporaryCleanupPlan(
-        budget=BudgetRollbackIntent(context, "twin-preflight-ambiguous", policy),
-        binding=ExistingServiceAccountSnapshot(
-            "skt-portfolio-deployer@example-project.iam.gserviceaccount.com",
-            '{"bindings":[]}',
+        budget=BudgetRollbackIntent(
+            context,
+            "twin-preflight-ambiguous",
+            ownership,
             policy,
-            (fake.deny_member,),
+        ),
+        binding=BindingRollbackIntent(
+            "skt-portfolio-deployer@example-project.iam.gserviceaccount.com",
+            fake.deny_member,
+            ownership,
+            IamPolicy(bindings=()),
+            policy,
         ),
         provider=ProviderRollbackIntent(
             context,
             "github-oidc-deny-ambiguous",
             "assertion.repository=='oyeong011/nonmatching-preflight'",
+            ownership,
             policy,
         ),
-        topic=TopicRollbackIntent(context, "twin-preflight-ambiguous", policy),
+        topic=TopicRollbackIntent(
+            context,
+            "twin-preflight-ambiguous",
+            ownership,
+            policy,
+        ),
     )
 
     # When

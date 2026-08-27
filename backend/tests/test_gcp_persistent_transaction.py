@@ -4,6 +4,7 @@ import pytest
 
 from telco_twin.bootstrap import gcp_commands, gcp_persistent
 from telco_twin.bootstrap.gcp_commands import GcpContext, ProvisioningError
+from telco_twin.bootstrap.gcp_iam_contract import IamPolicy
 from telco_twin.bootstrap.gcp_reconciliation import ReconciliationPolicy
 
 from .gcp_eventual_fakes import FakeClock
@@ -114,5 +115,7 @@ def test_existing_persistent_state_is_restored_when_setup_fails(
     assert fake.service_account_exists is True
     assert fake.pool_exists is True
     assert fake.provider == ORIGINAL_PROVIDER
-    assert fake.policy == ORIGINAL_POLICY
+    assert IamPolicy.model_validate_json(fake.policy) == IamPolicy.model_validate_json(
+        ORIGINAL_POLICY
+    )
     assert_reconciled_after_failure(fake, failure_point)

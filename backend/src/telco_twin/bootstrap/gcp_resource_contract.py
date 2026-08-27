@@ -10,6 +10,7 @@ from pydantic import AliasPath, BaseModel, ConfigDict, Field, TypeAdapter, Valid
 
 from telco_twin.bootstrap.gcp_commands import ProvisioningError
 from telco_twin.bootstrap.gcp_iam_contract import IamPolicy, parse_iam_policy
+from telco_twin.bootstrap.gcp_ownership import MANAGED_BY, OperationOwnership
 from telco_twin.bootstrap.gcp_persistent_contract import ISSUER, MAPPING
 from telco_twin.bootstrap.gcp_reconciliation import (
     DEFAULT_RECONCILIATION_POLICY,
@@ -34,7 +35,12 @@ class BudgetCleanupTarget:
     topic_resource: str
     project_resource: str
 
-    def is_owned_by(self, context: GcpContext, topic: str) -> bool:
+    def is_owned_by(
+        self,
+        context: GcpContext,
+        topic: str,
+        ownership: OperationOwnership,
+    ) -> bool:
         """Recheck account, resource syntax, and unique probe identity."""
         resource_pattern = (
             rf"^billingAccounts/{re.escape(context.billing_account_id)}/"
@@ -43,7 +49,7 @@ class BudgetCleanupTarget:
         return (
             re.fullmatch(resource_pattern, self.resource_name) is not None
             and self.billing_account_id == context.billing_account_id
-            and self.display_name == topic
+            and self.display_name == ownership.marker
             and topic.startswith(PROBE_PREFIX)
             and self.topic_resource == f"projects/{context.project_id}/topics/{topic}"
             and self.project_resource == f"projects/{context.project_number}"
@@ -58,6 +64,7 @@ class TemporaryProviderSnapshot(BaseModel):
     issuer: str = Field(validation_alias=AliasPath("oidc", "issuerUri"))
     mapping: dict[str, str] = Field(alias="attributeMapping")
     condition: str = Field(alias="attributeCondition")
+    description: str = ""
 
 
 class TopicSnapshot(BaseModel):
@@ -65,6 +72,7 @@ class TopicSnapshot(BaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore", frozen=True)
     name: str
+    labels: dict[str, str] = Field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +82,7 @@ class ProviderRollbackIntent:
     context: GcpContext
     provider_id: str
     condition: str
+    ownership: OperationOwnership
     policy: ReconciliationPolicy = DEFAULT_RECONCILIATION_POLICY
 
     @property
@@ -95,6 +104,7 @@ class ProviderRollbackIntent:
             and snapshot.issuer == ISSUER
             and snapshot.mapping == expected_mapping
             and snapshot.condition == self.condition
+            and snapshot.description == self.ownership.marker
         )
 
 
@@ -104,6 +114,7 @@ class TopicRollbackIntent:
 
     context: GcpContext
     topic: str
+    ownership: OperationOwnership
     policy: ReconciliationPolicy = DEFAULT_RECONCILIATION_POLICY
 
     @property
@@ -111,19 +122,33 @@ class TopicRollbackIntent:
         """Return the exact topic resource identity."""
         return f"projects/{self.context.project_id}/topics/{self.topic}"
 
+    def matches(self, snapshot: TopicSnapshot) -> bool:
+        """Require immutable name and both current-operation labels."""
+        return (
+            snapshot.name == self.resource_name
+            and snapshot.labels.get("managed-by") == MANAGED_BY
+            and snapshot.labels.get("operation-fingerprint") == self.ownership.fingerprint
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class BudgetRollbackIntent:
     """Expected server-assigned budget identity registered before create."""
 
     context: GcpContext
-    display_name: str
+    topic: str
+    ownership: OperationOwnership
     policy: ReconciliationPolicy = DEFAULT_RECONCILIATION_POLICY
+
+    @property
+    def display_name(self) -> str:
+        """Use the 60-character ownership marker as the budget display name."""
+        return self.ownership.marker
 
     @property
     def topic_resource(self) -> str:
         """Return the exact notification topic resource."""
-        return f"projects/{self.context.project_id}/topics/{self.display_name}"
+        return f"projects/{self.context.project_id}/topics/{self.topic}"
 
     @property
     def project_resource(self) -> str:
@@ -140,7 +165,7 @@ class BudgetRollbackIntent:
             project_resource=self.project_resource,
         )
         if (
-            target.is_owned_by(self.context, self.display_name)
+            target.is_owned_by(self.context, self.topic, self.ownership)
             and snapshot.display_name == self.display_name
             and snapshot.notifications_rule.pubsub_topic == self.topic_resource
             and snapshot.budget_filter.projects == (self.project_resource,)
@@ -182,17 +207,18 @@ BUDGET_LIST_ADAPTER = TypeAdapter(tuple[BudgetSnapshot, ...])
 def parse_budget_target(
     name: str,
     context: GcpContext,
-    probe_name: str,
+    topic: str,
+    ownership: OperationOwnership,
 ) -> BudgetCleanupTarget:
     """Parse the create result into an account-bound cleanup target."""
     target = BudgetCleanupTarget(
         resource_name=name,
         billing_account_id=context.billing_account_id,
-        display_name=probe_name,
-        topic_resource=f"projects/{context.project_id}/topics/{probe_name}",
+        display_name=ownership.marker,
+        topic_resource=f"projects/{context.project_id}/topics/{topic}",
         project_resource=f"projects/{context.project_number}",
     )
-    if not target.is_owned_by(context, probe_name):
+    if not target.is_owned_by(context, topic, ownership):
         code = "invalid-budget-resource-name"
         raise ProvisioningError(code)
     return target

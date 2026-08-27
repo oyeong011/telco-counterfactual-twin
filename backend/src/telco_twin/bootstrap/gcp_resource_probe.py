@@ -10,6 +10,8 @@ from telco_twin.bootstrap.gcp_commands import (
     ProvisioningError,
     require_gcloud,
 )
+from telco_twin.bootstrap.gcp_operation import GcpOperation
+from telco_twin.bootstrap.gcp_ownership import RunOwnership
 from telco_twin.bootstrap.gcp_reconciliation import (
     DEFAULT_RECONCILIATION_POLICY,
     ReconciliationPolicy,
@@ -41,7 +43,7 @@ from telco_twin.bootstrap.preflight_contract import receipt_for
 from telco_twin.bootstrap.probe_errors import ProviderProbeError
 
 if TYPE_CHECKING:
-    from telco_twin.bootstrap.gcp_service_account import ExistingServiceAccountSnapshot
+    from telco_twin.bootstrap.gcp_binding import BindingRollbackIntent
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +66,7 @@ def run_temporary_probes(
     policy: ReconciliationPolicy = DEFAULT_RECONCILIATION_POLICY,
 ) -> TemporaryProbeResult:
     """Create authority probes and always remove their resources and IAM binding."""
+    run = RunOwnership.generate()
     deny_provider = f"github-oidc-deny-{suffix}"
     topic = f"twin-preflight-{suffix}"
     deny_member = (
@@ -74,7 +77,7 @@ def run_temporary_probes(
     budget_target: BudgetCleanupTarget | None = None
     budget_intent: BudgetRollbackIntent | None = None
     provider_intent: ProviderRollbackIntent | None = None
-    binding_snapshot: ExistingServiceAccountSnapshot | None = None
+    binding_snapshot: BindingRollbackIntent | None = None
     topic_intent: TopicRollbackIntent | None = None
     failure: ProvisioningError | None = None
     deny_exchange_evidence = ""
@@ -82,13 +85,16 @@ def run_temporary_probes(
     budget_schema_version: Literal["1.0"] | None = None
     try:
         provider_intent = prepare_provider(
-            context,
+            GcpOperation(context, run.for_operation("deny-provider"), policy),
             deny_provider,
             "assertion.repository=='oyeong011/nonmatching-preflight'",
-            policy,
         )
         create_provider(provider_intent)
-        binding_snapshot = prepare_binding(service_account, deny_member, policy)
+        binding_snapshot = prepare_binding(
+            service_account,
+            deny_member,
+            GcpOperation(context, run.for_operation("deny-binding"), policy),
+        )
         create_binding(binding_snapshot, deny_member)
         try:
             deny_receipt = assert_deny_exchange(
@@ -99,9 +105,15 @@ def run_temporary_probes(
         except ProviderProbeError as error:
             raise ProvisioningError(error.code) from None
         deny_exchange_evidence = deny_receipt.evidence
-        topic_intent = prepare_topic(context, topic, policy)
+        topic_intent = prepare_topic(
+            GcpOperation(context, run.for_operation("topic"), policy),
+            topic,
+        )
         create_topic(topic_intent)
-        budget_intent = prepare_budget(context, topic, policy)
+        budget_intent = prepare_budget(
+            GcpOperation(context, run.for_operation("budget"), policy),
+            topic,
+        )
         budget_target = create_budget(budget_intent)
         budget_snapshot = require_gcloud(
             (

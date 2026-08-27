@@ -12,12 +12,12 @@ from telco_twin.bootstrap.gcp_temporary_mutations import (
 )
 
 if TYPE_CHECKING:
+    from telco_twin.bootstrap.gcp_binding import BindingRollbackIntent
     from telco_twin.bootstrap.gcp_resource_contract import (
         BudgetRollbackIntent,
         ProviderRollbackIntent,
         TopicRollbackIntent,
     )
-    from telco_twin.bootstrap.gcp_service_account import ExistingServiceAccountSnapshot
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,7 +25,7 @@ class TemporaryCleanupPlan:
     """Exact temporary resources and binding that may require cleanup."""
 
     budget: BudgetRollbackIntent | None
-    binding: ExistingServiceAccountSnapshot | None
+    binding: BindingRollbackIntent | None
     provider: ProviderRollbackIntent | None
     topic: TopicRollbackIntent | None
 

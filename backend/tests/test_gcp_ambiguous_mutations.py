@@ -4,6 +4,7 @@ import pytest
 
 from telco_twin.bootstrap import gcp_commands, gcp_resource_probe
 from telco_twin.bootstrap.gcp_commands import GcpContext, ProvisioningError
+from telco_twin.bootstrap.gcp_ownership import RunOwnership
 from telco_twin.bootstrap.gcp_reconciliation import ReconciliationPolicy
 from telco_twin.bootstrap.github_deny_probe import DenyExchangeReceipt
 from telco_twin.bootstrap.preflight_contract import receipt_for
@@ -79,6 +80,14 @@ def test_preexisting_temporary_authority_is_never_deleted(
     fake.binding_exists = preexisting == "binding"
     fake.topic_exists = preexisting == "topic"
     fake.budget_exists = preexisting == "budget"
+    if preexisting == "budget":
+        run = RunOwnership(b"a" * 32)
+        fake.budget_display_name = run.for_operation("budget").marker
+
+        def generate() -> RunOwnership:
+            return run
+
+        monkeypatch.setattr(RunOwnership, "generate", generate)
 
     def deny_exchange(
         _provider: str,
@@ -114,7 +123,7 @@ def test_preexisting_temporary_authority_is_never_deleted(
     assert states[preexisting] is True
     delete_marker = {
         "provider": "providers delete",
-        "binding": "set-iam-policy",
+        "binding": "remove-iam-policy-binding",
         "topic": "pubsub topics delete",
         "budget": "billing budgets delete",
     }[preexisting]

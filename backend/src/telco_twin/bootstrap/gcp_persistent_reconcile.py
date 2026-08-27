@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from pydantic import TypeAdapter, ValidationError
 
+from telco_twin.bootstrap.gcp_binding import BindingRollbackIntent, prepare_binding_intent
 from telco_twin.bootstrap.gcp_commands import GcpContext, ProvisioningError
-from telco_twin.bootstrap.gcp_iam_contract import parse_iam_policy
 from telco_twin.bootstrap.gcp_persistent_contract import (
     POOL_ID,
     PROVIDER_ID,
@@ -15,13 +17,12 @@ from telco_twin.bootstrap.gcp_persistent_contract import (
     ProviderSnapshot,
     provider_command,
 )
-from telco_twin.bootstrap.gcp_reconciliation import (
-    DEFAULT_RECONCILIATION_POLICY,
-    ReconciliationPolicy,
-)
+
+if TYPE_CHECKING:
+    from telco_twin.bootstrap.gcp_operation import GcpOperation
+    from telco_twin.bootstrap.gcp_reconciliation import ReconciliationPolicy
 
 POOL_LIST_ADAPTER = TypeAdapter(tuple[PoolSnapshot, ...])
-WIF_ROLE = "roles/iam.workloadIdentityUser"
 
 
 def _pool_list(intent: PoolRollbackIntent) -> tuple[PoolSnapshot, ...] | None:
@@ -46,11 +47,14 @@ def _pool_list(intent: PoolRollbackIntent) -> tuple[PoolSnapshot, ...] | None:
 
 
 def prepare_pool(
-    context: GcpContext,
-    policy: ReconciliationPolicy = DEFAULT_RECONCILIATION_POLICY,
+    operation: GcpOperation,
 ) -> PoolRollbackIntent:
     """Prove exact pool absence before registering rollback ownership."""
-    intent = PoolRollbackIntent(context, policy)
+    intent = PoolRollbackIntent(
+        operation.context,
+        operation.ownership,
+        operation.policy,
+    )
     snapshots = _pool_list(intent)
     if snapshots is None:
         code = "wif-pool-list-failed"
@@ -149,6 +153,7 @@ def restore_provider(
         issuer=original.issuer,
         mapping=mapping,
         condition=original.condition,
+        description=original.description,
     )
     _ = policy.read(provider_command("update-oidc", old_config))
     restored = policy.poll(
@@ -159,64 +164,17 @@ def restore_provider(
     return restored is not None
 
 
-def binding_present(
+def prepare_persistent_binding(
     service_account: str,
     member: str,
-    policy: ReconciliationPolicy,
-) -> bool | None:
-    """Read whether the exact member/role edge currently exists."""
-    result = policy.read(
-        (
-            "gcloud",
-            "iam",
-            "service-accounts",
-            "get-iam-policy",
-            service_account,
-            "--format=json",
-        )
-    )
-    if result.returncode != 0:
-        return None
-    try:
-        parsed_policy = parse_iam_policy(result.stdout)
-    except ProvisioningError:
-        return None
-    return any(
-        binding.role == WIF_ROLE and member in binding.members for binding in parsed_policy.bindings
-    )
+    operation: GcpOperation,
+) -> BindingRollbackIntent | None:
+    """Capture prior IAM state unless the stable member already exists."""
+    return prepare_binding_intent(service_account, member, operation)
 
 
 def ensure_binding(
-    service_account: str,
-    member: str,
-    policy: ReconciliationPolicy,
+    intent: BindingRollbackIntent,
 ) -> None:
-    """Add an absent binding and reconcile it after any command result."""
-    before = binding_present(service_account, member, policy)
-    if before is None:
-        code = "wif-binding-snapshot-failed"
-        raise ProvisioningError(code)
-    if before:
-        return
-    result = policy.read(
-        (
-            "gcloud",
-            "iam",
-            "service-accounts",
-            "add-iam-policy-binding",
-            service_account,
-            f"--role={WIF_ROLE}",
-            f"--member={member}",
-            "--quiet",
-        )
-    )
-    after = policy.poll(
-        lambda: binding_present(service_account, member, policy),
-        lambda present: present is True,
-    )
-    if result.returncode != 0:
-        code = "wif-binding-write-failed"
-        raise ProvisioningError(code)
-    if after is None:
-        code = "wif-binding-reconcile-failed"
-        raise ProvisioningError(code)
+    """Write an operation-owned binding after its rollback is registered."""
+    intent.add()

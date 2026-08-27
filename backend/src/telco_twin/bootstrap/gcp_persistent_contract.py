@@ -14,6 +14,7 @@ from telco_twin.bootstrap.gcp_reconciliation import (
 
 if TYPE_CHECKING:
     from telco_twin.bootstrap.gcp_commands import GcpContext
+    from telco_twin.bootstrap.gcp_ownership import OperationOwnership
     from telco_twin.bootstrap.gcp_service_account import ServiceAccountState
 
 POOL_ID: Literal["github-actions"] = "github-actions"
@@ -35,9 +36,11 @@ class ProviderSnapshot(BaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore", frozen=True)
 
+    name: str
     issuer: str = Field(validation_alias=AliasPath("oidc", "issuerUri"))
     mapping: dict[str, str] = Field(alias="attributeMapping")
     condition: str = Field(alias="attributeCondition")
+    description: str = ""
 
     def matches(self, config: ProviderConfig) -> bool:
         """Compare the provider snapshot with one exact write configuration."""
@@ -46,9 +49,11 @@ class ProviderSnapshot(BaseModel):
             key, value = item.split("=", 1)
             expected_mapping[key] = value
         return (
-            self.issuer == config.issuer
+            self.name == config.resource_name
+            and self.issuer == config.issuer
             and self.mapping == expected_mapping
             and self.condition == config.condition
+            and self.description == config.description
         )
 
 
@@ -58,6 +63,7 @@ class PoolSnapshot(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore", frozen=True)
     name: str
     display_name: str = Field(alias="displayName")
+    description: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,6 +71,7 @@ class PoolRollbackIntent:
     """Exact pool deletion ownership registered before create dispatch."""
 
     context: GcpContext
+    ownership: OperationOwnership
     policy: ReconciliationPolicy = DEFAULT_RECONCILIATION_POLICY
 
     @property
@@ -77,7 +84,11 @@ class PoolRollbackIntent:
 
     def matches(self, snapshot: PoolSnapshot) -> bool:
         """Require the exact resource and preflight display fingerprint."""
-        return snapshot.name == self.resource_name and snapshot.display_name == "GitHub Actions"
+        return (
+            snapshot.name == self.resource_name
+            and snapshot.display_name == "GitHub Actions"
+            and snapshot.description == self.ownership.marker
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,6 +117,15 @@ class ProviderConfig:
     issuer: str
     mapping: str
     condition: str
+    description: str
+
+    @property
+    def resource_name(self) -> str:
+        """Return the exact immutable provider resource identity."""
+        return (
+            f"projects/{self.context.project_number}/locations/global/"
+            f"workloadIdentityPools/{POOL_ID}/providers/{self.provider_id}"
+        )
 
 
 def provider_command(action: str, config: ProviderConfig) -> tuple[str, ...]:
@@ -123,5 +143,6 @@ def provider_command(action: str, config: ProviderConfig) -> tuple[str, ...]:
         f"--issuer-uri={config.issuer}",
         f"--attribute-mapping={config.mapping}",
         f"--attribute-condition={config.condition}",
+        f"--description={config.description}",
         "--quiet",
     )

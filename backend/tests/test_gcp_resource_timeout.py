@@ -46,7 +46,7 @@ def test_deny_timeout_still_removes_binding_and_provider(
     # Then
     assert fake.binding_exists is False
     assert fake.provider_exists is False
-    assert any("service-accounts set-iam-policy" in command for command in fake.commands)
+    assert any("service-accounts remove-iam-policy-binding" in command for command in fake.commands)
     assert any(
         "providers delete github-oidc-deny-timeout-test" in command for command in fake.commands
     )

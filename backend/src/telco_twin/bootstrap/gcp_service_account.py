@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from pathlib import Path
-from tempfile import TemporaryDirectory
-from typing import ClassVar, Protocol
+from typing import TYPE_CHECKING, ClassVar, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
@@ -15,10 +13,14 @@ from telco_twin.bootstrap.gcp_commands import (
     require_gcloud,
 )
 from telco_twin.bootstrap.gcp_iam_contract import IamPolicy, parse_iam_policy
+from telco_twin.bootstrap.gcp_ownership import OperationOwnership, RunOwnership
 from telco_twin.bootstrap.gcp_reconciliation import (
     DEFAULT_RECONCILIATION_POLICY,
     ReconciliationPolicy,
 )
+
+if TYPE_CHECKING:
+    from telco_twin.bootstrap.gcp_binding import BindingRollbackIntent
 
 SERVICE_ACCOUNT_ID = "skt-portfolio-deployer"
 SERVICE_ACCOUNT_DISPLAY_NAME = "SKT Portfolio Deployer"
@@ -29,8 +31,10 @@ class ServiceAccountProjection(BaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore", frozen=True)
     name: str
+    unique_id: str = Field(alias="uniqueId", min_length=1)
     email: str
     display_name: str = Field(alias="displayName")
+    description: str = ""
 
 
 SERVICE_ACCOUNTS_ADAPTER = TypeAdapter(tuple[ServiceAccountProjection, ...])
@@ -42,6 +46,7 @@ class ServiceAccountCreateIntent:
 
     context: GcpContext
     service_account: str
+    ownership: OperationOwnership
     policy: ReconciliationPolicy = DEFAULT_RECONCILIATION_POLICY
 
     @property
@@ -75,6 +80,7 @@ class ServiceAccountCreateIntent:
             account.name == self.resource_name
             and account.email == self.service_account
             and account.display_name == SERVICE_ACCOUNT_DISPLAY_NAME
+            and account.description == self.ownership.marker
         )
 
     def rollback(self) -> bool:
@@ -87,13 +93,14 @@ class ServiceAccountCreateIntent:
         )
         if visible is None:
             return False
+        account = visible[0]
         _ = self.policy.read(
             (
                 "gcloud",
                 "iam",
                 "service-accounts",
                 "delete",
-                self.service_account,
+                account.unique_id,
                 "--quiet",
             )
         )
@@ -117,7 +124,7 @@ class ServiceAccountState(Protocol):
         """Restore or delete the service account according to its initial state."""
         ...
 
-    def register_pending_member(self, member: str) -> ServiceAccountState:
+    def register_pending_binding(self, intent: BindingRollbackIntent) -> ServiceAccountState:
         """Register a binding mutation before its dispatch."""
         ...
 
@@ -129,11 +136,14 @@ class ExistingServiceAccountSnapshot:
     service_account: str
     iam_policy: str
     policy: ReconciliationPolicy = DEFAULT_RECONCILIATION_POLICY
-    pending_members: tuple[str, ...] = ()
+    pending_bindings: tuple[BindingRollbackIntent, ...] = ()
 
-    def register_pending_member(self, member: str) -> ExistingServiceAccountSnapshot:
-        """Return a snapshot that expects this member mutation to surface."""
-        return replace(self, pending_members=(*self.pending_members, member))
+    def register_pending_binding(
+        self,
+        intent: BindingRollbackIntent,
+    ) -> ExistingServiceAccountSnapshot:
+        """Register one operation-owned binding before its dispatch."""
+        return replace(self, pending_bindings=(*self.pending_bindings, intent))
 
     def _current_policy(self) -> IamPolicy | None:
         result = self.policy.read(
@@ -159,40 +169,22 @@ class ExistingServiceAccountSnapshot:
             original_policy = parse_iam_policy(self.iam_policy)
         except ProvisioningError:
             return False
-        if self.pending_members:
-            visible = self.policy.poll(
+        if not self.pending_bindings:
+            current = self.policy.poll(
                 self._current_policy,
-                lambda current: (
-                    current is not None
-                    and all(
-                        any(member in binding.members for binding in current.bindings)
-                        for member in self.pending_members
-                    )
-                ),
+                lambda candidate: candidate == original_policy,
+                confirmations=2,
             )
-            if visible is None:
-                return False
-        elif self._current_policy() == original_policy:
-            return True
-        with TemporaryDirectory(prefix="twin-wif-rollback-") as temp_dir:
-            policy_path = Path(temp_dir) / "policy.json"
-            _ = policy_path.write_text(self.iam_policy, encoding="utf-8")
-            _ = self.policy.read(
-                (
-                    "gcloud",
-                    "iam",
-                    "service-accounts",
-                    "set-iam-policy",
-                    self.service_account,
-                    str(policy_path),
-                )
-            )
-        restored = self.policy.poll(
+            return current is not None
+        restored = True
+        for intent in reversed(self.pending_bindings):
+            restored &= intent.rollback()
+        current = self.policy.poll(
             self._current_policy,
-            lambda current: current == original_policy,
+            lambda candidate: candidate == original_policy,
             confirmations=2,
         )
-        return restored is not None
+        return bool(current is not None and restored)
 
 
 @dataclass(frozen=True, slots=True)
@@ -210,20 +202,27 @@ class CreatedServiceAccountSnapshot:
         """Delete the service account created by the failed preflight."""
         return self.intent.rollback()
 
-    def register_pending_member(self, member: str) -> CreatedServiceAccountSnapshot:
+    def register_pending_binding(
+        self,
+        intent: BindingRollbackIntent,
+    ) -> CreatedServiceAccountSnapshot:
         """Account deletion already owns all bindings created beneath it."""
-        _ = member
+        _ = intent
         return self
 
 
 def ensure_service_account(
     context: GcpContext,
     policy: ReconciliationPolicy = DEFAULT_RECONCILIATION_POLICY,
+    ownership: OperationOwnership | None = None,
 ) -> ServiceAccountState:
     """Describe first, snapshot existing IAM, or create without a nonexistent policy read."""
     service_account = f"{SERVICE_ACCOUNT_ID}@{context.project_id}.iam.gserviceaccount.com"
+    active_ownership = (
+        RunOwnership.generate().for_operation("service-account") if ownership is None else ownership
+    )
     described = policy.read(("gcloud", "iam", "service-accounts", "describe", service_account))
-    intent = ServiceAccountCreateIntent(context, service_account, policy)
+    intent = ServiceAccountCreateIntent(context, service_account, active_ownership, policy)
     accounts = intent.accounts()
     if accounts is None:
         code = "service-account-list-failed"
@@ -257,6 +256,7 @@ def ensure_service_account(
             SERVICE_ACCOUNT_ID,
             f"--project={context.project_id}",
             f"--display-name={SERVICE_ACCOUNT_DISPLAY_NAME}",
+            f"--description={active_ownership.marker}",
             "--quiet",
         )
     )
@@ -269,7 +269,7 @@ def ensure_service_account(
     reconciled = created is not None
     if result.returncode != 0 or not reconciled:
         if not intent.rollback():
-            code = "service-account-rollback-failed"
+            code = "service-account-ownership-conflict"
             raise ProvisioningError(code)
         code = "service-account-create-failed"
         raise ProvisioningError(code)

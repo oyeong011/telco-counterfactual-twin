@@ -26,6 +26,10 @@ class AmbiguousTemporaryGcloud:
     topic_exists: bool
     budget_exists: bool
     deny_member: str
+    provider_description: str
+    binding_condition: dict[str, str] | None
+    topic_labels: dict[str, str]
+    budget_display_name: str
 
     def __init__(self, context: GcpContext, failure_point: str) -> None:
         self.context = context
@@ -37,6 +41,10 @@ class AmbiguousTemporaryGcloud:
         self.binding_exists = False
         self.topic_exists = False
         self.budget_exists = False
+        self.provider_description = ""
+        self.binding_condition = None
+        self.topic_labels = {}
+        self.budget_display_name = "twin-preflight-ambiguous"
         self.deny_member = (
             "principalSet://iam.googleapis.com/projects/"
             f"{context.project_number}/locations/global/workloadIdentityPools/github-actions/"
@@ -76,25 +84,27 @@ class AmbiguousTemporaryGcloud:
                     "attribute.repository_owner_id": "assertion.repository_owner_id",
                 },
                 "attributeCondition": ("assertion.repository=='oyeong011/nonmatching-preflight'"),
+                "description": self.provider_description,
             }
         )
 
     def _policy_json(self) -> str:
-        bindings: list[dict[str, str | list[str]]] = []
+        bindings: list[dict[str, str | list[str] | dict[str, str]]] = []
         if self.binding_exists:
-            bindings.append(
-                {
-                    "role": "roles/iam.workloadIdentityUser",
-                    "members": [self.deny_member],
-                }
-            )
+            binding: dict[str, str | list[str] | dict[str, str]] = {
+                "role": "roles/iam.workloadIdentityUser",
+                "members": [self.deny_member],
+            }
+            if self.binding_condition is not None:
+                binding["condition"] = self.binding_condition
+            bindings.append(binding)
         return json.dumps({"bindings": bindings})
 
     def _budget_json(self, topic: str) -> str:
         return json.dumps(
             {
                 "name": f"billingAccounts/{self.context.billing_account_id}/budgets/123",
-                "displayName": topic,
+                "displayName": self.budget_display_name,
                 "budgetFilter": {"projects": [f"projects/{self.context.project_number}"]},
                 "notificationsRule": {
                     "schemaVersion": "1.0",
@@ -120,6 +130,11 @@ class AmbiguousTemporaryGcloud:
         if "providers create-oidc" in joined:
             self.provider_exists = True
             self.provider_id = arguments[5]
+            self.provider_description = next(
+                argument.removeprefix("--description=")
+                for argument in arguments
+                if argument.startswith("--description=")
+            )
             return self._mutation_result(arguments, "provider-create")
         if "providers delete" in joined:
             self.provider_exists = False
@@ -135,6 +150,12 @@ class AmbiguousTemporaryGcloud:
             return self._completed(arguments, stdout=self._policy_json())
         if "service-accounts add-iam-policy-binding" in joined:
             self.binding_exists = True
+            condition = next(
+                argument.removeprefix("--condition=")
+                for argument in arguments
+                if argument.startswith("--condition=")
+            )
+            self.binding_condition = dict(part.split("=", 1) for part in condition.split(","))
             return self._mutation_result(arguments, "binding-add")
         if "service-accounts remove-iam-policy-binding" in joined:
             self.binding_exists = False
@@ -153,7 +174,7 @@ class AmbiguousTemporaryGcloud:
         topic = "twin-preflight-ambiguous"
         resource = f"projects/{self.context.project_id}/topics/{topic}"
         if "pubsub topics list" in joined:
-            payload = [{"name": resource}] if self.topic_exists else []
+            payload = [{"name": resource, "labels": self.topic_labels}] if self.topic_exists else []
             return self._completed(arguments, stdout=json.dumps(payload))
         if "pubsub topics describe" in joined:
             return self._completed(
@@ -163,6 +184,12 @@ class AmbiguousTemporaryGcloud:
             )
         if "pubsub topics create" in joined:
             self.topic_exists = True
+            labels = next(
+                argument.removeprefix("--labels=")
+                for argument in arguments
+                if argument.startswith("--labels=")
+            )
+            self.topic_labels = dict(item.split("=", 1) for item in labels.split(","))
             return self._mutation_result(arguments, "topic-create")
         if "pubsub topics delete" in joined:
             self.topic_exists = False
@@ -193,6 +220,11 @@ class AmbiguousTemporaryGcloud:
             return self._completed(arguments, stdout=json.dumps(payload))
         if "billing budgets create" in joined:
             self.budget_exists = True
+            self.budget_display_name = next(
+                argument.removeprefix("--display-name=")
+                for argument in arguments
+                if argument.startswith("--display-name=")
+            )
             result = self._mutation_result(arguments, "budget-create")
             if result.returncode != 0:
                 return result

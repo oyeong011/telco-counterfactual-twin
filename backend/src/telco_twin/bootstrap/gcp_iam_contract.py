@@ -15,6 +15,16 @@ class IamBinding(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore", frozen=True)
     role: str
     members: tuple[str, ...] = ()
+    condition: IamCondition | None = None
+
+
+class IamCondition(BaseModel):
+    """Exact condition metadata used to prove one binding mutation."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore", frozen=True)
+    expression: str
+    title: str
+    description: str = ""
 
 
 class IamPolicy(BaseModel):

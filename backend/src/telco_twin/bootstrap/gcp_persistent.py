@@ -10,6 +10,8 @@ from telco_twin.bootstrap.gcp_commands import (
     GcpContext,
     ProvisioningError,
 )
+from telco_twin.bootstrap.gcp_operation import GcpOperation
+from telco_twin.bootstrap.gcp_ownership import RunOwnership
 from telco_twin.bootstrap.gcp_persistent_contract import (
     ISSUER,
     MAPPING,
@@ -24,6 +26,7 @@ from telco_twin.bootstrap.gcp_persistent_contract import (
 )
 from telco_twin.bootstrap.gcp_persistent_reconcile import (
     ensure_binding,
+    prepare_persistent_binding,
     prepare_pool,
     read_provider,
     verify_pool,
@@ -52,7 +55,8 @@ def _principal(context: GcpContext, repository: str) -> str:
     )
 
 
-def _write_pool(context: GcpContext, intent: PoolRollbackIntent) -> None:
+def write_pool(context: GcpContext, intent: PoolRollbackIntent) -> None:
+    """Create the operation-owned pool and reconcile its exact metadata."""
     result = intent.policy.read(
         (
             "gcloud",
@@ -63,6 +67,7 @@ def _write_pool(context: GcpContext, intent: PoolRollbackIntent) -> None:
             f"--project={context.project_id}",
             "--location=global",
             "--display-name=GitHub Actions",
+            f"--description={intent.ownership.marker}",
             "--quiet",
         )
     )
@@ -76,11 +81,10 @@ def _write_pool(context: GcpContext, intent: PoolRollbackIntent) -> None:
 
 
 def _provider_prior(
-    context: GcpContext,
     config: ProviderConfig,
-    policy: ReconciliationPolicy,
+    operation: GcpOperation,
 ) -> tuple[ProviderConfig | None, ProviderSnapshot | None]:
-    before = policy.read(
+    before = operation.policy.read(
         (
             "gcloud",
             "iam",
@@ -88,14 +92,14 @@ def _provider_prior(
             "providers",
             "describe",
             PROVIDER_ID,
-            f"--project={context.project_id}",
+            f"--project={operation.context.project_id}",
             "--location=global",
             f"--workload-identity-pool={POOL_ID}",
             "--format=json",
         )
     )
     if before.returncode != 0:
-        _ = prepare_provider(context, PROVIDER_ID, config.condition, policy)
+        _ = prepare_provider(operation, PROVIDER_ID, config.condition)
         return config, None
     try:
         return None, ProviderSnapshot.model_validate_json(before.stdout)
@@ -129,7 +133,12 @@ def ensure_persistent(
     policy: ReconciliationPolicy = DEFAULT_RECONCILIATION_POLICY,
 ) -> PersistentState:
     """Create or update exact WIF state after taking rollback snapshots."""
-    service_account_state = ensure_service_account(context, policy)
+    run = RunOwnership.generate()
+    service_account_state = ensure_service_account(
+        context,
+        policy,
+        run.for_operation("service-account"),
+    )
     service_account = service_account_state.service_account
     state = PersistentState(
         service_account_state=service_account_state,
@@ -151,7 +160,11 @@ def ensure_persistent(
         )
     )
     try:
-        pool_intent = prepare_pool(context, policy) if pool_before.returncode != 0 else None
+        pool_intent = (
+            prepare_pool(GcpOperation(context, run.for_operation("pool"), policy))
+            if pool_before.returncode != 0
+            else None
+        )
         state = PersistentState(
             service_account_state=service_account_state,
             pool_intent=pool_intent,
@@ -161,15 +174,19 @@ def ensure_persistent(
             policy=policy,
         )
         if pool_intent is not None:
-            _write_pool(context, pool_intent)
+            write_pool(context, pool_intent)
         config = ProviderConfig(
             context=context,
             provider_id=PROVIDER_ID,
             issuer=ISSUER,
             mapping=MAPPING,
             condition=_condition(context.owner_id),
+            description=run.for_operation("provider").marker,
         )
-        create_intent, snapshot = _provider_prior(context, config, policy)
+        create_intent, snapshot = _provider_prior(
+            config,
+            GcpOperation(context, run.for_operation("provider"), policy),
+        )
         state = PersistentState(
             service_account_state=service_account_state,
             pool_intent=state.pool_intent,
@@ -181,11 +198,24 @@ def ensure_persistent(
         _write_provider(config, policy, create=create_intent is not None)
         for repository in REPOSITORIES:
             member = _principal(context, repository)
+            binding = prepare_persistent_binding(
+                service_account,
+                member,
+                GcpOperation(
+                    context,
+                    run.for_operation(f"binding:{repository}"),
+                    policy,
+                ),
+            )
+            if binding is None:
+                continue
             state = replace(
                 state,
-                service_account_state=state.service_account_state.register_pending_member(member),
+                service_account_state=(
+                    state.service_account_state.register_pending_binding(binding)
+                ),
             )
-            ensure_binding(service_account, member, policy)
+            ensure_binding(binding)
     except ProvisioningError:
         if not restore_persistent(context, state):
             code = "cleanup-unresolved"

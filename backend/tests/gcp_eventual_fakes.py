@@ -12,7 +12,10 @@ MARKERS: Final[dict[ResourceKind, tuple[str, str]]] = {
     "service-account": ("service-accounts list", "service-accounts delete"),
     "pool": ("workload-identity-pools list", "workload-identity-pools delete"),
     "provider": ("providers list", "providers delete"),
-    "binding": ("service-accounts get-iam-policy", "service-accounts set-iam-policy"),
+    "binding": (
+        "service-accounts get-iam-policy",
+        "service-accounts remove-iam-policy-binding",
+    ),
     "topic": ("pubsub topics list", "pubsub topics delete"),
     "budget": ("billing budgets list", "billing budgets delete"),
 }
@@ -25,8 +28,10 @@ VISIBLE_PAYLOADS: Final[dict[ResourceKind, str]] = {
                     "projects/example-project/serviceAccounts/"
                     "skt-portfolio-deployer@example-project.iam.gserviceaccount.com"
                 ),
+                "uniqueId": "123456789012345678901",
                 "email": "skt-portfolio-deployer@example-project.iam.gserviceaccount.com",
                 "displayName": "SKT Portfolio Deployer",
+                "description": "managed-by=telco-twin-preflight;op=" + ("a" * 25),
             }
         ]
     ),
@@ -37,6 +42,7 @@ VISIBLE_PAYLOADS: Final[dict[ResourceKind, str]] = {
                     "projects/987654321/locations/global/workloadIdentityPools/github-actions"
                 ),
                 "displayName": "GitHub Actions",
+                "description": "managed-by=telco-twin-preflight;op=" + ("a" * 25),
             }
         ]
     ),
@@ -54,6 +60,7 @@ VISIBLE_PAYLOADS: Final[dict[ResourceKind, str]] = {
                     "attribute.repository_owner_id": "assertion.repository_owner_id",
                 },
                 "attributeCondition": ("assertion.repository=='oyeong011/nonmatching-preflight'"),
+                "description": "managed-by=telco-twin-preflight;op=" + ("a" * 25),
             }
         ]
     ),
@@ -63,16 +70,31 @@ VISIBLE_PAYLOADS: Final[dict[ResourceKind, str]] = {
                 {
                     "role": "roles/iam.workloadIdentityUser",
                     "members": ["principalSet://example.invalid/eventual"],
+                    "condition": {
+                        "expression": "true",
+                        "title": "managed-by=telco-twin-preflight;op=" + ("a" * 25),
+                        "description": "managed-by=telco-twin-preflight;op=" + ("a" * 25),
+                    },
                 }
             ]
         }
     ),
-    "topic": json.dumps([{"name": "projects/example-project/topics/twin-preflight-eventual"}]),
+    "topic": json.dumps(
+        [
+            {
+                "name": "projects/example-project/topics/twin-preflight-eventual",
+                "labels": {
+                    "managed-by": "telco-twin-preflight",
+                    "operation-fingerprint": "a" * 25,
+                },
+            }
+        ]
+    ),
     "budget": json.dumps(
         [
             {
                 "name": "billingAccounts/ABC/budgets/123",
-                "displayName": "twin-preflight-eventual",
+                "displayName": "managed-by=telco-twin-preflight;op=" + ("a" * 25),
                 "budgetFilter": {"projects": ["projects/987654321"]},
                 "notificationsRule": {
                     "schemaVersion": "1.0",

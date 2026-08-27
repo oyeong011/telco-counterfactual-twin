@@ -75,6 +75,7 @@ def test_apply_updates_existing_provider_and_cleans_temporary_resources(tmp_path
     assert '"budget_resource": "billingAccounts/ABC/budgets/123"' in result.stdout
     assert '"budget_schema_version": "1.0"' in result.stdout
     assert '"publisher_policy_evidence": "sha256:' in result.stdout
+    assert "managed-by=telco-twin-preflight" not in result.stdout
     commands = command_log.read_text(encoding="utf-8")
     assert "providers update-oidc github-oidc" in commands
     assert "--issuer-uri=https://token.actions.githubusercontent.com" in commands
@@ -123,7 +124,7 @@ def test_first_run_rolls_back_created_service_account_after_probe_failure(tmp_pa
     assert result.returncode == 3
     commands = command_log.read_text(encoding="utf-8")
     assert "service-accounts create skt-portfolio-deployer" in commands
-    assert "service-accounts delete skt-portfolio-deployer@example-project" in commands
+    assert "service-accounts delete 123456789012345678901" in commands
 
 
 def test_unexpected_deny_exchange_success_is_fatal_and_cleanup_runs(tmp_path: Path) -> None:
@@ -139,7 +140,7 @@ def test_unexpected_deny_exchange_success_is_fatal_and_cleanup_runs(tmp_path: Pa
     assert result.returncode == 3
     assert "deny-exchange-unexpected-success" in result.stderr
     commands = command_log.read_text(encoding="utf-8")
-    assert "service-accounts set-iam-policy" in commands
+    assert "service-accounts remove-iam-policy-binding" in commands
     assert "providers delete github-oidc-deny-" in commands
 
 

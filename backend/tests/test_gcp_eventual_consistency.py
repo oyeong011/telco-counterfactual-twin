@@ -5,7 +5,10 @@ from typing import TYPE_CHECKING
 import pytest
 
 from telco_twin.bootstrap import gcp_commands, gcp_resource_probe
+from telco_twin.bootstrap.gcp_binding import BindingRollbackIntent
 from telco_twin.bootstrap.gcp_commands import GcpContext, ProvisioningError
+from telco_twin.bootstrap.gcp_iam_contract import IamPolicy
+from telco_twin.bootstrap.gcp_ownership import OperationOwnership
 from telco_twin.bootstrap.gcp_persistent_contract import PoolRollbackIntent
 from telco_twin.bootstrap.gcp_persistent_reconcile import cleanup_pool
 from telco_twin.bootstrap.gcp_reconciliation import ReconciliationPolicy
@@ -14,10 +17,7 @@ from telco_twin.bootstrap.gcp_resource_contract import (
     ProviderRollbackIntent,
     TopicRollbackIntent,
 )
-from telco_twin.bootstrap.gcp_service_account import (
-    ExistingServiceAccountSnapshot,
-    ServiceAccountCreateIntent,
-)
+from telco_twin.bootstrap.gcp_service_account import ServiceAccountCreateIntent
 from telco_twin.bootstrap.gcp_temporary_mutations import (
     cleanup_budget,
     cleanup_provider,
@@ -31,34 +31,37 @@ if TYPE_CHECKING:
 
 CONTEXT = GcpContext("example-project", "987654321", "ABC", "12345678")
 SERVICE_ACCOUNT = "skt-portfolio-deployer@example-project.iam.gserviceaccount.com"
+OWNERSHIP = OperationOwnership("a" * 25)
 
 
 def cleanup(kind: ResourceKind, policy: ReconciliationPolicy) -> bool:
     """Exercise the real rollback boundary for one resource family."""
     operations: dict[ResourceKind, Callable[[], bool]] = {
         "service-account": lambda: ServiceAccountCreateIntent(
-            CONTEXT, SERVICE_ACCOUNT, policy
+            CONTEXT, SERVICE_ACCOUNT, OWNERSHIP, policy
         ).rollback(),
-        "pool": lambda: cleanup_pool(PoolRollbackIntent(CONTEXT, policy)),
+        "pool": lambda: cleanup_pool(PoolRollbackIntent(CONTEXT, OWNERSHIP, policy)),
         "provider": lambda: cleanup_provider(
             ProviderRollbackIntent(
                 CONTEXT,
                 "github-oidc-deny-eventual",
                 "assertion.repository=='oyeong011/nonmatching-preflight'",
+                OWNERSHIP,
                 policy,
             )
         ),
-        "binding": lambda: ExistingServiceAccountSnapshot(
+        "binding": lambda: BindingRollbackIntent(
             SERVICE_ACCOUNT,
-            '{"bindings":[]}',
+            "principalSet://example.invalid/eventual",
+            OWNERSHIP,
+            IamPolicy(bindings=()),
             policy,
-            ("principalSet://example.invalid/eventual",),
         ).rollback(),
         "topic": lambda: cleanup_topic(
-            TopicRollbackIntent(CONTEXT, "twin-preflight-eventual", policy)
+            TopicRollbackIntent(CONTEXT, "twin-preflight-eventual", OWNERSHIP, policy)
         ),
         "budget": lambda: cleanup_budget(
-            BudgetRollbackIntent(CONTEXT, "twin-preflight-eventual", policy)
+            BudgetRollbackIntent(CONTEXT, "twin-preflight-eventual", OWNERSHIP, policy)
         ),
     }
     return operations[kind]()

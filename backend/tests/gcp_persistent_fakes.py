@@ -8,7 +8,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from telco_twin.bootstrap.gcp_commands import ProvisioningError
-from telco_twin.bootstrap.gcp_iam_contract import IamBinding, IamPolicy
+
+from .gcp_persistent_binding_fakes import add_binding, remove_binding
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -19,7 +20,8 @@ ORIGINAL_PROVIDER = (
     'github-actions/providers/github-oidc",'
     '"oidc":{"issuerUri":"https://old.example.invalid"},'
     '"attributeMapping":{"google.subject":"assertion.old"},'
-    '"attributeCondition":"assertion.old==true"}'
+    '"attributeCondition":"assertion.old==true",'
+    '"description":"old-provider-description"}'
 )
 
 
@@ -33,6 +35,9 @@ class FakeGcloud:
     policy: str
     failure_point: str
     failure_triggered: bool
+    service_account_description: str
+    pool_description: str
+    provider_description: str
 
     def __init__(self, failure_point: str, *, existing: bool) -> None:
         self.commands = []
@@ -42,6 +47,9 @@ class FakeGcloud:
         self.policy = ORIGINAL_POLICY if existing else '{"bindings":[]}'
         self.failure_point = failure_point
         self.failure_triggered = False
+        self.service_account_description = ""
+        self.pool_description = ""
+        self.provider_description = "old-provider-description" if existing else ""
 
     def _completed(
         self,
@@ -77,8 +85,10 @@ class FakeGcloud:
                             "projects/example-project/serviceAccounts/"
                             "skt-portfolio-deployer@example-project.iam.gserviceaccount.com"
                         ),
+                        "uniqueId": "123456789012345678901",
                         "email": ("skt-portfolio-deployer@example-project.iam.gserviceaccount.com"),
                         "displayName": "SKT Portfolio Deployer",
+                        "description": self.service_account_description,
                     }
                 ]
                 if self.service_account_exists
@@ -89,6 +99,11 @@ class FakeGcloud:
             return self._completed(arguments, stdout=self.policy)
         if "service-accounts create" in joined:
             self.service_account_exists = True
+            self.service_account_description = next(
+                argument.removeprefix("--description=")
+                for argument in arguments
+                if argument.startswith("--description=")
+            )
             return self._mutated_result(arguments, "service-account-create")
         if "service-accounts delete" in joined:
             self.service_account_exists = False
@@ -114,6 +129,7 @@ class FakeGcloud:
                             "workloadIdentityPools/github-actions"
                         ),
                         "displayName": "GitHub Actions",
+                        "description": self.pool_description,
                     }
                 ]
                 if self.pool_exists
@@ -122,6 +138,11 @@ class FakeGcloud:
             return self._completed(arguments, stdout=json.dumps(payload))
         if "workload-identity-pools create" in joined and "providers" not in joined:
             self.pool_exists = True
+            self.pool_description = next(
+                argument.removeprefix("--description=")
+                for argument in arguments
+                if argument.startswith("--description=")
+            )
             return self._mutated_result(arguments, "pool-create")
         if "workload-identity-pools delete" in joined and "providers" not in joined:
             self.pool_exists = False
@@ -142,10 +163,20 @@ class FakeGcloud:
             return self._completed(arguments, stdout=self._provider_json())
         if "providers create-oidc" in joined:
             self.provider = "target"
+            self.provider_description = next(
+                argument.removeprefix("--description=")
+                for argument in arguments
+                if argument.startswith("--description=")
+            )
             return self._mutated_result(arguments, "provider-create")
         if "providers update-oidc" in joined:
             restoring = "--issuer-uri=https://old.example.invalid" in joined
             self.provider = ORIGINAL_PROVIDER if restoring else "target"
+            self.provider_description = next(
+                argument.removeprefix("--description=")
+                for argument in arguments
+                if argument.startswith("--description=")
+            )
             operation = "provider-restore" if restoring else "provider-update"
             return self._mutated_result(arguments, operation)
         if "providers delete" in joined:
@@ -172,6 +203,7 @@ class FakeGcloud:
                         "['oyeong011/telco-counterfactual-twin',"
                         "'oyeong011/mcp-evidence-plane']"
                     ),
+                    "description": self.provider_description,
                 }
             )
         return ORIGINAL_PROVIDER
@@ -184,17 +216,18 @@ class FakeGcloud:
         if "add-iam-policy-binding" not in joined:
             return None
         repository = "twin" if "telco-counterfactual-twin" in joined else "evidence-plane"
-        parsed = IamPolicy.model_validate_json(self.policy)
-        binding = IamBinding(
-            role="roles/iam.workloadIdentityUser",
-            members=(
-                next(part.split("=", 1)[1] for part in arguments if part.startswith("--member=")),
-            ),
-        )
-        self.policy = parsed.model_copy(
-            update={"bindings": (*parsed.bindings, binding)}
-        ).model_dump_json()
+        self.policy = add_binding(self.policy, arguments)
         return self._mutated_result(arguments, f"binding-{repository}")
+
+    def _binding_remove_result(
+        self,
+        arguments: tuple[str, ...],
+        joined: str,
+    ) -> subprocess.CompletedProcess[str] | None:
+        if "remove-iam-policy-binding" not in joined:
+            return None
+        self.policy = remove_binding(self.policy, arguments)
+        return self._completed(arguments)
 
     def run(
         self,
@@ -209,6 +242,7 @@ class FakeGcloud:
             self._service_account_result,
             self._pool_result,
             self._provider_result,
+            self._binding_remove_result,
             self._binding_result,
         )
         for handler in handlers:

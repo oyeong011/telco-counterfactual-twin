@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-from telco_twin.bootstrap.gcp_commands import GcpContext, ProvisioningError
-from telco_twin.bootstrap.gcp_reconciliation import (
-    DEFAULT_RECONCILIATION_POLICY,
-    ReconciliationPolicy,
-)
+from typing import TYPE_CHECKING
+
+from telco_twin.bootstrap.gcp_commands import ProvisioningError
 from telco_twin.bootstrap.gcp_resource_contract import (
     BudgetCleanupTarget,
     BudgetRollbackIntent,
@@ -17,6 +15,9 @@ from telco_twin.bootstrap.gcp_resource_contract import (
     parse_budget_target,
     parse_topic_list,
 )
+
+if TYPE_CHECKING:
+    from telco_twin.bootstrap.gcp_operation import GcpOperation
 
 
 def _topic_list(intent: TopicRollbackIntent) -> tuple[TopicSnapshot, ...]:
@@ -38,12 +39,16 @@ def _topic_list(intent: TopicRollbackIntent) -> tuple[TopicSnapshot, ...]:
 
 
 def prepare_topic(
-    context: GcpContext,
+    operation: GcpOperation,
     topic: str,
-    policy: ReconciliationPolicy = DEFAULT_RECONCILIATION_POLICY,
 ) -> TopicRollbackIntent:
     """Prove exact topic absence before registering rollback ownership."""
-    intent = TopicRollbackIntent(context, topic, policy)
+    intent = TopicRollbackIntent(
+        operation.context,
+        topic,
+        operation.ownership,
+        operation.policy,
+    )
     if _topic_list(intent):
         code = "topic-name-conflict"
         raise ProvisioningError(code)
@@ -60,11 +65,12 @@ def create_topic(intent: TopicRollbackIntent) -> None:
             "create",
             intent.topic,
             f"--project={intent.context.project_id}",
+            f"--labels={intent.ownership.labels}",
         )
     )
     visible = intent.policy.poll(
         lambda: _topic_list(intent),
-        lambda snapshots: len(snapshots) == 1 and snapshots[0].name == intent.resource_name,
+        lambda snapshots: len(snapshots) == 1 and intent.matches(snapshots[0]),
     )
     if result.returncode != 0:
         code = "topic-create-failed"
@@ -79,7 +85,7 @@ def cleanup_topic(intent: TopicRollbackIntent) -> bool:
     try:
         visible = intent.policy.poll(
             lambda: _topic_list(intent),
-            lambda snapshots: len(snapshots) == 1 and snapshots[0].name == intent.resource_name,
+            lambda snapshots: len(snapshots) == 1 and intent.matches(snapshots[0]),
         )
     except ProvisioningError:
         return False
@@ -125,13 +131,17 @@ def _budget_list(intent: BudgetRollbackIntent) -> tuple[BudgetSnapshot, ...]:
 
 
 def prepare_budget(
-    context: GcpContext,
+    operation: GcpOperation,
     topic: str,
-    policy: ReconciliationPolicy = DEFAULT_RECONCILIATION_POLICY,
 ) -> BudgetRollbackIntent:
     """Prove unique display-name absence before registering rollback ownership."""
-    intent = BudgetRollbackIntent(context, topic, policy)
-    if any(snapshot.display_name == topic for snapshot in _budget_list(intent)):
+    intent = BudgetRollbackIntent(
+        operation.context,
+        topic,
+        operation.ownership,
+        operation.policy,
+    )
+    if any(snapshot.display_name == intent.display_name for snapshot in _budget_list(intent)):
         code = "budget-name-conflict"
         raise ProvisioningError(code)
     return intent
@@ -166,7 +176,10 @@ def create_budget(intent: BudgetRollbackIntent) -> BudgetCleanupTarget:
         code = "budget-create-failed"
         raise ProvisioningError(code)
     response_target = parse_budget_target(
-        result.stdout.strip(), intent.context, intent.display_name
+        result.stdout.strip(),
+        intent.context,
+        intent.topic,
+        intent.ownership,
     )
     if targets is None or targets[0] != response_target:
         code = "budget-reconcile-failed"
