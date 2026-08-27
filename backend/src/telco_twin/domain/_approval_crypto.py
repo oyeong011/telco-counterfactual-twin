@@ -95,6 +95,23 @@ def validate_root_trust(
         raise ContractViolationError(ContractErrorCode.ROOT_UNTRUSTED)
 
 
+def _validate_root_window(context: ApprovalValidationContext) -> None:
+    if context.now < utc_datetime(context.root.not_before):
+        raise ContractViolationError(ContractErrorCode.ROOT_NOT_YET_VALID)
+    if context.now >= utc_datetime(context.root.not_after):
+        raise ContractViolationError(ContractErrorCode.ROOT_EXPIRED)
+
+
+def _validate_certificate_root_window(context: ApprovalValidationContext) -> None:
+    certificate = context.certificate
+    issued_at = utc_datetime(certificate.issued_at)
+    expires_at = utc_datetime(certificate.expires_at)
+    root_start = utc_datetime(context.root.not_before)
+    root_end = utc_datetime(context.root.not_after)
+    if issued_at < root_start or expires_at > root_end:
+        raise ContractViolationError(ContractErrorCode.CERTIFICATE_OUTSIDE_ROOT_WINDOW)
+
+
 def _validate_certificate(context: ApprovalValidationContext) -> None:
     certificate = context.certificate
     if (
@@ -120,6 +137,8 @@ def _validate_certificate(context: ApprovalValidationContext) -> None:
 def validate_approval_chain(proof: ApprovalProof, context: ApprovalValidationContext) -> None:
     """Validate root, certificate, request binding, signature, time, and replay state."""
     validate_root_trust(context.root, context.environment, context.trusted_root_hashes)
+    _validate_root_window(context)
+    _validate_certificate_root_window(context)
     if context.now < utc_datetime(proof.approved_at):
         raise ContractViolationError(ContractErrorCode.APPROVAL_NOT_YET_VALID)
     if context.now >= utc_datetime(proof.expires_at):

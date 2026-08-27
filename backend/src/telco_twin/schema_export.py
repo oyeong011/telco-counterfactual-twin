@@ -5,11 +5,21 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Annotated, Final, Never
+from typing import TYPE_CHECKING, Annotated, ClassVar, Final, Literal, Never
 
 import typer
-from pydantic import BaseModel, JsonValue, TypeAdapter, ValidationError
+from pydantic import BaseModel, ConfigDict, JsonValue, TypeAdapter, ValidationError
 
+from telco_twin.domain._contract import (
+    AUTHORITY_KEY_TOKENS,
+    FORBIDDEN_KEY_COMBINATIONS,
+    IDENTIFIER_TOKENS,
+    IDENTITY_SUBJECT_TOKENS,
+    KEY_POLICY_ALLOW_EXAMPLES,
+    KEY_POLICY_VERSION,
+    PII_KEY_TOKENS,
+    SECRET_KEY_TOKENS,
+)
 from telco_twin.domain.approval import ApprovalProof, ApprovalRequest, SessionKeyCertificate
 from telco_twin.domain.build_info import ServiceBuildInfo, UiBuildInfo
 from telco_twin.domain.event import Event
@@ -54,12 +64,91 @@ CONTRACT_MODELS: Final[Mapping[str, type[BaseModel]]] = MappingProxyType(
     }
 )
 JSON_ADAPTER: Final[TypeAdapter[JsonValue]] = TypeAdapter(JsonValue)
+JSON_OBJECT_ADAPTER: Final[TypeAdapter[dict[str, JsonValue]]] = TypeAdapter(dict[str, JsonValue])
 DEFAULT_OUT_DIR: Final = Path("specs/schemas")
 
 
-def render_schema(_name: str, model: type[BaseModel]) -> bytes:
+class DurationInvariant(BaseModel):
+    """Machine-readable cross-field duration rule beyond plain JSON Schema."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
+
+    code: Literal["ttl_60_seconds"]
+    kind: Literal["duration_seconds"]
+    start_field: str
+    end_field: str
+    seconds: Literal[60]
+    json_schema_support: Literal["annotation_only"]
+    enforced_by: Literal["scripts/validate_contract.py"]
+
+    def as_json(self) -> JsonValue:
+        """Return a typed JSON value for schema annotation."""
+        return JSON_ADAPTER.validate_json(self.model_dump_json())
+
+
+class KeyPolicyAnnotation(BaseModel):
+    """Recursive semantic-key policy enforced by the project validator."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
+
+    version: str
+    recursive: Literal[True]
+    pii_tokens: tuple[str, ...]
+    identity_subject_tokens: tuple[str, ...]
+    identifier_tokens: tuple[str, ...]
+    authority_tokens: tuple[str, ...]
+    secret_tokens: tuple[str, ...]
+    forbidden_combinations: tuple[tuple[str, ...], ...]
+    allow_examples: tuple[str, ...]
+    json_schema_support: Literal["annotation_only"]
+    enforced_by: Literal["scripts/validate_contract.py"]
+
+    def as_json(self) -> JsonValue:
+        """Return a typed JSON value for schema annotation."""
+        return JSON_ADAPTER.validate_json(self.model_dump_json())
+
+
+def _duration_rule(start_field: str, end_field: str) -> DurationInvariant:
+    return DurationInvariant(
+        code="ttl_60_seconds",
+        kind="duration_seconds",
+        start_field=start_field,
+        end_field=end_field,
+        seconds=60,
+        json_schema_support="annotation_only",
+        enforced_by="scripts/validate_contract.py",
+    )
+
+
+CONTRACT_INVARIANTS: Final[Mapping[str, tuple[DurationInvariant, ...]]] = MappingProxyType(
+    {
+        "approval-request": (_duration_rule("requested_at", "expires_at"),),
+        "session-key-certificate": (_duration_rule("issued_at", "expires_at"),),
+        "approval-proof": (_duration_rule("approved_at", "expires_at"),),
+    }
+)
+KEY_POLICY_ANNOTATION: Final = KeyPolicyAnnotation(
+    version=KEY_POLICY_VERSION,
+    recursive=True,
+    pii_tokens=PII_KEY_TOKENS,
+    identity_subject_tokens=IDENTITY_SUBJECT_TOKENS,
+    identifier_tokens=IDENTIFIER_TOKENS,
+    authority_tokens=AUTHORITY_KEY_TOKENS,
+    secret_tokens=SECRET_KEY_TOKENS,
+    forbidden_combinations=FORBIDDEN_KEY_COMBINATIONS,
+    allow_examples=KEY_POLICY_ALLOW_EXAMPLES,
+    json_schema_support="annotation_only",
+    enforced_by="scripts/validate_contract.py",
+)
+
+
+def render_schema(name: str, model: type[BaseModel]) -> bytes:
     """Render one byte-stable JSON Schema snapshot."""
-    schema = JSON_ADAPTER.validate_python(model.model_json_schema(mode="validation"))
+    schema = JSON_OBJECT_ADAPTER.validate_python(model.model_json_schema(mode="validation"))
+    schema["x-telco-twin-invariants"] = [
+        invariant.as_json() for invariant in CONTRACT_INVARIANTS.get(name, ())
+    ]
+    schema["x-telco-twin-key-policy"] = KEY_POLICY_ANNOTATION.as_json()
     rendered = json.dumps(schema, ensure_ascii=False, indent=2, sort_keys=True)
     return f"{rendered}\n".encode()
 

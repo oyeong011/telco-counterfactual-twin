@@ -41,7 +41,7 @@ class BuildInfo(RootContract):
     schema_hashes: Annotated[dict[SafeKey, Sha256Hex], Field(min_length=1, max_length=64)]
     mcp_hash: Sha256Hex
     policy_hash: Sha256Hex
-    trusted_root_hashes: Annotated[tuple[Sha256Hex, ...], Field(max_length=16)]
+    trusted_root_hashes: Sha256Hex
     built_at: UtcTimestamp
 
 

@@ -15,6 +15,9 @@
           "type": "string"
         },
         "x": {
+          "maxLength": 43,
+          "minLength": 43,
+          "pattern": "^[A-Za-z0-9_-]{43}$",
           "title": "X",
           "type": "string"
         }
@@ -45,6 +48,9 @@
   "description": "Root-certified, 60-second session verification key.",
   "properties": {
     "certificate_signature": {
+      "maxLength": 86,
+      "minLength": 86,
+      "pattern": "^[A-Za-z0-9_-]{86}$",
       "title": "Certificate Signature",
       "type": "string"
     },
@@ -101,5 +107,88 @@
     "schema_version"
   ],
   "title": "SessionKeyCertificate",
-  "type": "object"
+  "type": "object",
+  "x-telco-twin-invariants": [
+    {
+      "code": "ttl_60_seconds",
+      "end_field": "expires_at",
+      "enforced_by": "scripts/validate_contract.py",
+      "json_schema_support": "annotation_only",
+      "kind": "duration_seconds",
+      "seconds": 60,
+      "start_field": "issued_at"
+    }
+  ],
+  "x-telco-twin-key-policy": {
+    "allow_examples": [
+      "config_history",
+      "ue_cohort_id"
+    ],
+    "authority_tokens": [
+      "command",
+      "execute",
+      "execution",
+      "revoke",
+      "revocation",
+      "shell",
+      "uri",
+      "url"
+    ],
+    "enforced_by": "scripts/validate_contract.py",
+    "forbidden_combinations": [
+      [
+        "customer",
+        "id"
+      ],
+      [
+        "customer",
+        "identifier"
+      ],
+      [
+        "subscriber",
+        "id"
+      ],
+      [
+        "subscriber",
+        "identifier"
+      ],
+      [
+        "push",
+        "payload"
+      ]
+    ],
+    "identifier_tokens": [
+      "id",
+      "identifier",
+      "identifiers",
+      "identity"
+    ],
+    "identity_subject_tokens": [
+      "customer",
+      "subscriber"
+    ],
+    "json_schema_support": "annotation_only",
+    "pii_tokens": [
+      "email",
+      "gpsi",
+      "imei",
+      "imsi",
+      "msisdn",
+      "phone",
+      "supi"
+    ],
+    "recursive": true,
+    "secret_tokens": [
+      "credential",
+      "credentials",
+      "passwd",
+      "password",
+      "passwords",
+      "secret",
+      "secrets",
+      "token",
+      "tokens"
+    ],
+    "version": "1.0"
+  }
 }

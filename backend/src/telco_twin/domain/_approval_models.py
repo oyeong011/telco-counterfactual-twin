@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from enum import StrEnum, unique
 from typing import TYPE_CHECKING, Annotated, Final, Literal, Self, override
 
-from pydantic import AfterValidator, model_validator
+from pydantic import AfterValidator, WithJsonSchema, model_validator
 
 from ._contract import (
     ContractId,
@@ -31,6 +31,12 @@ ED25519_PUBLIC_BYTES: Final = 32
 ED25519_SIGNATURE_BYTES: Final = 64
 NONCE_BYTES: Final = 16
 TTL_SECONDS: Final = 60
+JWK_COORDINATE_CHARS: Final = 43
+SIGNATURE_CHARS: Final = 86
+NONCE_CHARS: Final = 22
+JWK_COORDINATE_PATTERN: Final = r"^[A-Za-z0-9_-]{43}$"
+SIGNATURE_PATTERN: Final = r"^[A-Za-z0-9_-]{86}$"
+NONCE_PATTERN: Final = r"^[A-Za-z0-9_-]{22}$"
 
 
 @unique
@@ -55,8 +61,11 @@ class ContractErrorCode(StrEnum):
 
     ROOT_HASH_MISMATCH = "root-hash-mismatch"
     ROOT_UNTRUSTED = "root-untrusted"
+    ROOT_NOT_YET_VALID = "root-not-yet-valid"
+    ROOT_EXPIRED = "root-expired"
     TEST_ROOT_FORBIDDEN = "test-root-forbidden"
     CERTIFICATE_BINDING_MISMATCH = "certificate-binding-mismatch"
+    CERTIFICATE_OUTSIDE_ROOT_WINDOW = "certificate-outside-root-window"
     CERTIFICATE_SIGNATURE_INVALID = "certificate-signature-invalid"
     CERTIFICATE_EXPIRED = "certificate-expired"
     CERTIFICATE_NOT_YET_VALID = "certificate-not-yet-valid"
@@ -110,9 +119,42 @@ def _nonce(value: str) -> str:
     return value
 
 
-JwkX = Annotated[str, AfterValidator(_jwk_x)]
-Ed25519Signature = Annotated[str, AfterValidator(_signature)]
-Nonce128 = Annotated[str, AfterValidator(_nonce)]
+JwkX = Annotated[
+    str,
+    AfterValidator(_jwk_x),
+    WithJsonSchema(
+        {
+            "type": "string",
+            "minLength": JWK_COORDINATE_CHARS,
+            "maxLength": JWK_COORDINATE_CHARS,
+            "pattern": JWK_COORDINATE_PATTERN,
+        }
+    ),
+]
+Ed25519Signature = Annotated[
+    str,
+    AfterValidator(_signature),
+    WithJsonSchema(
+        {
+            "type": "string",
+            "minLength": SIGNATURE_CHARS,
+            "maxLength": SIGNATURE_CHARS,
+            "pattern": SIGNATURE_PATTERN,
+        }
+    ),
+]
+Nonce128 = Annotated[
+    str,
+    AfterValidator(_nonce),
+    WithJsonSchema(
+        {
+            "type": "string",
+            "minLength": NONCE_CHARS,
+            "maxLength": NONCE_CHARS,
+            "pattern": NONCE_PATTERN,
+        }
+    ),
+]
 
 
 class Ed25519Jwk(StrictContract):

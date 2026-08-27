@@ -167,5 +167,78 @@
     "generated_at"
   ],
   "title": "EvidenceCard",
-  "type": "object"
+  "type": "object",
+  "x-telco-twin-invariants": [],
+  "x-telco-twin-key-policy": {
+    "allow_examples": [
+      "config_history",
+      "ue_cohort_id"
+    ],
+    "authority_tokens": [
+      "command",
+      "execute",
+      "execution",
+      "revoke",
+      "revocation",
+      "shell",
+      "uri",
+      "url"
+    ],
+    "enforced_by": "scripts/validate_contract.py",
+    "forbidden_combinations": [
+      [
+        "customer",
+        "id"
+      ],
+      [
+        "customer",
+        "identifier"
+      ],
+      [
+        "subscriber",
+        "id"
+      ],
+      [
+        "subscriber",
+        "identifier"
+      ],
+      [
+        "push",
+        "payload"
+      ]
+    ],
+    "identifier_tokens": [
+      "id",
+      "identifier",
+      "identifiers",
+      "identity"
+    ],
+    "identity_subject_tokens": [
+      "customer",
+      "subscriber"
+    ],
+    "json_schema_support": "annotation_only",
+    "pii_tokens": [
+      "email",
+      "gpsi",
+      "imei",
+      "imsi",
+      "msisdn",
+      "phone",
+      "supi"
+    ],
+    "recursive": true,
+    "secret_tokens": [
+      "credential",
+      "credentials",
+      "passwd",
+      "password",
+      "passwords",
+      "secret",
+      "secrets",
+      "token",
+      "tokens"
+    ],
+    "version": "1.0"
+  }
 }

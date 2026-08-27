@@ -157,7 +157,8 @@ def test_approval_rejects_tampering_expiry_and_replay() -> None:
 def test_approval_forbids_execution_and_revocation_fields() -> None:
     proof = load_approval_bundle().proof
     for field in ("execution", "revocation", "proof_hash"):
-        with pytest.raises(ValidationError, match="extra_forbidden"):
+        expected = "extra_forbidden" if field == "proof_hash" else "authority_shaped_key"
+        with pytest.raises(ValidationError, match=expected):
             _ = ApprovalProof.model_validate({**proof.model_dump(mode="json"), field: {}})
 
 

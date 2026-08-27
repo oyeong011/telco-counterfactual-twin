@@ -86,7 +86,7 @@ def build_identity_payloads(empty_hash: str) -> tuple[JsonObject, JsonObject]:
         "schema_hashes": {"scenario": "4" * 64},
         "mcp_hash": empty_hash,
         "policy_hash": empty_hash,
-        "trusted_root_hashes": ["5" * 64],
+        "trusted_root_hashes": empty_hash,
         "built_at": "2026-08-27T00:00:00Z",
         "schema_version": "1.0",
     }
