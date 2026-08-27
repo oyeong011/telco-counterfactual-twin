@@ -22,7 +22,10 @@ def test_accepts_auth_blocked_workflow_only_at_expected_head(tmp_path: Path) -> 
 ]\n""",
         encoding="utf-8",
     )
-    _ = logs.write_text("probe\tauthority\tworkflow-result=auth-blocked\n", encoding="utf-8")
+    command_echo = 'probe\tauthority\t2026-08-27T00:00:00Z echo "workflow-result=auth-blocked"'
+    marker_line = "probe\tauthority\t2026-08-27T00:00:01Z workflow-result=auth-blocked"
+    log_text = f"{command_echo}\n{marker_line}\n"
+    _ = logs.write_text(log_text, encoding="utf-8")
 
     # When
     result = run_project_script(
@@ -79,7 +82,7 @@ def test_times_out_hung_workflow_without_sleeping(tmp_path: Path) -> None:
     runs = tmp_path / "hung-runs.json"
     _ = runs.write_text(
         f"""[
-  {{"databaseId":31,"headSha":"{EXPECTED_SHA}","status":"in_progress","conclusion":null,"createdAt":"2026-08-27T00:00:00Z","url":"https://example.invalid/31"}}
+  {{"databaseId":31,"headSha":"{EXPECTED_SHA}","status":"in_progress","conclusion":"","createdAt":"2026-08-27T00:00:00Z","url":"https://example.invalid/31"}}
 ]\n""",
         encoding="utf-8",
     )

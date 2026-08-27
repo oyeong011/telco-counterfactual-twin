@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 import time
 from pathlib import Path
@@ -25,8 +26,12 @@ type Conclusion = Literal[
     "startup_failure",
     "stale",
 ]
+type RawConclusion = Conclusion | Literal[""] | None
 
 AUTH_BLOCKED_MARKER: Final = "workflow-result=auth-blocked"
+AUTH_BLOCKED_LOG_LINE: Final = re.compile(
+    rf"^\d{{4}}-\d{{2}}-\d{{2}}T\d{{2}}:\d{{2}}:\d{{2}}(?:\.\d+)?Z {AUTH_BLOCKED_MARKER}$"
+)
 
 
 class WorkflowRun(BaseModel):
@@ -37,7 +42,7 @@ class WorkflowRun(BaseModel):
     database_id: int = Field(alias="databaseId")
     head_sha: str = Field(alias="headSha", pattern=r"^[0-9a-f]{40}$")
     status: RunStatus
-    conclusion: Conclusion | None
+    conclusion: RawConclusion
     created_at: str = Field(alias="createdAt", min_length=1)
     url: str = Field(min_length=1)
 
@@ -95,7 +100,7 @@ def _load_logs(run_id: int, logs_file: Path | None) -> str:
 
 def _has_auth_blocked_marker(logs: str) -> bool:
     return any(
-        line.rsplit("\t", 1)[-1].strip() == AUTH_BLOCKED_MARKER
+        AUTH_BLOCKED_LOG_LINE.fullmatch(line.rsplit("\t", 1)[-1].strip()) is not None
         for line in logs.splitlines()
     )
 
