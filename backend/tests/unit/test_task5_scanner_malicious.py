@@ -191,3 +191,80 @@ def test_scanner_missing_explicit_root_fails_closed(tmp_path: Path) -> None:
     # Then: absent input cannot be misreported as a clean repository.
     assert result.returncode == 1
     assert "scan-root-error" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        (
+            "import subprocess\n"
+            "transport = subprocess\n"
+            "def record_evidence():\n"
+            "    transport.run(['echo', 'unsafe'], check=True)\n"
+        ),
+        (
+            "import subprocess as process_module\n"
+            "transport = process_module\n"
+            "runner_module = transport\n"
+            "runner_module.run(['echo', 'unsafe'], check=True)\n"
+        ),
+        ("import builtins\nruntime = builtins\nruntime.eval('1 + 1')\n"),
+        ("import subprocess\ntransport: module = subprocess\ncallbacks = (transport.run,)\n"),
+    ],
+)
+def test_scanner_rejects_transitive_module_assignment_aliases(
+    tmp_path: Path,
+    source: str,
+) -> None:
+    # Given/When/Then: ordinary and annotated module aliases retain their origin.
+    assert _scan_source(tmp_path, source)
+
+
+def test_scanner_benign_rebinding_clears_prior_module_alias(tmp_path: Path) -> None:
+    # Given: a dangerous module alias statically rebound to a benign constructor result.
+    source = (
+        "import subprocess\ntransport = subprocess\ntransport = SafeTransport()\ntransport.run()\n"
+    )
+    # When/Then: the old alias does not create a false dangerous-call finding.
+    assert _scan_source(tmp_path, source) == ()
+
+
+def test_scanner_lambda_argument_shadows_module_alias(tmp_path: Path) -> None:
+    source = "import subprocess\ninvoke = lambda subprocess: subprocess.run()\n"
+    assert _scan_source(tmp_path, source) == ()
+
+
+def test_scanner_nested_scope_inherits_alias_without_leaking_it(tmp_path: Path) -> None:
+    # Given: one real closure capture and one unrelated name in a sibling scope.
+    captured = (
+        "def outer():\n"
+        "    import subprocess\n"
+        "    transport = subprocess\n"
+        "    def inner():\n"
+        "        transport.run(['echo', 'unsafe'], check=True)\n"
+    )
+    isolated = (
+        "def configure():\n"
+        "    import subprocess\n"
+        "    transport = subprocess\n"
+        "def record_evidence():\n"
+        "    transport.run()\n"
+    )
+    # When/Then: lexical parents are visible, but completed sibling scopes are not.
+    assert _scan_source(tmp_path, captured)
+    assert _scan_source(tmp_path, isolated, directory="isolated") == ()
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "import subprocess\nsubprocess = configure(subprocess.run)\n",
+        ("import subprocess as runner\ndef runner(value=runner.run):\n    return value\n"),
+        "import subprocess as runner\ninvoke = lambda value=runner.run: value()\n",
+    ],
+)
+def test_scanner_resolves_dangerous_values_before_target_rebinding(
+    tmp_path: Path,
+    source: str,
+) -> None:
+    assert _scan_source(tmp_path, source)
