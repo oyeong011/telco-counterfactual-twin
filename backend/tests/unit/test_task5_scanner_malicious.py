@@ -4,6 +4,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCANNER = REPO_ROOT / "scripts/assert_no_execution_surface.py"
 
@@ -26,7 +28,11 @@ def _scan_source(
         text=True,
         timeout=10,
     )
-    return tuple(line for line in result.stdout.splitlines() if not line.startswith("mutation_"))
+    findings = tuple(
+        line for line in result.stdout.splitlines() if not line.startswith("mutation_")
+    )
+    assert result.returncode == int(bool(findings)), result.stdout + result.stderr
+    return findings
 
 
 def test_scanner_rejects_private_mutation_callable(tmp_path: Path) -> None:
@@ -118,3 +124,70 @@ def test_scanner_allows_benign_simulation_and_data_lambdas(tmp_path: Path) -> No
     )
     # When/Then: pure simulation surfaces remain clean.
     assert _scan_source(tmp_path, source) == ()
+
+
+def test_scanner_rejects_resolved_mutation_method_call(tmp_path: Path) -> None:
+    # Given: a benign wrapper calling a mutation-shaped client method.
+    source = "def record_evidence(client):\n    client.apply_patch()\n"
+    # When: the resolved call target is scanned.
+    findings = _scan_source(tmp_path, source)
+    # Then: attribute qualification cannot hide the mutation capability.
+    assert any(":python-mutation-call:" in item for item in findings)
+
+
+@pytest.mark.parametrize(
+    "builtin_name",
+    ["eval", "exec", "compile", "__import__"],
+)
+def test_scanner_rejects_qualified_dangerous_builtin(
+    tmp_path: Path,
+    builtin_name: str,
+) -> None:
+    # Given: a dangerous builtin reached through its qualified module name.
+    source = f"import builtins\ndef record_evidence():\n    builtins.{builtin_name}('1 + 1')\n"
+    # When/Then: qualification cannot evade dangerous-call detection.
+    assert _scan_source(tmp_path, source)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "import subprocess\nresult = list(map(subprocess.run, []))\n",
+        "import subprocess\nresult = list(filter(subprocess.run, []))\n",
+        "import functools\nimport subprocess\nrunner = functools.partial(subprocess.run)\n",
+        (
+            "import subprocess\n"
+            "def register(handler):\n"
+            "    return handler\n"
+            "runner = register(subprocess.run)\n"
+        ),
+        "import subprocess\nrunners = [subprocess.run]\n",
+        "import subprocess\nrunners = (subprocess.run,)\n",
+        "import subprocess\nrunners = {'unsafe': subprocess.run}\n",
+        "import subprocess\nrunners = {subprocess.run}\n",
+    ],
+)
+def test_scanner_rejects_dangerous_callable_used_as_value(
+    tmp_path: Path,
+    source: str,
+) -> None:
+    # Given: process execution is passed or stored as a callable value.
+    # When/Then: higher-order and container indirection remain capabilities.
+    assert _scan_source(tmp_path, source)
+
+
+def test_scanner_missing_explicit_root_fails_closed(tmp_path: Path) -> None:
+    # Given: one explicitly requested root that does not exist.
+    missing = tmp_path / "missing-domain"
+    # When: the real CLI scans that root.
+    result = subprocess.run(
+        [sys.executable, str(SCANNER), str(missing)],
+        cwd=REPO_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    # Then: absent input cannot be misreported as a clean repository.
+    assert result.returncode == 1
+    assert "scan-root-error" in result.stdout
