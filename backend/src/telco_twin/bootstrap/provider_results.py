@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from telco_twin.bootstrap.preflight_contract import (
     EXPECTED_PERMISSIONS,
+    AuthorityReceipt,
     CleanupStatus,
     PermissionResult,
     ProbeStatus,
@@ -24,6 +25,7 @@ class ProviderFacts:
     blockers: tuple[str, ...]
     cleanup: CleanupStatus
     seed: str
+    authority: AuthorityReceipt = field(default_factory=AuthorityReceipt)
 
 
 def make_provider(facts: ProviderFacts) -> ProviderResult:
@@ -58,6 +60,7 @@ def make_provider(facts: ProviderFacts) -> ProviderResult:
         blockers=facts.blockers,
         cleanup=facts.cleanup,
         evidence=receipt_for(facts.provider, status, facts.seed),
+        authority=facts.authority,
     )
 
 

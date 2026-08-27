@@ -4,7 +4,14 @@ from __future__ import annotations
 
 import subprocess
 from dataclasses import dataclass
-from typing import override
+from typing import TYPE_CHECKING, Final, override
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+DEFAULT_COMMAND_TIMEOUT_SECONDS: Final = 15.0
+COMMAND_TIMEOUT_RETURN_CODE: Final = 124
+COMMAND_OS_ERROR_RETURN_CODE: Final = 126
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,15 +40,33 @@ def run_command(
     arguments: tuple[str, ...],
     *,
     timeout_seconds: float | None = None,
+    cwd: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """Run an argv-only provider command while keeping output captured."""
-    return subprocess.run(
-        arguments,
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=timeout_seconds,
-    )
+    active_timeout = DEFAULT_COMMAND_TIMEOUT_SECONDS if timeout_seconds is None else timeout_seconds
+    try:
+        return subprocess.run(
+            arguments,
+            cwd=cwd,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=active_timeout,
+        )
+    except subprocess.TimeoutExpired:
+        return subprocess.CompletedProcess(
+            arguments,
+            COMMAND_TIMEOUT_RETURN_CODE,
+            "",
+            "",
+        )
+    except OSError:
+        return subprocess.CompletedProcess(
+            arguments,
+            COMMAND_OS_ERROR_RETURN_CODE,
+            "",
+            "",
+        )
 
 
 def run_gcloud(arguments: tuple[str, ...]) -> subprocess.CompletedProcess[str]:

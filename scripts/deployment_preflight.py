@@ -4,13 +4,13 @@
 from __future__ import annotations
 
 import os
-import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Final
 
 import typer
 from pydantic import ValidationError
+from telco_twin.bootstrap.gcp_commands import run_command
 from telco_twin.bootstrap.preflight_contract import (
     Outcome,
     PreflightReport,
@@ -20,7 +20,12 @@ from telco_twin.bootstrap.preflight_contract import (
     contains_secret,
     receipt_for,
 )
-from telco_twin.bootstrap.provider_probes import probe_all
+from telco_twin.bootstrap.provider_probes import (
+    ProviderProbeRequest,
+    probe_all,
+    revalidate_report_authority,
+    run_provider_probes,
+)
 
 SENSITIVE_MARKERS: Final = ("TOKEN", "SECRET", "PASSWORD", "API_KEY", "PRIVATE_KEY")
 DEFAULT_OUT: Final = Path("artifacts/deployment/preflight.json")
@@ -36,12 +41,9 @@ def _sensitive_values() -> tuple[str, ...]:
 
 
 def _clean_worktree(repo_root: Path) -> bool:
-    result = subprocess.run(
-        ["git", "status", "--porcelain", "--untracked-files=all"],
+    result = run_command(
+        ("git", "status", "--porcelain", "--untracked-files=all"),
         cwd=repo_root,
-        check=False,
-        capture_output=True,
-        text=True,
     )
     return result.returncode == 0 and not result.stdout.strip()
 
@@ -138,10 +140,43 @@ def main(
     if validate is not None:
         text = _read_redacted(validate)
         try:
-            _ = PreflightReport.model_validate_json(text)
+            parsed = PreflightReport.model_validate_json(text)
         except ValidationError as error:
             typer.echo(_validation_error_code(error, provider=False), err=True)
             raise typer.Exit(code=3) from None
+        resolved_root = repo_root.resolve()
+        if not _clean_worktree(resolved_root):
+            typer.echo("dirty-worktree", err=True)
+            raise typer.Exit(code=3)
+        if offline:
+
+            def offline_probe(
+                current_root: Path,
+                current_sha: str,
+            ) -> tuple[ProviderResult, ...]:
+                return run_provider_probes(
+                    ProviderProbeRequest(
+                        repo_root=current_root,
+                        bootstrap_sha=current_sha,
+                        offline=True,
+                    )
+                )
+
+            matches = revalidate_report_authority(
+                parsed,
+                resolved_root,
+                offline_probe,
+            )
+        else:
+            matches = revalidate_report_authority(parsed, resolved_root)
+        if not matches:
+            code = (
+                "ready-authority-mismatch"
+                if parsed.outcome == "deployment-ready"
+                else "blocked-authority-mismatch"
+            )
+            typer.echo(code, err=True)
+            raise typer.Exit(code=3)
         typer.echo("preflight-report-valid")
         return
     if validate_provider is not None:

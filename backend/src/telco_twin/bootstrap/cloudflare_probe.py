@@ -20,8 +20,9 @@ from telco_twin.bootstrap.cloudflare_project import (
     CreatedProject,
     ProjectCreationRejected,
     ProjectProbeRequest,
+    create_project,
     delete_project,
-    verify_and_create,
+    verify_prerequisites,
 )
 from telco_twin.bootstrap.gcp_commands import run_command
 from telco_twin.bootstrap.http_client import create_http_client
@@ -79,7 +80,8 @@ def _require_rollback_content(response: httpx2.Response) -> None:
         raise ProviderProbeError(code)
 
 
-def _deploy(context: CloudflareContext, directory: Path, project_name: str) -> None:
+def deploy_pages(context: CloudflareContext, directory: Path, project_name: str) -> None:
+    """Run one bounded Wrangler Pages deployment."""
     deployed = run_command(
         (
             context.wrangler_command,
@@ -131,11 +133,11 @@ def _deploy_and_rollback(
             second.mkdir()
             _ = (first / "index.html").write_text("version-one", encoding="utf-8")
             _ = (second / "index.html").write_text("version-two", encoding="utf-8")
-            _deploy(context, first, project_name)
+            deploy_pages(context, first, project_name)
             first_list = client.get(f"{project_path}/deployments")
             statuses.append(first_list.status_code)
             first_id = _deployment_id(first_list, frozenset())
-            _deploy(context, second, project_name)
+            deploy_pages(context, second, project_name)
             second_list = client.get(f"{project_path}/deployments")
             statuses.append(second_list.status_code)
             second_id = _deployment_id(second_list, frozenset((first_id,)))
@@ -169,12 +171,15 @@ def probe_cloudflare(
         transport=active_transports.api,
     )
     creation: CreatedProject | ProjectCreationRejected | None = None
+    creation_attempted = False
     created: CreatedProject | None = None
     proof: DeploymentProof | None = None
     primary_error: ProviderProbeError | None = None
     cleanup_status: int | None = None
     try:
-        creation = verify_and_create(project_request)
+        prerequisite_statuses = verify_prerequisites(project_request)
+        creation_attempted = True
+        creation = create_project(project_request, prerequisite_statuses)
         match creation:
             case CreatedProject() as project:
                 created = project
@@ -189,12 +194,12 @@ def probe_cloudflare(
         code = "cloudflare-network-failed"
         primary_error = ProviderProbeError(code)
     finally:
-        if creation is not None:
+        if creation_attempted:
             try:
                 cleanup_status = delete_project(project_request)
             except (ProviderProbeError, httpx2.HTTPError):
                 cleanup_status = None
-    if creation is not None and cleanup_status is None:
+    if creation_attempted and cleanup_status is None:
         code = "cloudflare-cleanup-failed"
         raise ProviderProbeError(code)
     if primary_error is not None:

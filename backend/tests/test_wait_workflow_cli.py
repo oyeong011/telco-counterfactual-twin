@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
+
 from .conftest import run_project_script
 
 if TYPE_CHECKING:
@@ -128,3 +130,120 @@ def test_rejects_malformed_run_json(tmp_path: Path) -> None:
     # Then
     assert result.returncode == 3
     assert "invalid-workflow-json" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "conclusion",
+    [
+        "failure",
+        "cancelled",
+        "timed_out",
+        "action_required",
+        "stale",
+        "startup_failure",
+    ],
+)
+def test_rejects_terminal_failure_even_with_auth_blocked_marker(
+    conclusion: str,
+    tmp_path: Path,
+) -> None:
+    # Given
+    runs = tmp_path / "runs.json"
+    logs = tmp_path / "logs.txt"
+    _ = runs.write_text(
+        f"""[
+  {{"databaseId":41,"headSha":"{EXPECTED_SHA}","status":"completed","conclusion":"{conclusion}","createdAt":"2026-08-27T00:00:00Z","url":"https://example.invalid/41"}}
+]\n""",
+        encoding="utf-8",
+    )
+    _ = logs.write_text(
+        "job\tstep\t2026-08-27T00:00:00Z workflow-result=auth-blocked\n",
+        encoding="utf-8",
+    )
+
+    # When
+    result = run_project_script(
+        "wait_workflow.py",
+        "--workflow",
+        "wif-probe.yml",
+        "--expected-head-sha",
+        EXPECTED_SHA,
+        "--require-success-or-auth-blocked",
+        "--runs-file",
+        str(runs),
+        "--logs-file",
+        str(logs),
+        "--timeout-seconds",
+        "0",
+    )
+
+    # Then
+    assert result.returncode == 3
+    assert "workflow-failed" in result.stderr
+
+
+def test_rejects_success_without_anchored_terminal_marker(tmp_path: Path) -> None:
+    # Given
+    runs = tmp_path / "runs.json"
+    logs = tmp_path / "logs.txt"
+    _ = runs.write_text(
+        f"""[
+  {{"databaseId":42,"headSha":"{EXPECTED_SHA}","status":"completed","conclusion":"success","createdAt":"2026-08-27T00:00:00Z","url":"https://example.invalid/42"}}
+]\n""",
+        encoding="utf-8",
+    )
+    _ = logs.write_text("job\tstep\t2026-08-27T00:00:00Z unrelated-output\n", encoding="utf-8")
+
+    # When
+    result = run_project_script(
+        "wait_workflow.py",
+        "--workflow",
+        "wif-probe.yml",
+        "--expected-head-sha",
+        EXPECTED_SHA,
+        "--runs-file",
+        str(runs),
+        "--logs-file",
+        str(logs),
+        "--timeout-seconds",
+        "0",
+    )
+
+    # Then
+    assert result.returncode == 3
+    assert "workflow-result-unproven" in result.stderr
+
+
+def test_accepts_success_with_anchored_ready_marker(tmp_path: Path) -> None:
+    # Given
+    runs = tmp_path / "runs.json"
+    logs = tmp_path / "logs.txt"
+    _ = runs.write_text(
+        f"""[
+  {{"databaseId":43,"headSha":"{EXPECTED_SHA}","status":"completed","conclusion":"success","createdAt":"2026-08-27T00:00:00Z","url":"https://example.invalid/43"}}
+]\n""",
+        encoding="utf-8",
+    )
+    _ = logs.write_text(
+        "job\tstep\t2026-08-27T00:00:00Z workflow-result=success\n",
+        encoding="utf-8",
+    )
+
+    # When
+    result = run_project_script(
+        "wait_workflow.py",
+        "--workflow",
+        "wif-probe.yml",
+        "--expected-head-sha",
+        EXPECTED_SHA,
+        "--runs-file",
+        str(runs),
+        "--logs-file",
+        str(logs),
+        "--timeout-seconds",
+        "0",
+    )
+
+    # Then
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "success"

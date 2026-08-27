@@ -107,3 +107,67 @@ def test_cleanup_failure_after_invalid_successful_create_is_fatal() -> None:
     with pytest.raises(ProviderProbeError, match="cloudflare-cleanup-failed"):
         _ = probe_cloudflare(CONTEXT, transports, suffix="test")
     assert any(request.startswith("DELETE ") for request in requests)
+
+
+def lost_create_handler(
+    requests: list[str],
+    *,
+    delete_status: int,
+) -> Callable[[httpx2.Request], httpx2.Response]:
+    """Simulate server creation followed by a lost POST response."""
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        path = request.url.path
+        requests.append(f"{request.method} {path}")
+        if path.endswith("/user/tokens/verify"):
+            content = b'{"success":true,"result":{"id":"token-id","status":"active"}}'
+            return httpx2.Response(200, content=content, request=request)
+        if path.endswith("/accounts/account-id"):
+            content = b'{"success":true,"result":{"id":"account-id"}}'
+            return httpx2.Response(200, content=content, request=request)
+        if path.endswith("/pages/projects") and request.method == "GET":
+            content = b'{"success":true,"result":[]}'
+            return httpx2.Response(200, content=content, request=request)
+        if path.endswith("/pages/projects") and request.method == "POST":
+            message = "create response lost"
+            raise httpx2.ReadTimeout(message, request=request)
+        if request.method == "DELETE":
+            content = b'{"success":true,"result":null}'
+            return httpx2.Response(delete_status, content=content, request=request)
+        return httpx2.Response(404, content=b"{}", request=request)
+
+    return handler
+
+
+def test_lost_create_response_still_deletes_requested_project() -> None:
+    # Given
+    requests: list[str] = []
+    handler = lost_create_handler(requests, delete_status=200)
+    transports = CloudflareTransports(
+        api=httpx2.MockTransport(handler),
+        public=httpx2.MockTransport(handler),
+    )
+
+    # When
+    with pytest.raises(ProviderProbeError, match="cloudflare-network-failed"):
+        _ = probe_cloudflare(CONTEXT, transports, suffix="test")
+
+    # Then
+    assert requests[-1] == (
+        "DELETE /client/v4/accounts/account-id/pages/projects/twin-preflight-test"
+    )
+
+
+def test_cleanup_failure_after_lost_create_response_takes_precedence() -> None:
+    # Given
+    requests: list[str] = []
+    handler = lost_create_handler(requests, delete_status=500)
+    transports = CloudflareTransports(
+        api=httpx2.MockTransport(handler),
+        public=httpx2.MockTransport(handler),
+    )
+
+    # When / Then
+    with pytest.raises(ProviderProbeError, match="cloudflare-cleanup-failed"):
+        _ = probe_cloudflare(CONTEXT, transports, suffix="test")
+    assert any(request.startswith("DELETE ") for request in requests)

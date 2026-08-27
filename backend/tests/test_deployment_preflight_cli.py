@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
+
+from telco_twin.bootstrap.preflight_contract import EXPECTED_PERMISSIONS
 
 from .conftest import run_project_script
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from pydantic import JsonValue
 
 BOOTSTRAP_SHA = "a" * 40
 RECEIPT = "sha256:" + ("b" * 64)
@@ -32,15 +37,21 @@ def run_blocked_report(repo_root: Path, output_path: Path) -> None:
 
 def test_reports_blocked_without_leaking_environment_credentials(
     clean_git_repo: Path,
-    tmp_path: Path,
 ) -> None:
     # Given
-    report_path = tmp_path / "preflight.json"
+    report_path = clean_git_repo / ".git" / "preflight.json"
 
     # When
     run_blocked_report(clean_git_repo, report_path)
     report_text = report_path.read_text(encoding="utf-8")
-    validation = run_project_script("deployment_preflight.py", "--validate", str(report_path))
+    validation = run_project_script(
+        "deployment_preflight.py",
+        "--validate",
+        str(report_path),
+        "--offline",
+        "--repo-root",
+        str(clean_git_repo),
+    )
 
     # Then
     assert validation.returncode == 0, validation.stderr
@@ -188,3 +199,68 @@ def test_rejects_unsupported_cost_control_setting(
     # Then
     assert result.returncode == 3
     assert "invalid-preflight-report" in result.stderr
+
+
+def test_rejects_fully_shape_valid_fabricated_ready_report(
+    clean_git_repo: Path,
+) -> None:
+    # Given
+    report_path = clean_git_repo / ".git" / "forged-ready.json"
+    providers: list[JsonValue] = []
+    for provider, permissions in EXPECTED_PERMISSIONS.items():
+        providers.append(
+            {
+                "provider": provider,
+                "status": "ready",
+                "permissions": [
+                    {
+                        "permission": permission,
+                        "granted": True,
+                        "status": "ready",
+                        "evidence": RECEIPT,
+                    }
+                    for permission in permissions
+                ],
+                "blockers": [],
+                "cleanup": "clean",
+                "evidence": RECEIPT,
+                "authority": {
+                    "identities": [f"forged/{provider}"],
+                    "request_hashes": [RECEIPT],
+                    "response_hashes": [RECEIPT],
+                    "command_hashes": [RECEIPT],
+                },
+            }
+        )
+    forged: dict[str, JsonValue] = {
+        "schema_version": "1.0",
+        "generated_at": "2026-08-27T00:00:00Z",
+        "bootstrap_sha": BOOTSTRAP_SHA,
+        "outcome": "deployment-ready",
+        "cost_control": "preflight-only",
+        "repository": {
+            "repository": "oyeong011/telco-counterfactual-twin",
+            "local_worktree_clean": True,
+            "remote_main_matches_bootstrap": True,
+            "public_nonfork_main_mit": True,
+            "workflow_active": True,
+            "evidence": RECEIPT,
+        },
+        "providers": providers,
+        "temporary_resources": [],
+        "report_evidence": RECEIPT,
+    }
+    _ = report_path.write_text(json.dumps(forged), encoding="utf-8")
+
+    # When
+    result = run_project_script(
+        "deployment_preflight.py",
+        "--validate",
+        str(report_path),
+        "--repo-root",
+        str(clean_git_repo),
+    )
+
+    # Then
+    assert result.returncode == 3
+    assert "ready-authority-mismatch" in result.stderr

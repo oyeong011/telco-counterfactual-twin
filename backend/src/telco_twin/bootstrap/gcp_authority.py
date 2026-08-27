@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
-from telco_twin.bootstrap.gcp_commands import ProvisioningError
+from typing import TYPE_CHECKING
+
+from telco_twin.bootstrap.gcp_commands import GcpContext, ProvisioningError
 from telco_twin.bootstrap.preflight_contract import (
     GCP_BILLING_PERMISSIONS,
     GCP_PROJECT_PERMISSIONS,
+    AuthorityReceipt,
     CleanupStatus,
     ProviderResult,
+    receipt_for,
 )
 from telco_twin.bootstrap.probe_errors import ProviderProbeError
 from telco_twin.bootstrap.provider_adapters import (
@@ -19,6 +23,47 @@ from telco_twin.bootstrap.provider_results import (
     blocked_provider,
     make_provider,
 )
+
+if TYPE_CHECKING:
+    from telco_twin.bootstrap.gcp_iam_probe import GcpIamReceipt
+
+
+def gcp_project_authority(
+    context: GcpContext,
+    iam: GcpIamReceipt,
+) -> AuthorityReceipt:
+    """Build stable project/resource/read-request identity evidence."""
+    service_account = f"skt-portfolio-deployer@{context.project_id}.iam.gserviceaccount.com"
+    return AuthorityReceipt(
+        identities=(
+            f"projects/{context.project_id}",
+            f"projects/{context.project_number}",
+            service_account,
+            (
+                f"projects/{context.project_number}/locations/global/"
+                "workloadIdentityPools/github-actions/providers/github-oidc"
+            ),
+        ),
+        request_hashes=(receipt_for("gcp-project-test-permissions", *GCP_PROJECT_PERMISSIONS),),
+        response_hashes=(iam.evidence,),
+        command_hashes=(
+            receipt_for("gcloud", "projects", "describe", context.project_id),
+            receipt_for("gcloud", "auth", "print-access-token"),
+        ),
+    )
+
+
+def gcp_billing_authority(
+    context: GcpContext,
+    iam: GcpIamReceipt,
+) -> AuthorityReceipt:
+    """Build stable billing-account/read-request identity evidence."""
+    return AuthorityReceipt(
+        identities=(f"billingAccounts/{context.billing_account_id}",),
+        request_hashes=(receipt_for("gcp-billing-test-permissions", *GCP_BILLING_PERMISSIONS),),
+        response_hashes=(iam.evidence,),
+        command_hashes=(receipt_for("gcloud", "auth", "print-access-token"),),
+    )
 
 
 def probe_gcp_authority(adapters: ProviderAdapters) -> tuple[ProviderResult, ProviderResult]:
@@ -78,6 +123,8 @@ def probe_gcp_authority(adapters: ProviderAdapters) -> tuple[ProviderResult, Pro
             cleanup = CleanupStatus.RESTORED
             wif_evidence = wif.evidence
     seed = f"{iam.evidence}:{wif_evidence}"
+    project_authority = gcp_project_authority(context, iam)
+    billing_authority = gcp_billing_authority(context, iam)
     return (
         make_provider(
             ProviderFacts(
@@ -86,6 +133,7 @@ def probe_gcp_authority(adapters: ProviderAdapters) -> tuple[ProviderResult, Pro
                 blockers=project_blockers,
                 cleanup=cleanup,
                 seed=seed,
+                authority=project_authority,
             )
         ),
         make_provider(
@@ -95,6 +143,7 @@ def probe_gcp_authority(adapters: ProviderAdapters) -> tuple[ProviderResult, Pro
                 blockers=billing_blockers,
                 cleanup=cleanup,
                 seed=seed,
+                authority=billing_authority,
             )
         ),
     )

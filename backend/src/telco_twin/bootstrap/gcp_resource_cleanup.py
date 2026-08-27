@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from telco_twin.bootstrap.gcp_commands import GcpContext, attempt_gcloud
+
+if TYPE_CHECKING:
+    from telco_twin.bootstrap.gcp_resource_contract import BudgetCleanupTarget
 
 
 @dataclass(frozen=True, slots=True)
@@ -13,7 +17,7 @@ class TemporaryCleanupPlan:
 
     context: GcpContext
     service_account: str
-    budget_name: str
+    budget: BudgetCleanupTarget | None
     binding_created: bool
     deny_member: str
     provider_created: bool
@@ -25,10 +29,20 @@ class TemporaryCleanupPlan:
 def cleanup_temporary(plan: TemporaryCleanupPlan) -> tuple[str, ...]:
     """Remove every created temporary resource and return stable failure labels."""
     failures: list[str] = []
-    if plan.budget_name and not attempt_gcloud(
-        ("gcloud", "billing", "budgets", "delete", plan.budget_name, "--quiet")
-    ):
-        failures.append("budget")
+    if plan.budget is not None:
+        if not plan.budget.is_owned_by(plan.context, plan.topic):
+            failures.append("budget-ownership")
+        elif not attempt_gcloud(
+            (
+                "gcloud",
+                "billing",
+                "budgets",
+                "delete",
+                plan.budget.resource_name,
+                "--quiet",
+            )
+        ):
+            failures.append("budget")
     if plan.binding_created and not attempt_gcloud(
         (
             "gcloud",

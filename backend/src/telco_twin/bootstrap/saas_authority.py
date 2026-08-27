@@ -4,13 +4,18 @@ from __future__ import annotations
 
 import os
 
-from telco_twin.bootstrap.cloudflare_probe import CloudflareContext
-from telco_twin.bootstrap.neon_probe import NeonContext
+from telco_twin.bootstrap.cloudflare_probe import (
+    CloudflareContext,
+    CloudflareProbeReceipt,
+)
+from telco_twin.bootstrap.neon_probe import NeonContext, NeonProbeReceipt
 from telco_twin.bootstrap.preflight_contract import (
     CLOUDFLARE_PERMISSIONS,
     NEON_PERMISSIONS,
+    AuthorityReceipt,
     CleanupStatus,
     ProviderResult,
+    receipt_for,
 )
 from telco_twin.bootstrap.probe_errors import ProviderProbeError
 from telco_twin.bootstrap.provider_adapters import (
@@ -22,6 +27,41 @@ from telco_twin.bootstrap.provider_results import (
     blocked_provider,
     make_provider,
 )
+
+
+def cloudflare_authority(
+    context: CloudflareContext,
+    receipt: CloudflareProbeReceipt,
+) -> AuthorityReceipt:
+    """Build stable account, credential, and read-operation evidence."""
+    return AuthorityReceipt(
+        identities=(f"accounts/{receipt.account_id}", "pages/projects"),
+        request_hashes=tuple(
+            receipt_for("cloudflare-request", operation)
+            for operation in ("token-verify", "account-get", "pages-list")
+        ),
+        response_hashes=(
+            receipt_for("cloudflare-token", context.api_token),
+            receipt_for(
+                "cloudflare-read-statuses",
+                *(str(status) for status in receipt.http_statuses[:3]),
+            ),
+        ),
+        command_hashes=(receipt_for("wrangler", "pages", "deploy"),),
+    )
+
+
+def neon_authority(receipt: NeonProbeReceipt) -> AuthorityReceipt:
+    """Build stable organization and GET-operation evidence."""
+    return AuthorityReceipt(
+        identities=(f"organizations/{receipt.org_id}", "projects"),
+        request_hashes=(
+            receipt_for("neon-request", "organization-get", receipt.org_id),
+            receipt_for("neon-request", "projects-list", receipt.org_id),
+        ),
+        response_hashes=(receipt.evidence,),
+        command_hashes=(),
+    )
 
 
 def probe_cloudflare_authority(
@@ -56,6 +96,7 @@ def probe_cloudflare_authority(
             blockers=(),
             cleanup=CleanupStatus.RESTORED,
             seed=receipt.evidence,
+            authority=cloudflare_authority(context, receipt),
         )
     )
 
@@ -80,5 +121,6 @@ def probe_neon_authority(adapters: ProviderAdapters) -> ProviderResult:
             blockers=(),
             cleanup=CleanupStatus.CLEAN,
             seed=receipt.evidence,
+            authority=neon_authority(receipt),
         )
     )

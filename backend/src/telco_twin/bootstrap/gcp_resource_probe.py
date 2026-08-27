@@ -15,9 +15,10 @@ from telco_twin.bootstrap.gcp_resource_cleanup import (
     cleanup_temporary,
 )
 from telco_twin.bootstrap.gcp_resource_contract import (
+    BudgetCleanupTarget,
     parse_budget,
+    parse_budget_target,
     parse_publisher_policy,
-    require_budget_name,
 )
 from telco_twin.bootstrap.github_deny_probe import assert_deny_exchange
 from telco_twin.bootstrap.preflight_contract import receipt_for
@@ -77,7 +78,7 @@ def run_temporary_probes(
         f"{context.project_number}/locations/global/workloadIdentityPools/github-actions/"
         "attribute.repository/oyeong011/nonmatching-preflight"
     )
-    budget_name = ""
+    budget_target: BudgetCleanupTarget | None = None
     provider_created = False
     binding_created = False
     topic_created = False
@@ -149,19 +150,19 @@ def run_temporary_probes(
             ),
             "budget-create-failed",
         )
-        require_budget_name(budget_name)
+        budget_target = parse_budget_target(budget_name, context, topic)
         budget_snapshot = require_gcloud(
             (
                 "gcloud",
                 "billing",
                 "budgets",
                 "describe",
-                budget_name,
+                budget_target.resource_name,
                 "--format=json",
             ),
             "budget-describe-failed",
         )
-        budget = parse_budget(budget_snapshot, budget_name)
+        budget = parse_budget(budget_snapshot, budget_target)
         budget_schema_version = budget.notifications_rule.schema_version
         policy = require_gcloud(
             (
@@ -188,7 +189,7 @@ def run_temporary_probes(
             TemporaryCleanupPlan(
                 context=context,
                 service_account=service_account,
-                budget_name=budget_name,
+                budget=budget_target,
                 binding_created=binding_created,
                 deny_member=deny_member,
                 provider_created=provider_created,
@@ -204,7 +205,7 @@ def run_temporary_probes(
         raise failure
     if (
         budget_schema_version is None
-        or not budget_name
+        or budget_target is None
         or not publisher_policy_evidence
         or not deny_exchange_evidence
     ):
@@ -215,7 +216,7 @@ def run_temporary_probes(
         restored_bindings=True,
         budget_schema_version=budget_schema_version,
         topic_resource=f"projects/{context.project_id}/topics/{topic}",
-        budget_resource=budget_name,
+        budget_resource=budget_target.resource_name,
         publisher_policy_evidence=publisher_policy_evidence,
         deny_exchange_evidence=deny_exchange_evidence,
     )

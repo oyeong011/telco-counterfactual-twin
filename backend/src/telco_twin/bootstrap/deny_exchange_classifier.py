@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from telco_twin.bootstrap.deny_exchange_contract import (
     CONDITION_REJECTION_DESCRIPTION,
+    CONDITION_REJECTION_ERRORS,
     EXPECTED_CONDITION,
     EXPECTED_ISSUER,
     EXPECTED_MAPPING_ITEMS,
@@ -153,7 +154,7 @@ def _classify_verified_exchange(
         )
     condition_rejected = (
         status_code == HTTP_BAD_REQUEST
-        and sts_error_response.error == "invalid_grant"
+        and sts_error_response.error in CONDITION_REJECTION_ERRORS
         and sts_error_response.error_description == CONDITION_REJECTION_DESCRIPTION
     )
     if not condition_rejected:

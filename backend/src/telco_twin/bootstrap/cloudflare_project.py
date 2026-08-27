@@ -69,8 +69,8 @@ def delete_project(request: ProjectProbeRequest) -> int:
         return response.status_code
 
 
-def verify_and_create(request: ProjectProbeRequest) -> ProjectCreation:
-    """Verify prerequisites and register cleanup after every successful create."""
+def verify_prerequisites(request: ProjectProbeRequest) -> tuple[int, ...]:
+    """Verify token/account/list authority and unique-name absence."""
     statuses: list[int] = []
     with create_http_client(
         "https://api.cloudflare.com/client/v4/",
@@ -88,7 +88,24 @@ def verify_and_create(request: ProjectProbeRequest) -> ProjectCreation:
             raise ProviderProbeError(code)
         list_response = client.get(f"accounts/{request.account_id}/pages/projects")
         statuses.append(list_response.status_code)
-        _ = parse_response(list_response, ProjectsEnvelope, "pages-list")
+        projects = parse_response(list_response, ProjectsEnvelope, "pages-list")
+        if any(project.name == request.project_name for project in projects.result):
+            code = "cloudflare-project-name-conflict"
+            raise ProviderProbeError(code)
+    return tuple(statuses)
+
+
+def create_project(
+    request: ProjectProbeRequest,
+    prerequisite_statuses: tuple[int, ...],
+) -> ProjectCreation:
+    """Attempt the unique create after the caller has registered cleanup."""
+    statuses = list(prerequisite_statuses)
+    with create_http_client(
+        "https://api.cloudflare.com/client/v4/",
+        _headers(request),
+        request.transport,
+    ) as client:
         create_response = client.post(
             f"accounts/{request.account_id}/pages/projects",
             json={"name": request.project_name, "production_branch": "main"},

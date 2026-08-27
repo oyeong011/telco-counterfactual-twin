@@ -5,12 +5,13 @@ from __future__ import annotations
 import hashlib
 import re
 from enum import StrEnum
-from typing import ClassVar, Final, Literal, Self
+from typing import Annotated, ClassVar, Final, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 type ProviderName = Literal["github", "gcp-project", "gcp-billing", "cloudflare", "neon"]
 type Outcome = Literal["deployment-ready", "deployment-blocked"]
+type ReceiptHash = Annotated[str, Field(pattern=r"^sha256:[0-9a-f]{64}$")]
 
 
 class ProbeStatus(StrEnum):
@@ -142,6 +143,17 @@ class PermissionResult(BaseModel):
         raise ValueError(msg)
 
 
+class AuthorityReceipt(BaseModel):
+    """Exact identities and hashed read-only authority exchanges."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
+
+    identities: tuple[str, ...] = ()
+    request_hashes: tuple[ReceiptHash, ...] = ()
+    response_hashes: tuple[ReceiptHash, ...] = ()
+    command_hashes: tuple[ReceiptHash, ...] = ()
+
+
 class ProviderResult(BaseModel):
     """One provider's complete authorization and cleanup result."""
 
@@ -153,6 +165,7 @@ class ProviderResult(BaseModel):
     blockers: tuple[str, ...]
     cleanup: CleanupStatus
     evidence: str = Field(pattern=RECEIPT_PATTERN)
+    authority: AuthorityReceipt = AuthorityReceipt()
 
     @model_validator(mode="after")
     def provider_is_complete_and_consistent(self) -> Self:

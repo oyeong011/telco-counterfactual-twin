@@ -47,13 +47,16 @@ def classify(
     )
 
 
-def test_documented_attribute_condition_rejection_is_proven() -> None:
+@pytest.mark.parametrize("error_code", ["unauthorized_client", "invalid_grant"])
+def test_documented_attribute_condition_rejection_is_proven(
+    error_code: str,
+) -> None:
     # Given
     response = sts_response(
         400,
         json.dumps(
             {
-                "error": "invalid_grant",
+                "error": error_code,
                 "error_description": CONDITION_ERROR,
             }
         ).encode(),
@@ -65,7 +68,7 @@ def test_documented_attribute_condition_rejection_is_proven() -> None:
     # Then
     assert result.status == "deny-rejected"
     assert result.http_status == 400
-    assert result.sts_error == "invalid_grant"
+    assert result.sts_error == error_code
 
 
 @pytest.mark.parametrize(
@@ -125,6 +128,10 @@ def test_drifted_provider_snapshot_is_rejection_unproven() -> None:
         (
             b'{"error":"permission_denied","error_description":"Permission denied"}',
             "permission_denied",
+        ),
+        (
+            b'{"error":"unauthorized_client","error_description":"Invalid audience"}',
+            "unauthorized_client",
         ),
     ],
 )

@@ -23,6 +23,7 @@ EXPECTED_MAPPING_ITEMS: Final = (
 CONDITION_REJECTION_DESCRIPTION: Final = (
     "The given credential is rejected by the attribute condition."
 )
+CONDITION_REJECTION_ERRORS: Final = frozenset(("unauthorized_client", "invalid_grant"))
 HTTP_BAD_REQUEST: Final = 400
 HTTP_SUCCESS_MIN: Final = 200
 HTTP_SUCCESS_MAX: Final = 300

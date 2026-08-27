@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 from telco_twin.bootstrap.deny_exchange_classifier import classify_deny_exchange
 from telco_twin.bootstrap.deny_exchange_contract import DenyExchangeClassification
 from telco_twin.bootstrap.deny_exchange_wire import probe_deny_exchange
-from telco_twin.bootstrap.gcp_commands import run_command
+from telco_twin.bootstrap.gcp_commands import COMMAND_TIMEOUT_RETURN_CODE, run_command
 from telco_twin.bootstrap.preflight_contract import receipt_for
 from telco_twin.bootstrap.probe_errors import ProviderProbeError
 
@@ -102,10 +102,14 @@ def _run_id(output: str) -> int | None:
 def _run_gh(arguments: tuple[str, ...]) -> subprocess.CompletedProcess[str]:
     """Run one GitHub command with a per-process timeout."""
     try:
-        return run_command(arguments, timeout_seconds=GH_COMMAND_TIMEOUT_SECONDS)
+        result = run_command(arguments, timeout_seconds=GH_COMMAND_TIMEOUT_SECONDS)
     except subprocess.TimeoutExpired:
         code = "deny-workflow-command-timeout"
         raise _error(code) from None
+    if result.returncode == COMMAND_TIMEOUT_RETURN_CODE:
+        code = "deny-workflow-command-timeout"
+        raise _error(code)
+    return result
 
 
 def _list_runs() -> tuple[DenyRunCandidate, ...]:

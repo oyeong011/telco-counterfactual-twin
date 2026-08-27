@@ -4,12 +4,17 @@ from __future__ import annotations
 
 import hashlib
 import shutil
-import subprocess
 from typing import TYPE_CHECKING, ClassVar, Final
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from telco_twin.bootstrap.preflight_contract import CleanupStatus, ProviderResult
+from telco_twin.bootstrap.gcp_commands import run_command
+from telco_twin.bootstrap.preflight_contract import (
+    AuthorityReceipt,
+    CleanupStatus,
+    ProviderResult,
+    receipt_for,
+)
 from telco_twin.bootstrap.provider_results import (
     ProviderFacts,
     blocked_provider,
@@ -17,6 +22,7 @@ from telco_twin.bootstrap.provider_results import (
 )
 
 if TYPE_CHECKING:
+    import subprocess
     from pathlib import Path
 
 REPOSITORY: Final = "oyeong011/telco-counterfactual-twin"
@@ -70,12 +76,9 @@ class GitHubRuns(BaseModel):
 
 
 def _run(arguments: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(  # noqa: S603 -- fixed argv without a shell.
-        arguments,
+    return run_command(
+        tuple(arguments),
         cwd=cwd,
-        check=False,
-        capture_output=True,
-        text=True,
     )
 
 
@@ -149,6 +152,41 @@ def probe_github(repo_root: Path, bootstrap_sha: str, offline: bool) -> Provider
     granted = frozenset(name for name, value in facts.items() if value)
     blockers = tuple(f"unproven:{name}" for name, value in facts.items() if not value)
     cleanup = CleanupStatus.CLEAN if not blockers else CleanupStatus.NOT_CREATED
+    operation_labels = (
+        "git-ls-remote-main",
+        "github-repository-get",
+        "github-workflow-get",
+        "github-permission-get",
+        "github-workflow-runs-get",
+    )
+    authority = AuthorityReceipt(
+        identities=(
+            REPOSITORY,
+            f"refs/heads/main:{bootstrap_sha}",
+            "workflow:wif-probe.yml",
+        ),
+        request_hashes=tuple(receipt_for("github-request", label) for label in operation_labels),
+        response_hashes=(
+            receipt_for("github-repository", str(public_metadata), str(remote_matches)),
+            receipt_for(
+                "github-workflow",
+                str(workflow_data.id if workflow_data is not None else 0),
+                str(workflow_data.state if workflow_data is not None else "missing"),
+            ),
+            receipt_for(
+                "github-permission",
+                permission_data.permission if permission_data is not None else "missing",
+            ),
+            receipt_for(
+                "github-dispatch-head",
+                str(
+                    runs_data is not None
+                    and any(item.head_sha == bootstrap_sha for item in runs_data.workflow_runs)
+                ),
+            ),
+        ),
+        command_hashes=tuple(receipt_for("github-command", label) for label in operation_labels),
+    )
     return make_provider(
         ProviderFacts(
             provider="github",
@@ -156,5 +194,6 @@ def probe_github(repo_root: Path, bootstrap_sha: str, offline: bool) -> Provider
             blockers=blockers,
             cleanup=cleanup,
             seed=seed,
+            authority=authority,
         )
     )
