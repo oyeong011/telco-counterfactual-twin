@@ -137,10 +137,6 @@
     }
   ],
   "x-telco-twin-key-policy": {
-    "authority_boundary_stems": [
-      "uri",
-      "url"
-    ],
     "authority_direct_stems": [
       "command",
       "execute",
@@ -229,6 +225,10 @@
         ]
       ]
     ],
+    "authority_url_uri_stems": [
+      "uri",
+      "url"
+    ],
     "enforced_by": "scripts/validate_contract.py",
     "json_schema_support": "annotation_only",
     "normalization": "lowercase_alphanumeric",
@@ -261,7 +261,14 @@
     "safe_exact_keys": [
       "commandment_count",
       "config_history",
+      "curiosity_score",
+      "duration_ms",
       "executioner_state",
+      "flourish_count",
+      "jurisdiction_code",
+      "maturity_score",
+      "purity_index",
+      "security_level",
       "shellfish_count",
       "tokenization_mode",
       "ue_cohort_id"

@@ -89,7 +89,7 @@ class KeyPolicyAnnotation(BaseModel):
     pii_direct_stems: tuple[str, ...]
     authority_direct_stems: tuple[str, ...]
     secret_direct_stems: tuple[str, ...]
-    authority_boundary_stems: tuple[str, ...]
+    authority_url_uri_stems: tuple[str, ...]
     pii_unordered_groups: tuple[LexemeGroup, ...]
     authority_unordered_groups: tuple[LexemeGroup, ...]
     secret_unordered_groups: tuple[LexemeGroup, ...]
@@ -148,7 +148,7 @@ KEY_POLICY_ANNOTATION: Final = KeyPolicyAnnotation(
     pii_direct_stems=KEY_POLICY.pii_direct_stems,
     authority_direct_stems=KEY_POLICY.authority_direct_stems,
     secret_direct_stems=KEY_POLICY.secret_direct_stems,
-    authority_boundary_stems=KEY_POLICY.authority_boundary_stems,
+    authority_url_uri_stems=KEY_POLICY.authority_url_uri_stems,
     pii_unordered_groups=KEY_POLICY.pii_unordered_groups,
     authority_unordered_groups=KEY_POLICY.authority_unordered_groups,
     secret_unordered_groups=KEY_POLICY.secret_unordered_groups,

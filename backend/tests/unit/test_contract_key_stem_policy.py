@@ -75,6 +75,16 @@ SAFE_EXACT_KEYS: Final = (
     "config_history",
     "ue_cohort_id",
 )
+URL_URI_STEMS: Final = ("url", "uri")
+URL_URI_SAFE_EXCEPTIONS: Final = (
+    "security_level",
+    "duration_ms",
+    "curiosity_score",
+    "purity_index",
+    "jurisdiction_code",
+    "flourish_count",
+    "maturity_score",
+)
 SEMANTIC_ERROR_CODES: Final = frozenset(
     ("pii_shaped_key", "authority_shaped_key", "secret_shaped_key")
 )
@@ -156,6 +166,14 @@ def test_dangerous_stem_rejects_at_prefix_middle_and_suffix(
             _assert_rejected(key, expected_code)
 
 
+@pytest.mark.parametrize("stem", URL_URI_STEMS)
+def test_url_uri_stem_rejects_at_prefix_middle_and_suffix(stem: str) -> None:
+    embeddings = ((stem, "metric"), ("metric", stem, "value"), ("metric", stem))
+    for tokens in embeddings:
+        for key in _key_forms(tokens):
+            _assert_rejected(key, "authority_shaped_key")
+
+
 @pytest.mark.parametrize(("key", "expected_code"), REVIEWER_CASES)
 def test_reviewer_key_is_rejected_recursively(key: str, expected_code: str) -> None:
     _assert_rejected(key, expected_code)
@@ -181,6 +199,15 @@ def test_false_positive_corpus_remains_semantically_safe(key: str) -> None:
 def test_false_positive_corpus_survives_key_transformations(tokens: tuple[str, ...]) -> None:
     for key in _key_forms(tokens):
         validate_semantic_key(key)
+
+
+@pytest.mark.parametrize("safe_key", URL_URI_SAFE_EXCEPTIONS)
+def test_url_uri_natural_word_exception_is_exact(safe_key: str) -> None:
+    validate_semantic_key(safe_key)
+    _validate_at_boundary(safe_key, Boundary.EXTENSIONS)
+    _validate_at_boundary(safe_key, Boundary.NESTED)
+    for attack in (f"url_{safe_key}", f"{safe_key}_uri", f"url_{safe_key}_uri"):
+        _assert_rejected(attack, "authority_shaped_key")
 
 
 @pytest.mark.parametrize("safe_key", SAFE_EXACT_KEYS)

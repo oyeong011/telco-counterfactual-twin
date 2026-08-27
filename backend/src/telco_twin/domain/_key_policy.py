@@ -36,7 +36,7 @@ class KeyPolicySpec:
     pii_direct_stems: tuple[str, ...]
     authority_direct_stems: tuple[str, ...]
     secret_direct_stems: tuple[str, ...]
-    authority_boundary_stems: tuple[str, ...]
+    authority_url_uri_stems: tuple[str, ...]
     pii_unordered_groups: tuple[LexemeGroup, ...]
     authority_unordered_groups: tuple[LexemeGroup, ...]
     secret_unordered_groups: tuple[LexemeGroup, ...]
@@ -48,7 +48,14 @@ KEY_POLICY: Final = KeyPolicySpec(
     safe_exact_keys=(
         "commandment_count",
         "config_history",
+        "curiosity_score",
+        "duration_ms",
         "executioner_state",
+        "flourish_count",
+        "jurisdiction_code",
+        "maturity_score",
+        "purity_index",
+        "security_level",
         "shellfish_count",
         "tokenization_mode",
         "ue_cohort_id",
@@ -73,7 +80,7 @@ KEY_POLICY: Final = KeyPolicySpec(
         "shell",
     ),
     secret_direct_stems=("credential", "passwd", "password", "secret", "token"),
-    authority_boundary_stems=("uri", "url"),
+    authority_url_uri_stems=("uri", "url"),
     pii_unordered_groups=(
         (("customer", "subscriber"), ("id", "identifier", "identifiers", "identity")),
     ),
@@ -115,16 +122,6 @@ _NORMALIZED_SAFE_KEYS: Final = frozenset(_normalized_key(key) for key in KEY_POL
 
 def _contains_any(value: str, stems: tuple[str, ...]) -> bool:
     return any(stem in value for stem in stems)
-
-
-def _contains_boundary_stem(
-    tokens: frozenset[str],
-    normalized: str,
-    stems: tuple[str, ...],
-) -> bool:
-    return any(
-        stem in tokens or normalized.startswith(stem) or normalized.endswith(stem) for stem in stems
-    )
 
 
 def _tokens_match_group(tokens: frozenset[str], group: LexemeGroup) -> bool:
@@ -170,7 +167,7 @@ def _validate_semantic_key(value: str) -> None:
         fail_validation("pii_shaped_key", "PII-shaped keys are forbidden")
     if (
         _contains_any(normalized, KEY_POLICY.authority_direct_stems)
-        or _contains_boundary_stem(tokens, normalized, KEY_POLICY.authority_boundary_stems)
+        or _contains_any(normalized, KEY_POLICY.authority_url_uri_stems)
         or _matches_groups(tokens, normalized, KEY_POLICY.authority_unordered_groups)
     ):
         fail_validation(

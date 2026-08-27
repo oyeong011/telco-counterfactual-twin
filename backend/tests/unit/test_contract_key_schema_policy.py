@@ -70,7 +70,7 @@ def test_separator_free_key_policy_is_declared_and_normatively_rejected(
         "secret",
         "token",
     ]
-    assert key_policy["authority_boundary_stems"] == ["uri", "url"]
+    assert key_policy["authority_url_uri_stems"] == ["uri", "url"]
     assert key_policy["pii_unordered_groups"] == [
         [
             ["customer", "subscriber"],
@@ -83,7 +83,14 @@ def test_separator_free_key_policy_is_declared_and_normatively_rejected(
     assert key_policy["safe_exact_keys"] == [
         "commandment_count",
         "config_history",
+        "curiosity_score",
+        "duration_ms",
         "executioner_state",
+        "flourish_count",
+        "jurisdiction_code",
+        "maturity_score",
+        "purity_index",
+        "security_level",
         "shellfish_count",
         "tokenization_mode",
         "ue_cohort_id",
