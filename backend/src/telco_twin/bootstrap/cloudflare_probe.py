@@ -6,19 +6,22 @@ import secrets
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import ClassVar
+from typing import ClassVar, assert_never
 
 import httpx2
 from pydantic import BaseModel, ConfigDict, Field
 
 from telco_twin.bootstrap.cloudflare_contract import (
-    AccountEnvelope,
     DeploymentsEnvelope,
     OperationEnvelope,
-    ProjectEnvelope,
-    ProjectsEnvelope,
-    TokenEnvelope,
     parse_response,
+)
+from telco_twin.bootstrap.cloudflare_project import (
+    CreatedProject,
+    ProjectCreationRejected,
+    ProjectProbeRequest,
+    delete_project,
+    verify_and_create,
 )
 from telco_twin.bootstrap.gcp_commands import run_command
 from telco_twin.bootstrap.http_client import create_http_client
@@ -47,14 +50,6 @@ class CloudflareTransports:
 
 
 @dataclass(frozen=True, slots=True)
-class CreatedProject:
-    """Created Pages identity and prerequisite HTTP statuses."""
-
-    project_id: str
-    statuses: tuple[int, ...]
-
-
-@dataclass(frozen=True, slots=True)
 class DeploymentProof:
     """Two deployment IDs, rollback target, and HTTP statuses."""
 
@@ -76,11 +71,6 @@ class CloudflareProbeReceipt(BaseModel):
     http_statuses: tuple[int, ...]
     cleanup_complete: bool
     evidence: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
-
-
-def _require_equal(actual: str, expected: str, code: str) -> None:
-    if actual != expected:
-        raise ProviderProbeError(code)
 
 
 def _require_rollback_content(response: httpx2.Response) -> None:
@@ -118,67 +108,6 @@ def _deployment_id(response: httpx2.Response, excluded: frozenset[str]) -> str:
         code = "cloudflare-deployment-id-unresolved"
         raise ProviderProbeError(code)
     return available[0]
-
-
-def _delete_project(
-    context: CloudflareContext,
-    transport: httpx2.BaseTransport | None,
-    project_name: str,
-) -> int:
-    headers = {"Authorization": f"Bearer {context.api_token}"}
-    with create_http_client(
-        "https://api.cloudflare.com/client/v4/",
-        headers,
-        transport,
-    ) as client:
-        response = client.delete(f"accounts/{context.account_id}/pages/projects/{project_name}")
-        _ = parse_response(response, OperationEnvelope, "pages-delete")
-        return response.status_code
-
-
-def _verify_and_create(
-    context: CloudflareContext,
-    transport: httpx2.BaseTransport | None,
-    project_name: str,
-) -> CreatedProject:
-    headers = {"Authorization": f"Bearer {context.api_token}"}
-    statuses: list[int] = []
-    with create_http_client(
-        "https://api.cloudflare.com/client/v4/",
-        headers,
-        transport,
-    ) as client:
-        token_response = client.get("user/tokens/verify")
-        statuses.append(token_response.status_code)
-        _ = parse_response(token_response, TokenEnvelope, "token-verify")
-        account_response = client.get(f"accounts/{context.account_id}")
-        statuses.append(account_response.status_code)
-        account = parse_response(account_response, AccountEnvelope, "account-get")
-        _require_equal(
-            account.result.id,
-            context.account_id,
-            "cloudflare-account-id-mismatch",
-        )
-        list_response = client.get(f"accounts/{context.account_id}/pages/projects")
-        statuses.append(list_response.status_code)
-        _ = parse_response(list_response, ProjectsEnvelope, "pages-list")
-        create_response = client.post(
-            f"accounts/{context.account_id}/pages/projects",
-            json={"name": project_name, "production_branch": "main"},
-        )
-        statuses.append(create_response.status_code)
-        try:
-            project = parse_response(create_response, ProjectEnvelope, "pages-create")
-            _require_equal(
-                project.result.name,
-                project_name,
-                "cloudflare-project-name-mismatch",
-            )
-        except ProviderProbeError:
-            if create_response.status_code == HTTP_OK:
-                _ = _delete_project(context, transport, project_name)
-            raise
-        return CreatedProject(project_id=project.result.id, statuses=tuple(statuses))
 
 
 def _deploy_and_rollback(
@@ -233,29 +162,39 @@ def probe_cloudflare(
     """Prove token/account/Pages/deploy/rollback/content authority and trap cleanup."""
     active_transports = transports or CloudflareTransports()
     project_name = f"twin-preflight-{suffix or secrets.token_hex(6)}"
+    project_request = ProjectProbeRequest(
+        account_id=context.account_id,
+        api_token=context.api_token,
+        project_name=project_name,
+        transport=active_transports.api,
+    )
+    creation: CreatedProject | ProjectCreationRejected | None = None
     created: CreatedProject | None = None
     proof: DeploymentProof | None = None
     primary_error: ProviderProbeError | None = None
     cleanup_status: int | None = None
     try:
-        created = _verify_and_create(context, active_transports.api, project_name)
-        proof = _deploy_and_rollback(context, active_transports, project_name)
+        creation = verify_and_create(project_request)
+        match creation:
+            case CreatedProject() as project:
+                created = project
+                proof = _deploy_and_rollback(context, active_transports, project_name)
+            case ProjectCreationRejected(error=error):
+                primary_error = error
+            case _:
+                assert_never(creation)
     except ProviderProbeError as error:
         primary_error = error
     except httpx2.HTTPError:
         code = "cloudflare-network-failed"
         primary_error = ProviderProbeError(code)
     finally:
-        if created is not None:
+        if creation is not None:
             try:
-                cleanup_status = _delete_project(
-                    context,
-                    active_transports.api,
-                    project_name,
-                )
+                cleanup_status = delete_project(project_request)
             except (ProviderProbeError, httpx2.HTTPError):
                 cleanup_status = None
-    if created is not None and cleanup_status is None:
+    if creation is not None and cleanup_status is None:
         code = "cloudflare-cleanup-failed"
         raise ProviderProbeError(code)
     if primary_error is not None:
