@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import ast
 import re
-from collections.abc import Mapping
-from functools import singledispatch
 from typing import Final
 
 CAMEL_BOUNDARY: Final = re.compile(r"([a-z0-9])([A-Z])")
@@ -58,28 +55,3 @@ def is_mutation_name(name: str) -> bool:
 def is_dangerous_call(name: str) -> bool:
     """Return whether one resolved callable can execute dynamic/process code."""
     return name in DANGEROUS_CALLS or name.startswith(("os.exec", "os.spawn"))
-
-
-@singledispatch
-def resolved_expression(
-    _expression: ast.expr,
-    _aliases: Mapping[str, str],
-) -> str | None:
-    """Resolve a supported AST expression through import/value aliases."""
-    return None
-
-
-def _resolved_name(expression: ast.Name, aliases: Mapping[str, str]) -> str | None:
-    return aliases.get(expression.id, expression.id)
-
-
-def _resolved_attribute(
-    expression: ast.Attribute,
-    aliases: Mapping[str, str],
-) -> str | None:
-    base = resolved_expression(expression.value, aliases)
-    return None if base is None else f"{base}.{expression.attr}"
-
-
-_ = resolved_expression.register(ast.Name, _resolved_name)
-_ = resolved_expression.register(ast.Attribute, _resolved_attribute)

@@ -35,6 +35,16 @@ def _scan_source(
     return findings
 
 
+def scan_source(
+    tmp_path: Path,
+    source: str,
+    *,
+    directory: str = "domain",
+) -> tuple[str, ...]:
+    """Expose the real scanner fixture path to sibling behavior tests."""
+    return _scan_source(tmp_path, source, directory=directory)
+
+
 def test_scanner_rejects_private_mutation_callable(tmp_path: Path) -> None:
     # Given: mutation authority hidden behind a private function name.
     # When: the AST scanner inspects the source.
