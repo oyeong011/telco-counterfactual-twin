@@ -1,6 +1,9 @@
 """C1-local fail-closed policy tests."""
 
 from dataclasses import fields
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Final
 
 from telco_twin.counterfactual.comparison import (
     CounterfactualComparison,
@@ -22,7 +25,13 @@ from telco_twin.safety.local_policy import (
     PolicyReason,
     evaluate_local_policy,
 )
-from telco_twin.simulator.metrics import ObservationQualityFlag, QualityAssessment
+from telco_twin.simulator.metrics import ObservationQualityFlag, QualityPolicy
+from telco_twin.simulator.network_model import NetworkObservation, load_scenario_manifests
+from telco_twin.state.trusted_clock import FixedClock
+
+SCENARIO_FIXTURES: Final = Path(__file__).parents[2] / "fixtures/scenarios"
+POLICY_TIME: Final = datetime(2026, 8, 27, 0, 0, 30, tzinfo=UTC)
+OBSERVED_AT: Final = "2026-08-27T00:00:00Z"
 
 
 def _comparison() -> tuple[CounterfactualRun, CounterfactualComparison]:
@@ -48,18 +57,54 @@ def _comparison() -> tuple[CounterfactualRun, CounterfactualComparison]:
     return run, compare_counterfactual(run, "simulation-0001")
 
 
-def local_policy_input(*, quality: QualityAssessment | None = None) -> LocalPolicyInput:
+def _observation(run: CounterfactualRun) -> NetworkObservation:
+    source = load_scenario_manifests(SCENARIO_FIXTURES)[0].observation
+    return source.model_copy(
+        update={
+            "scenario_id": run.baseline_manifest.scenario.scenario_id,
+            "topology_id": run.baseline_manifest.topology.topology_id,
+            "windows": tuple(
+                window.model_copy(update={"observed_at": OBSERVED_AT}) for window in source.windows
+            ),
+            "alarms": tuple(
+                alarm.model_copy(update={"observed_at": OBSERVED_AT}) for alarm in source.alarms
+            ),
+            "config_history": tuple(
+                config.model_copy(update={"recorded_at": OBSERVED_AT})
+                for config in source.config_history
+            ),
+        }
+    )
+
+
+def local_policy_input(
+    *,
+    observation: NetworkObservation | None = None,
+    quality_policy: QualityPolicy | None = None,
+) -> LocalPolicyInput:
     run, comparison = _comparison()
     return LocalPolicyInput(
-        quality=quality or QualityAssessment(flags=(), approval_eligible=True),
+        observation=observation or _observation(run),
+        quality_policy=quality_policy or QualityPolicy(),
         run=run,
         comparison=comparison,
     )
 
 
-def real_policy_decision(*, quality: QualityAssessment | None = None) -> PolicyDecision:
+def real_policy_decision(
+    *,
+    observation: NetworkObservation | None = None,
+    quality_policy: QualityPolicy | None = None,
+    clock: FixedClock | None = None,
+) -> PolicyDecision:
     """Return policy provenance backed by a real deterministic run/comparison."""
-    return evaluate_local_policy(local_policy_input(quality=quality))
+    return evaluate_local_policy(
+        local_policy_input(
+            observation=observation,
+            quality_policy=quality_policy,
+        ),
+        clock or FixedClock(POLICY_TIME),
+    )
 
 
 def test_policy_is_eligible_only_with_fresh_recomputed_simulation_evidence() -> None:
@@ -76,13 +121,16 @@ def test_policy_is_eligible_only_with_fresh_recomputed_simulation_evidence() -> 
 
 
 def test_policy_rejects_stale_or_noisy_observation_with_typed_reasons() -> None:
-    # Given: explicit stale and noisy quality flags.
-    quality = QualityAssessment(
-        flags=(ObservationQualityFlag.STALE, ObservationQualityFlag.NOISY),
-        approval_eligible=False,
-    )
+    # Given: actual stale evidence with repeated same-target metric variance.
+    policy_input = local_policy_input()
+    first = policy_input.observation.windows[0].model_copy(update={"prb_utilization_pct": 20.0})
+    second = first.model_copy(update={"prb_utilization_pct": 60.0})
+    observation = policy_input.observation.model_copy(update={"windows": (first, second)})
     # When: policy evaluates otherwise valid simulator provenance.
-    result = real_policy_decision(quality=quality).evidence
+    result = real_policy_decision(
+        observation=observation,
+        clock=FixedClock(datetime(2026, 8, 27, 0, 5, 0, tzinfo=UTC)),
+    ).evidence
     # Then: both machine-readable quality reasons fail closed.
     assert result.eligible is False
     assert result.reasons == (PolicyReason.OBSERVATION_STALE, PolicyReason.OBSERVATION_NOISY)
@@ -91,12 +139,13 @@ def test_policy_rejects_stale_or_noisy_observation_with_typed_reasons() -> None:
 def test_policy_rejects_missing_simulator_call() -> None:
     # Given: no run and no comparison capability.
     policy_input = LocalPolicyInput(
-        quality=QualityAssessment(flags=(), approval_eligible=True),
+        observation=local_policy_input().observation,
+        quality_policy=QualityPolicy(),
         run=None,
         comparison=None,
     )
     # When: policy evaluates the incomplete evidence.
-    result = evaluate_local_policy(policy_input).evidence
+    result = evaluate_local_policy(policy_input, FixedClock(POLICY_TIME)).evidence
     # Then: missing simulator provenance is explicit and ineligible.
     assert result.eligible is False
     assert result.reasons == (
@@ -124,10 +173,12 @@ def test_policy_rejects_changed_constraint_comparison_as_invalid_provenance() ->
     # When: local policy recomputes the simulator-owned comparison.
     decision = evaluate_local_policy(
         LocalPolicyInput(
-            quality=policy_input.quality,
+            observation=policy_input.observation,
+            quality_policy=policy_input.quality_policy,
             run=policy_input.run,
             comparison=comparison,
-        )
+        ),
+        FixedClock(POLICY_TIME),
     )
     # Then: caller-mutated constraints cannot become policy provenance.
     assert decision.evidence.eligible is False

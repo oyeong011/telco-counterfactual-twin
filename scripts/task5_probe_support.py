@@ -6,6 +6,7 @@ import hashlib
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum, unique
+from pathlib import Path
 from typing import Final, assert_never, override
 
 import anyio
@@ -37,7 +38,8 @@ from telco_twin.safety.local_policy import (
     LocalPolicyInput,
 )
 from telco_twin.simulator.frozen_event import FrozenEvent
-from telco_twin.simulator.metrics import QualityAssessment
+from telco_twin.simulator.metrics import QualityPolicy
+from telco_twin.simulator.network_model import load_scenario_manifests
 from telco_twin.state.demo_token import DemoTokenKey
 from telco_twin.state.memory_store import DemoSessionStore
 from telco_twin.state.store_models import (
@@ -49,6 +51,9 @@ from telco_twin.state.store_models import (
 NOW: Final = datetime(2026, 8, 27, 0, 0, 0, tzinfo=UTC)
 DEMO_KEY: Final = DemoTokenKey(b"task5-probe-demo-key-material-32b")
 JSON_ADAPTER: Final[TypeAdapter[JsonValue]] = TypeAdapter(JsonValue)
+SCENARIO_FIXTURES: Final = (
+    Path(__file__).resolve().parents[1] / "backend/fixtures/scenarios"
+)
 
 
 @unique
@@ -157,8 +162,16 @@ def probe_policy_input(
     comparison: CounterfactualComparison,
 ) -> LocalPolicyInput:
     """Bind one clean comparison to its actual deterministic run."""
+    source = load_scenario_manifests(SCENARIO_FIXTURES)[0].observation
+    observation = source.model_copy(
+        update={
+            "scenario_id": run.baseline_manifest.scenario.scenario_id,
+            "topology_id": run.baseline_manifest.topology.topology_id,
+        }
+    )
     return LocalPolicyInput(
-        quality=QualityAssessment(flags=(), approval_eligible=True),
+        observation=observation,
+        quality_policy=QualityPolicy(),
         run=run,
         comparison=comparison,
     )
@@ -180,7 +193,7 @@ def probe_event(index: int, event_type: str, value: str) -> Event:
 
 async def probe_idempotency_race(
     store: DemoSessionStore,
-    session_id: str,
+    token: str,
     simulation_hash: Sha256Hex,
 ) -> tuple[EventAppendAccepted, ...]:
     """Run the bounded twelve-request same-key probe race."""
@@ -189,9 +202,8 @@ async def probe_idempotency_race(
     async def append() -> None:
         result = await store.append_event(
             AppendEventRequest(
-                session_id=session_id,
+                token=token,
                 idempotency_key="idem-probe-race",
-                body_hash="f" * 64,
                 event=probe_event(99, "concurrency-recorded", simulation_hash),
             )
         )

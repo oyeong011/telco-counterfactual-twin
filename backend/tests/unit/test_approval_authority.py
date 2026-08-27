@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     from pydantic import JsonValue
 
 
-def _production_descriptor(signing_key: SigningKey) -> RootDescriptor:
+def production_descriptor(signing_key: SigningKey) -> RootDescriptor:
     payload: dict[str, JsonValue] = {
         "root_key_id": "production-root-0001",
         "algorithm": "Ed25519",
@@ -55,6 +55,16 @@ def _production_descriptor(signing_key: SigningKey) -> RootDescriptor:
     return RootDescriptor.model_validate(payload)
 
 
+def _trust_descriptor(
+    monkeypatch: pytest.MonkeyPatch,
+    descriptor: RootDescriptor,
+) -> None:
+    monkeypatch.setenv(
+        "APPROVAL_TRUSTED_ROOT_HASHES_JSON",
+        f'["{descriptor.descriptor_hash}"]',
+    )
+
+
 def test_local_authority_loads_only_the_committed_test_root() -> None:
     # Given: explicit local mode with no caller-selected trust material.
     # When: the local approval authority loads.
@@ -69,7 +79,8 @@ def test_production_authority_fails_when_root_secret_is_missing(
 ) -> None:
     # Given: a valid production descriptor with no root signing secret environment value.
     signing_key = SigningKey(b"\x11" * 32)
-    descriptor = _production_descriptor(signing_key)
+    descriptor = production_descriptor(signing_key)
+    _trust_descriptor(monkeypatch, descriptor)
     monkeypatch.delenv("APPROVAL_ROOT_KEY_SECRET", raising=False)
     # When: production authority startup is attempted.
     with pytest.raises(AuthorityLoadError) as caught:
@@ -97,7 +108,8 @@ def test_production_authority_accepts_matching_non_test_root(
 ) -> None:
     # Given: a production descriptor whose Ed25519 key matches the distinct secret.
     signing_key = SigningKey(b"\x22" * 32)
-    descriptor = _production_descriptor(signing_key)
+    descriptor = production_descriptor(signing_key)
+    _trust_descriptor(monkeypatch, descriptor)
     monkeypatch.setenv("APPROVAL_ROOT_KEY_SECRET", encode_base64url(bytes(signing_key)))
     # When: production authority startup validates the trust material.
     authority = load_approval_authority(AuthorityMode.PRODUCTION, descriptor)
@@ -112,7 +124,7 @@ def test_production_authority_rejects_test_public_fingerprint_after_repackaging(
     # Given: the committed test key disguised with production ID, hash, and environment.
     fixture = Path(__file__).resolve().parents[1] / "fixtures/approval/TEST_ONLY_root_private.pem"
     test_key = parse_signing_key(fixture.read_text(encoding="utf-8"))
-    descriptor = _production_descriptor(test_key)
+    descriptor = production_descriptor(test_key)
     monkeypatch.setenv("APPROVAL_ROOT_KEY_SECRET", fixture.read_text(encoding="utf-8"))
     # When: production startup validates the raw Ed25519 public fingerprint.
     with pytest.raises(AuthorityLoadError) as caught:
@@ -125,7 +137,8 @@ def test_production_authority_rejects_descriptor_secret_key_mismatch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Given: a valid production descriptor and a different production-shaped secret.
-    descriptor = _production_descriptor(SigningKey(b"\x33" * 32))
+    descriptor = production_descriptor(SigningKey(b"\x33" * 32))
+    _trust_descriptor(monkeypatch, descriptor)
     monkeypatch.setenv(
         "APPROVAL_ROOT_KEY_SECRET",
         encode_base64url(bytes(SigningKey(b"\x44" * 32))),

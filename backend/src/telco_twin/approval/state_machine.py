@@ -1,8 +1,8 @@
-"""Append-only evidence states for policy-gated approval proofs."""
+"""Append-only evidence states with application-owned trust and time."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from enum import StrEnum, unique
 from typing import TYPE_CHECKING, assert_never, final, override
 
@@ -13,6 +13,7 @@ from telco_twin.domain.approval import (
     ApprovalProof,
     ApprovalRequest,
     ApprovalValidationContext,
+    SessionKeyCertificate,
     proof_hash,
     validate_approval_chain,
 )
@@ -23,8 +24,10 @@ from telco_twin.safety.local_policy import (
     PolicyEvaluation,
     revalidate_policy_decision,
 )
+from telco_twin.state.trusted_clock import TrustedClock, trusted_now
 
 if TYPE_CHECKING:
+    from telco_twin.approval.trust import ApprovalTrustConfig
     from telco_twin.domain._contract import ContractId, Sha256Hex
 
 
@@ -71,12 +74,15 @@ class ApprovalEvidenceRecord:
 
 @final
 class ApprovalStateMachine:
-    """Append-only evidence ledger; revocation and network authority are unsupported."""
+    """Evidence ledger that owns root trust, certificates, replay, and time."""
 
-    def __init__(self) -> None:
-        """Create an empty append-only evidence ledger."""
+    def __init__(self, trust: ApprovalTrustConfig, clock: TrustedClock) -> None:
+        """Capture immutable application trust and its time provider."""
+        self._trust = trust
+        self._clock = clock
         self._lock = anyio.Lock()
         self._records: dict[ContractId, ApprovalEvidenceRecord] = {}
+        self._certificates: dict[ContractId, SessionKeyCertificate] = {}
         self._policies: dict[ContractId, PolicyDecision] = {}
         self._consumed_nonces: set[str] = set()
 
@@ -84,29 +90,34 @@ class ApprovalStateMachine:
         self,
         request: ApprovalRequest,
         policy: PolicyAdmission,
+        certificate: SessionKeyCertificate,
     ) -> ApprovalEvidenceRecord:
-        """Admit pending state only after re-resolving internal policy provenance."""
+        """Admit pending state from internal policy and bound public certificate."""
         match policy:
             case PolicyEvaluation():
                 raise ApprovalStateError(ApprovalStateErrorCode.POLICY_PROVENANCE_REQUIRED)
             case PolicyDecision():
-                verification = revalidate_policy_decision(policy)
-            case _:
+                verification = revalidate_policy_decision(policy, self._clock)
+            case _:  # pragma: no cover - exhaustive typed union
                 assert_never(policy)
         match verification:
             case PolicyDecisionRejected():
                 raise ApprovalStateError(ApprovalStateErrorCode.POLICY_PROVENANCE_REQUIRED)
             case PolicyEvaluation():
                 evidence = verification
-            case _:
+            case _:  # pragma: no cover - exhaustive typed union
                 assert_never(verification)
         if not evidence.eligible:
             raise ApprovalStateError(ApprovalStateErrorCode.POLICY_INELIGIBLE)
-        if (
-            request.patch_hash != evidence.patch_hash
-            or request.simulation_hash != evidence.simulation_hash
-            or request.policy_hash != evidence.policy_hash
-        ):
+        bindings_match = (
+            request.patch_hash == evidence.patch_hash
+            and request.simulation_hash == evidence.simulation_hash
+            and request.policy_hash == evidence.policy_hash
+            and certificate.session_id == request.session_id
+            and certificate.root_key_id == self._trust.root.root_key_id
+            and certificate.environment is self._trust.environment
+        )
+        if not bindings_match:
             raise ApprovalStateError(ApprovalStateErrorCode.EVIDENCE_BINDING_MISMATCH)
         async with self._lock:
             if request.request_id in self._records:
@@ -117,41 +128,42 @@ class ApprovalStateMachine:
                 proof_hash=None,
             )
             self._records[request.request_id] = record
+            self._certificates[request.request_id] = certificate
             self._policies[request.request_id] = policy
             return record
 
-    async def record_proof(
-        self,
-        proof: ApprovalProof,
-        context: ApprovalValidationContext,
-    ) -> ApprovalEvidenceRecord:
-        """Validate and append one terminal approved/rejected evidence state."""
+    async def record_proof(self, proof: ApprovalProof) -> ApprovalEvidenceRecord:
+        """Validate against stored request/certificate and append terminal evidence."""
         async with self._lock:
-            validation_context = replace(
-                context,
-                consumed_nonces=frozenset(self._consumed_nonces),
-            )
-            validate_approval_chain(proof, validation_context)
             record = self._records.get(proof.approval_request_id)
             if record is None:
                 raise ApprovalStateError(ApprovalStateErrorCode.REQUEST_UNKNOWN)
-            if record.request != context.request:
-                raise ApprovalStateError(ApprovalStateErrorCode.REQUEST_CONTEXT_MISMATCH)
+            certificate = self._certificates[record.request.request_id]
+            context = ApprovalValidationContext(
+                root=self._trust.root,
+                certificate=certificate,
+                request=record.request,
+                environment=self._trust.environment,
+                trusted_root_hashes=self._trust.trusted_root_hashes,
+                consumed_nonces=frozenset(self._consumed_nonces),
+                now=trusted_now(self._clock),
+            )
+            validate_approval_chain(proof, context)
             policy = self._policies[record.request.request_id]
-            verification = revalidate_policy_decision(policy)
+            verification = revalidate_policy_decision(policy, self._clock)
             match verification:
                 case PolicyDecisionRejected():
                     raise ApprovalStateError(ApprovalStateErrorCode.POLICY_PROVENANCE_REQUIRED)
                 case PolicyEvaluation():
                     pass
-                case _:
+                case _:  # pragma: no cover - exhaustive typed union
                     assert_never(verification)
             match proof.decision:
                 case ApprovalDecision.APPROVED:
                     state = ApprovalEvidenceState.APPROVED
                 case ApprovalDecision.REJECTED:
                     state = ApprovalEvidenceState.REJECTED
-                case _:
+                case _:  # pragma: no cover - exhaustive enum
                     assert_never(proof.decision)
             updated = ApprovalEvidenceRecord(
                 request=record.request,

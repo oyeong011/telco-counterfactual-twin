@@ -7,9 +7,7 @@ from enum import StrEnum, unique
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
-    from datetime import datetime
-
-    from telco_twin.domain._contract import ContractId, Sha256Hex, UtcTimestamp
+    from telco_twin.domain._contract import ContractId, UtcTimestamp
     from telco_twin.domain.event import Event
     from telco_twin.simulator.frozen_event import FrozenEvent
 
@@ -33,7 +31,6 @@ class SessionCreate:
     """Inputs for one bounded live session."""
 
     session_id: ContractId
-    now: datetime
     nonce: bytes
 
 
@@ -59,11 +56,10 @@ type SessionCreateResult = SessionCreated | SessionCreateDenied
 
 @dataclass(frozen=True, slots=True)
 class AppendEventRequest:
-    """One idempotent append with an independently computed body hash."""
+    """One authenticated append; time/body identity are store-owned."""
 
-    session_id: ContractId
+    token: str
     idempotency_key: ContractId
-    body_hash: Sha256Hex
     event: Event
 
 
@@ -87,10 +83,9 @@ type EventAppendResult = EventAppendAccepted | EventAppendDenied
 
 @dataclass(frozen=True, slots=True)
 class SessionAccess:
-    """Opaque token and caller-supplied assessment instant."""
+    """Opaque token resolved at the store-owned trusted instant."""
 
     token: str
-    now: datetime
 
 
 @dataclass(frozen=True, slots=True)

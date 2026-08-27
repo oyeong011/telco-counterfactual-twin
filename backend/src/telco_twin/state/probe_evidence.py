@@ -1,17 +1,37 @@
-"""Strict pass-artifact schema for the Task5 manual probe."""
+"""Strict self-hashed pass artifact for the Task5 manual probe."""
 
 from __future__ import annotations
 
-from typing import Annotated, ClassVar, Final, Literal, Self
+import hashlib
+from dataclasses import dataclass
+from typing import Annotated, ClassVar, Final, Literal, Self, override
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter, model_validator
 
 from telco_twin.domain._validation import fail_validation
+from telco_twin.domain.canonical import canonical_json_bytes, canonical_model_bytes
+from telco_twin.safety.local_policy import LOCAL_POLICY_DEFINITION_HASH
 
 ProbeHash = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
+ProbeGitSha = Annotated[str, Field(pattern=r"^[0-9a-f]{40}$")]
+PROBE_INVOCATION_ID: Final = "task5-safety-probe-v2"
+PROBE_SEED: Final = 91
 EXPECTED_REQUESTS: Final = 12
 EXPECTED_REPLAYS: Final = 11
 EXPECTED_EVENT_COUNT: Final = 6
+EXPECTED_NEGATIVE_CODES: Final = (
+    "nonce-replayed",
+    "demo_session_lost",
+    "demo_token_invalid",
+    "patch-parameter-range",
+    "observation-stale",
+    "patch-hash-missing,simulation-hash-missing,simulation-missing",
+    "approval-signature-invalid",
+    "manifest-integrity",
+    "approval-expired",
+    "certificate-binding-mismatch",
+)
+JSON_ADAPTER: Final[TypeAdapter[JsonValue]] = TypeAdapter(JsonValue)
 
 
 class _ArtifactModel(BaseModel):
@@ -58,21 +78,8 @@ class NegativeEvidence(_ArtifactModel):
 
     @model_validator(mode="after")
     def exact_negative_codes_are_present(self) -> Self:
-        """Reject pass artifacts missing any required stable negative."""
-        valid = (
-            self.replay_code == "nonce-replayed"
-            and self.epoch_code == "demo_session_lost"
-            and self.malformed_code == "demo_token_invalid"
-            and self.unsafe_patch_code == "patch-parameter-range"
-            and self.stale_policy_code == "observation-stale"
-            and self.unsimulated_policy_code
-            == "patch-hash-missing,simulation-hash-missing,simulation-missing"
-            and self.forged_proof_code == "approval-signature-invalid"
-            and self.dirty_baseline_code == "manifest-integrity"
-            and self.expired_proof_code == "approval-expired"
-            and self.cross_session_code == "certificate-binding-mismatch"
-        )
-        if not valid:
+        """Reject any missing or changed required negative code."""
+        if tuple(self.model_dump().values()) != EXPECTED_NEGATIVE_CODES:
             fail_validation("probe_negative_missing", "required probe negative is missing")
         return self
 
@@ -106,12 +113,119 @@ class CleanupEvidence(_ArtifactModel):
     cancellation_required: Literal[False]
 
 
-class ProbeArtifact(_ArtifactModel):
-    """Pass artifact constructible only from every exact Task5 observable."""
+class ProbeInputs(_ArtifactModel):
+    """Exact immutable inputs used by the successful flow."""
 
-    schema_version: Literal["1.0"]
+    manifest_hash: ProbeHash
+    topology_hash: ProbeHash
+    observation_hash: ProbeHash
+    patch_hash: ProbeHash
+
+
+class ProbeProvenance(_ArtifactModel):
+    """Reviewed code/command/contracts bound into the artifact."""
+
+    git_sha: ProbeGitSha
+    invocation_id: Literal["task5-safety-probe-v2"]
+    seed: Literal[91]
+    schema_hash: ProbeHash
+    contract_hash: ProbeHash
+    policy_hash: ProbeHash
+    inputs: ProbeInputs
+
+    @model_validator(mode="after")
+    def contract_identities_match(self) -> Self:
+        """Reject stale command, schema, contract, or policy identity."""
+        if (
+            self.schema_hash != probe_schema_hash()
+            or self.contract_hash != PROBE_CONTRACT_HASH
+            or self.policy_hash != LOCAL_POLICY_DEFINITION_HASH
+        ):
+            fail_validation("probe_contract_stale", "probe contract identity is stale")
+        return self
+
+
+class ProbeArtifactPayload(_ArtifactModel):
+    """All pass evidence before the outer self-hash is added."""
+
+    schema_version: Literal["2.0"]
     result: Literal["pass"]
+    provenance: ProbeProvenance
     positive: PositiveEvidence
     negative: NegativeEvidence
     concurrency: ConcurrencyEvidence
     cleanup: CleanupEvidence
+
+
+class ProbeArtifact(ProbeArtifactPayload):
+    """Pass artifact whose RFC8785 payload hash is validated on parse."""
+
+    artifact_hash: ProbeHash
+
+    @model_validator(mode="after")
+    def artifact_hash_matches_payload(self) -> Self:
+        """Recompute the RFC8785 self-hash during every parse."""
+        expected = hashlib.sha256(
+            canonical_model_bytes(self, exclude=frozenset({"artifact_hash"}))
+        ).hexdigest()
+        if self.artifact_hash != expected:
+            fail_validation("probe_artifact_hash", "probe artifact hash mismatch")
+        return self
+
+
+class _ProbeContract(_ArtifactModel):
+    invocation_id: Literal["task5-safety-probe-v2"]
+    seed: Literal[91]
+    negative_codes: tuple[str, ...]
+    race: tuple[int, int, int, int]
+
+
+PROBE_CONTRACT: Final = _ProbeContract(
+    invocation_id=PROBE_INVOCATION_ID,
+    seed=PROBE_SEED,
+    negative_codes=EXPECTED_NEGATIVE_CODES,
+    race=(EXPECTED_REQUESTS, 1, EXPECTED_REPLAYS, EXPECTED_EVENT_COUNT),
+)
+PROBE_CONTRACT_HASH: Final[ProbeHash] = hashlib.sha256(
+    canonical_model_bytes(PROBE_CONTRACT)
+).hexdigest()
+
+
+def probe_schema_hash() -> ProbeHash:
+    """Hash the canonical payload JSON Schema used by this artifact version."""
+    schema = JSON_ADAPTER.validate_python(ProbeArtifactPayload.model_json_schema())
+    return hashlib.sha256(canonical_json_bytes(schema)).hexdigest()
+
+
+def build_probe_artifact(payload: ProbeArtifactPayload) -> ProbeArtifact:
+    """Add the exact RFC8785 self-hash to one complete payload."""
+    return ProbeArtifact(
+        schema_version=payload.schema_version,
+        result=payload.result,
+        provenance=payload.provenance,
+        positive=payload.positive,
+        negative=payload.negative,
+        concurrency=payload.concurrency,
+        cleanup=payload.cleanup,
+        artifact_hash=hashlib.sha256(canonical_model_bytes(payload)).hexdigest(),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class ProbeArtifactStaleError(Exception):
+    """Artifact commit identity differs from the reviewed checkout."""
+
+    expected: ProbeGitSha
+    actual: ProbeGitSha
+
+    @override
+    def __str__(self) -> str:
+        return "probe-artifact-git-sha-stale"
+
+
+def validate_probe_artifact_json(encoded: str, expected_git_sha: ProbeGitSha) -> ProbeArtifact:
+    """Parse, self-hash, and require the exact reviewed full git SHA."""
+    artifact = ProbeArtifact.model_validate_json(encoded)
+    if artifact.provenance.git_sha != expected_git_sha:
+        raise ProbeArtifactStaleError(expected_git_sha, artifact.provenance.git_sha)
+    return artifact

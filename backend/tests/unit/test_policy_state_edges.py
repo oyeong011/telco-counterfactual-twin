@@ -3,6 +3,7 @@
 import hashlib
 import hmac
 import json
+from datetime import UTC, datetime
 
 import anyio
 import pytest
@@ -16,7 +17,6 @@ from telco_twin.safety.local_policy import (
     PolicyReason,
     evaluate_local_policy,
 )
-from telco_twin.simulator.metrics import ObservationQualityFlag, QualityAssessment
 from telco_twin.state.demo_token import (
     DEMO_TOKEN_DOMAIN,
     DemoTokenClaims,
@@ -36,14 +36,18 @@ from telco_twin.state.store_models import (
     SessionCreate,
     SessionCreateDenied,
 )
+from telco_twin.state.trusted_clock import FixedClock
 
-from .test_local_policy import local_policy_input
-from .test_memory_store import NOW, SECRET, store_event
+from .test_local_policy import POLICY_TIME, local_policy_input
+from .test_memory_store import NOW, SECRET, MutableClock, store_event
 
 
 def test_policy_result_rejects_altered_hash_and_inconsistent_eligibility() -> None:
     # Given: one valid hashed local policy result.
-    valid = evaluate_local_policy(local_policy_input()).evidence
+    valid = evaluate_local_policy(
+        local_policy_input(),
+        FixedClock(POLICY_TIME),
+    ).evidence
     altered = valid.model_dump(mode="json")
     altered["policy_hash"] = "0" * 64
     # When/Then: hash alteration and both eligibility inconsistencies fail validation.
@@ -63,10 +67,12 @@ def test_policy_result_rejects_altered_hash_and_inconsistent_eligibility() -> No
         _ = PolicyEvaluation.model_validate_json(inconsistent.model_dump_json())
     denied = evaluate_local_policy(
         LocalPolicyInput(
-            quality=local_policy_input().quality,
+            observation=local_policy_input().observation,
+            quality_policy=local_policy_input().quality_policy,
             run=None,
             comparison=None,
-        )
+        ),
+        FixedClock(POLICY_TIME),
     ).evidence
     no_reasons = denied.model_copy(update={"reasons": (), "policy_hash": "0" * 64})
     no_reasons = no_reasons.model_copy(
@@ -82,16 +88,20 @@ def test_policy_result_rejects_altered_hash_and_inconsistent_eligibility() -> No
 
 def test_policy_covers_future_and_missing_simulator_reasons() -> None:
     # Given: a future observation over valid simulator provenance.
-    policy_input = local_policy_input(
-        quality=QualityAssessment(
-            flags=(ObservationQualityFlag.FUTURE,),
-            approval_eligible=False,
-        )
-    )
+    policy_input = local_policy_input()
     # When: quality and missing simulator paths are evaluated.
-    first = evaluate_local_policy(policy_input).evidence
+    first = evaluate_local_policy(
+        policy_input,
+        FixedClock(datetime(2026, 8, 26, 23, 59, 59, tzinfo=UTC)),
+    ).evidence
     missing = evaluate_local_policy(
-        LocalPolicyInput(quality=local_policy_input().quality, run=None, comparison=None)
+        LocalPolicyInput(
+            observation=policy_input.observation,
+            quality_policy=policy_input.quality_policy,
+            run=None,
+            comparison=None,
+        ),
+        FixedClock(POLICY_TIME),
     ).evidence
     # Then: both failure classes remain explicit.
     assert PolicyReason.OBSERVATION_FUTURE in first.reasons
@@ -174,17 +184,23 @@ def test_demo_token_rejects_noncanonical_base64_components(malformed: str) -> No
 def test_store_rejects_duplicate_session_and_append_to_unknown_session() -> None:
     async def scenario() -> None:
         # Given: one live session.
-        store = DemoSessionStore(signing_key=SECRET, startup_epoch="epoch-0001")
-        request = SessionCreate(session_id="session-0001", now=NOW, nonce=b"\x07" * 16)
+        store = DemoSessionStore(
+            signing_key=SECRET,
+            startup_epoch="epoch-0001",
+            clock=MutableClock(),
+        )
+        request = SessionCreate(session_id="session-0001", nonce=b"\x07" * 16)
         created = await store.create_session(request)
         assert not isinstance(created, SessionCreateDenied)
         # When: the ID is recreated and an event targets an absent session.
         duplicate = await store.create_session(request)
+        absent_token, _ = DemoTokenCodec(SECRET, "epoch-0001").issue(
+            DemoTokenIssue("session-absent", NOW, b"\x06" * 16)
+        )
         unknown = await store.append_event(
             AppendEventRequest(
-                session_id="session-absent",
+                token=absent_token,
                 idempotency_key="idem-absent",
-                body_hash="a" * 64,
                 event=store_event(1),
             )
         )

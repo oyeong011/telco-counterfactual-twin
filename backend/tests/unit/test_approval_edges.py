@@ -2,7 +2,6 @@
 
 import base64
 import hashlib
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import anyio
@@ -28,19 +27,17 @@ from telco_twin.approval.crypto import (
 from telco_twin.approval.state_machine import (
     ApprovalStateError,
     ApprovalStateErrorCode,
-    ApprovalStateMachine,
 )
 from telco_twin.domain.approval import (
     ApprovalDecision,
-    ApprovalValidationContext,
-    Environment,
+    ContractViolationError,
     RootDescriptor,
     encode_base64url,
 )
 from telco_twin.domain.canonical import canonical_model_bytes
 from telco_twin.safety.local_policy import PolicyEvaluation
 
-from .test_approval_state import approval_chain
+from .approval_test_support import approval_chain, machine_for
 
 if TYPE_CHECKING:
     from pydantic import JsonValue
@@ -153,6 +150,10 @@ def test_production_rejects_missing_descriptor_and_malformed_material(
         _ = load_approval_authority(AuthorityMode.PRODUCTION)
     assert descriptor_error.value.code is AuthorityLoadErrorCode.ROOT_DESCRIPTOR_MISSING
     descriptor = _production_descriptor(SigningKey(b"\x66" * 32))
+    monkeypatch.setenv(
+        "APPROVAL_TRUSTED_ROOT_HASHES_JSON",
+        f'["{descriptor.descriptor_hash}"]',
+    )
     monkeypatch.setenv("APPROVAL_ROOT_KEY_SECRET", "bad")
     # When: production key parsing runs.
     with pytest.raises(AuthorityLoadError) as material_error:
@@ -165,14 +166,14 @@ def test_evidence_ledger_rejects_duplicate_unknown_and_context_mismatch() -> Non
     async def scenario() -> None:
         # Given: one pending record and another valid proof sharing only its request ID.
         policy, request, proof, context = approval_chain()
-        machine = ApprovalStateMachine()
-        _ = await machine.record_request(request, policy)
+        machine = machine_for(context)
+        _ = await machine.record_request(request, policy, context.certificate)
         with pytest.raises(ApprovalStateError) as duplicate:
-            _ = await machine.record_request(request, policy)
+            _ = await machine.record_request(request, policy, context.certificate)
         assert duplicate.value.code is ApprovalStateErrorCode.REQUEST_EXISTS
-        empty = ApprovalStateMachine()
+        empty = machine_for(context)
         with pytest.raises(ApprovalStateError) as unknown:
-            _ = await empty.record_proof(proof, context)
+            _ = await empty.record_proof(proof)
         assert unknown.value.code is ApprovalStateErrorCode.REQUEST_UNKNOWN
         authority = load_approval_authority(AuthorityMode.LOCAL)
         session = authority.issue_session(
@@ -197,20 +198,9 @@ def test_evidence_ledger_rejects_duplicate_unknown_and_context_mismatch() -> Non
                 approved_at=alternate.requested_at,
             )
         )
-        alternate_context = ApprovalValidationContext(
-            root=authority.descriptor,
-            certificate=session.certificate,
-            request=alternate,
-            environment=Environment.TEST,
-            trusted_root_hashes=frozenset({authority.descriptor.descriptor_hash}),
-            consumed_nonces=frozenset(),
-            now=datetime(2026, 8, 27, 0, 0, 30, tzinfo=UTC),
-        )
-        with pytest.raises(ApprovalStateError) as mismatch:
-            _ = await machine.record_proof(alternate_proof, alternate_context)
-        assert mismatch.value.code is ApprovalStateErrorCode.REQUEST_CONTEXT_MISMATCH
+        with pytest.raises(ContractViolationError):
+            _ = await machine.record_proof(alternate_proof)
         assert await machine.get(request.request_id) is not None
-        assert str(mismatch.value) == ApprovalStateErrorCode.REQUEST_CONTEXT_MISMATCH.value
 
     anyio.run(scenario)
 
@@ -218,7 +208,7 @@ def test_evidence_ledger_rejects_duplicate_unknown_and_context_mismatch() -> Non
 def test_changed_policy_definition_never_creates_pending_state() -> None:
     async def scenario() -> None:
         # Given: a self-consistent policy result carrying a different definition hash.
-        policy, request, _, _ = approval_chain()
+        policy, request, _, context = approval_chain()
         draft = policy.evidence.model_copy(
             update={"policy_definition_hash": "d" * 64, "policy_hash": "0" * 64}
         )
@@ -231,10 +221,14 @@ def test_changed_policy_definition_never_creates_pending_state() -> None:
         )
         validated = PolicyEvaluation.model_validate_json(forged.model_dump_json())
         changed_request = request.model_copy(update={"policy_hash": validated.policy_hash})
-        machine = ApprovalStateMachine()
+        machine = machine_for(context)
         # When: request admission sees the changed policy definition.
         with pytest.raises(ApprovalStateError) as caught:
-            _ = await machine.record_request(changed_request, validated)
+            _ = await machine.record_request(
+                changed_request,
+                validated,
+                context.certificate,
+            )
         # Then: a rehashed but changed policy definition still fails closed.
         assert caught.value.code is ApprovalStateErrorCode.POLICY_PROVENANCE_REQUIRED
 
