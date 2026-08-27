@@ -4,11 +4,22 @@ version = "0.1.0"
 description = "Contract-first backend boundary for a synthetic telecom counterfactual twin"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "fastapi==0.141.1",
     "httpx2[brotli,http2,zstd]==2.12.0",
+    "mcp==2.1.1",
     "pynacl>=1.6.2,<2",
     "pydantic==2.13.4",
+    "pydantic-settings==2.15.0",
     "rfc8785>=0.1.4,<0.2",
     "typer>=0.21,<1",
+    "uvicorn==0.52.4",
+]
+
+[project.optional-dependencies]
+model-baseline = [
+    "huggingface-hub==1.28.0",
+    "torch==2.13.0",
+    "transformers==5.16.1",
 ]
 
 [build-system]
