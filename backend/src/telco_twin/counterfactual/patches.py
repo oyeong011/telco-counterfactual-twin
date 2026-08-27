@@ -131,7 +131,7 @@ def _operation_spec(change: PatchChange) -> _OperationSpec:
             spec = SLICE_SPEC
         case PatchOperation.IGNORE_UNTRUSTED_ALARM:
             spec = ALARM_SPEC
-        case _:
+        case _:  # pragma: no cover - exhaustive enum
             assert_never(change.operation)
     return spec
 
@@ -149,7 +149,7 @@ def _target_kind(node: TopologyNode) -> TargetKind | None:
             result = TargetKind.SLICE
         case NodeKind.GNB | NodeKind.UE_COHORT | NodeKind.AMF | NodeKind.SMF:
             result = None
-        case _:
+        case _:  # pragma: no cover - exhaustive enum
             assert_never(node.kind)
     return result
 
@@ -171,7 +171,7 @@ def _parameter_rejection(candidate: _ParameterCandidate) -> PatchRejectionCode |
                     PatchRejectionCode.PARAMETER_TYPE if candidate.spec.integer_only else None
                 )
                 numeric = number
-            case _:
+            case _:  # pragma: no cover - exhaustive scalar union
                 assert_never(candidate.value)
         if rejection is None and numeric is not None:
             if candidate.spec.minimum is None or candidate.spec.maximum is None:

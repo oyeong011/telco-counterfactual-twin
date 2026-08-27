@@ -40,7 +40,7 @@ def _constraint(run: CounterfactualRun, code: ConstraintCode) -> ConstraintResul
         case ConstraintCode.REPLAY_DETERMINISTIC:
             passed = run.candidate_trace.trace_hash == run.replay_trace.trace_hash
             values = (run.candidate_trace.trace_hash, run.replay_trace.trace_hash)
-        case _:
+        case _:  # pragma: no cover - exhaustive enum
             assert_never(code)
     return ConstraintResult(
         constraint_code=code.value,

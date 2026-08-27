@@ -57,7 +57,7 @@ def _numeric(candidate: _MetricCandidate) -> float:
             raise CounterfactualMetricError(candidate.parameter)
         case int() | float() as number:
             return float(number)
-        case _:
+        case _:  # pragma: no cover - exhaustive scalar union
             assert_never(candidate.value)
 
 
@@ -95,7 +95,7 @@ def _metric(run: CounterfactualRun, index: int) -> MetricDelta:
         case PatchOperation.IGNORE_UNTRUSTED_ALARM:
             name, unit = "alarm-ignored", "boolean"
             baseline, candidate = 0.0, 1.0
-        case _:
+        case _:  # pragma: no cover - exhaustive enum
             assert_never(change.operation)
     return MetricDelta(metric_name=name, baseline=baseline, candidate=candidate, unit=unit)
 

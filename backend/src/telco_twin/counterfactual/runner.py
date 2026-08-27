@@ -80,7 +80,7 @@ def _node_with_change(node: TopologyNode, patch: TypedPatch) -> TopologyNode:
                 attributes["scheduler_weight"] = change.parameters["scheduler_weight"]
             case PatchOperation.CORRECT_NEIGHBOR_RELATION | PatchOperation.IGNORE_UNTRUSTED_ALARM:
                 pass
-            case _:
+            case _:  # pragma: no cover - exhaustive enum
                 assert_never(change.operation)
     return node.model_copy(update={"attributes": attributes})
 
@@ -108,7 +108,7 @@ def _candidate_topology(manifest: SimulationManifest, patch: TypedPatch) -> Topo
                 | PatchOperation.IGNORE_UNTRUSTED_ALARM
             ):
                 pass
-            case _:
+            case _:  # pragma: no cover - exhaustive enum
                 assert_never(change.operation)
     return manifest.topology.model_copy(
         update={
@@ -132,7 +132,7 @@ def _candidate_scenario(manifest: SimulationManifest, patch: TypedPatch) -> Scen
                 | PatchOperation.REBALANCE_SLICE_WEIGHT
             ):
                 pass
-            case _:
+            case _:  # pragma: no cover - exhaustive enum
                 assert_never(change.operation)
     return manifest.scenario.model_copy(update={"parameters": parameters})
 
@@ -192,5 +192,5 @@ def run_counterfactual(
                 baseline_state_hash_before=baseline_before,
                 baseline_state_hash_after=_state_hash(manifest),
             )
-        case _:
+        case _:  # pragma: no cover - exhaustive typed union
             assert_never(assessment)

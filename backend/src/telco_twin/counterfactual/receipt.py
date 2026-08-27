@@ -52,11 +52,11 @@ class SimulationReceiptEvidence(StrictContract):
 
 
 @dataclass(frozen=True, slots=True)
-class _ReceiptIssuer:
+class ReceiptIssuer:
     """Module-identity marker preventing ordinary direct receipt construction."""
 
 
-_RECEIPT_ISSUER = _ReceiptIssuer()
+RECEIPT_ISSUER = ReceiptIssuer()
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,12 +76,12 @@ class SimulationReceipt:
 
     def __init__(
         self,
-        issuer: _ReceiptIssuer,
+        issuer: ReceiptIssuer,
         run: CounterfactualRun,
         comparison: CounterfactualComparison,
     ) -> None:
         """Accept construction only from this module's recomputation path."""
-        if issuer is not _RECEIPT_ISSUER:
+        if issuer is not RECEIPT_ISSUER:
             raise ReceiptCreationError
         self._run = run
         self._comparison = comparison
@@ -128,7 +128,7 @@ def _verified_run(run: CounterfactualRun) -> CounterfactualRun | ReceiptRejected
             return ReceiptRejected(ReceiptErrorCode.RUN_CHANGED)
         case CounterfactualRun():
             return expected if expected == run else ReceiptRejected(ReceiptErrorCode.RUN_CHANGED)
-        case _:
+        case _:  # pragma: no cover - exhaustive typed union
             assert_never(expected)
 
 
@@ -156,14 +156,14 @@ def verify_counterfactual(
             return run_result
         case CounterfactualRun():
             comparison_result = _verified_comparison(run_result, comparison)
-        case _:
+        case _:  # pragma: no cover - exhaustive typed union
             assert_never(run_result)
     match comparison_result:
         case ReceiptRejected():
             return comparison_result
         case CounterfactualComparison():
-            return SimulationReceipt(_RECEIPT_ISSUER, run_result, comparison_result)
-        case _:
+            return SimulationReceipt(RECEIPT_ISSUER, run_result, comparison_result)
+        case _:  # pragma: no cover - exhaustive typed union
             assert_never(comparison_result)
 
 
