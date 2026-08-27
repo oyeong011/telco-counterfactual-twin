@@ -11,8 +11,9 @@ from __future__ import annotations
 import ast
 import re
 import sys
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from functools import singledispatch
 from pathlib import Path
 from typing import ClassVar, Final, assert_never, final, override
 
@@ -25,7 +26,31 @@ DIRECT_TOKENS: Final = frozenset(
     {"callback", "command", "execute", "execution", "revoke", "revocation", "shell"}
 )
 MUTATION_VERBS: Final = frozenset({"apply", "commit", "execute", "push", "revoke"})
-EXCLUDED_DIRECTORY_NAMES: Final = frozenset({".venv", "__pycache__", "bootstrap"})
+EXCLUDED_DIRECTORY_NAMES: Final = frozenset({".venv", "__pycache__"})
+REPOSITORY_ROOT: Final = Path(__file__).resolve().parents[1]
+REVIEWED_ADAPTER_ROOTS: Final = (
+    (REPOSITORY_ROOT / "backend/src/telco_twin/bootstrap").resolve(),
+)
+DANGEROUS_CALLS: Final = frozenset(
+    {
+        "__import__",
+        "compile",
+        "eval",
+        "exec",
+        "importlib.import_module",
+        "os.popen",
+        "os.system",
+        "runpy.run_module",
+        "runpy.run_path",
+        "subprocess.call",
+        "subprocess.check_call",
+        "subprocess.check_output",
+        "subprocess.getoutput",
+        "subprocess.getstatusoutput",
+        "subprocess.Popen",
+        "subprocess.run",
+    }
+)
 
 
 class _JsonEnvelope(BaseModel):
@@ -58,13 +83,36 @@ def _is_mutation_name(name: str) -> bool:
     )
 
 
+@singledispatch
+def _resolved_expression(
+    _expression: ast.expr,
+    _aliases: Mapping[str, str],
+) -> str | None:
+    return None
+
+
+def _resolved_name(expression: ast.Name, aliases: Mapping[str, str]) -> str | None:
+    return aliases.get(expression.id, expression.id)
+
+
+def _resolved_attribute(
+    expression: ast.Attribute,
+    aliases: Mapping[str, str],
+) -> str | None:
+    base = _resolved_expression(expression.value, aliases)
+    return None if base is None else f"{base}.{expression.attr}"
+
+
+_ = _resolved_expression.register(ast.Name, _resolved_name)
+_ = _resolved_expression.register(ast.Attribute, _resolved_attribute)
+
+
 @final
 class _PythonSurfaceVisitor(ast.NodeVisitor):
-    """Inspect callable names, parameters, and class boundary fields only."""
-
     def __init__(self, path: Path) -> None:
         self._path: Path = path
         self.findings: list[MutationSurface] = []
+        self._aliases: dict[str, str] = {}
 
     def _record(self, node: ast.AST, kind: str, name: str) -> None:
         self.findings.append(
@@ -72,7 +120,7 @@ class _PythonSurfaceVisitor(ast.NodeVisitor):
         )
 
     def _visit_callable(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
-        if not node.name.startswith("_") and _is_mutation_name(node.name):
+        if _is_mutation_name(node.name):
             self._record(node, "python-callable", node.name)
         arguments = (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs)
         for argument in arguments:
@@ -82,17 +130,14 @@ class _PythonSurfaceVisitor(ast.NodeVisitor):
 
     @override
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-        """Inspect one synchronous callable surface."""
         self._visit_callable(node)
 
     @override
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
-        """Inspect one asynchronous callable surface."""
         self._visit_callable(node)
 
     @override
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
-        """Inspect annotated class fields without grepping implementation strings."""
         for statement in node.body:
             if (
                 isinstance(statement, ast.AnnAssign)
@@ -102,9 +147,71 @@ class _PythonSurfaceVisitor(ast.NodeVisitor):
                 self._record(statement, "python-field", statement.target.id)
         self.generic_visit(node)
 
+    @override
+    def visit_Import(self, node: ast.Import) -> None:
+        for imported in node.names:
+            local = imported.asname or imported.name.split(".")[0]
+            self._aliases[local] = imported.name
+        self.generic_visit(node)
+
+    @override
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        module = node.module or ""
+        for imported in node.names:
+            origin = f"{module}.{imported.name}" if module else imported.name
+            local = imported.asname or imported.name
+            self._aliases[local] = origin
+            if _dangerous_call(origin):
+                self._record(node, "python-dangerous-import", origin)
+        self.generic_visit(node)
+
+    def _resolved_name(self, expression: ast.expr) -> str | None:
+        return _resolved_expression(expression, self._aliases)
+
+    @override
+    def visit_Call(self, node: ast.Call) -> None:
+        resolved = self._resolved_name(node.func)
+        if resolved == "getattr":
+            self._record(node, "python-dynamic-call", resolved)
+        elif resolved is not None and _dangerous_call(resolved):
+            self._record(node, "python-dangerous-call", resolved)
+        self.generic_visit(node)
+
+    @override
+    def visit_Assign(self, node: ast.Assign) -> None:
+        resolved = self._resolved_name(node.value)
+        if resolved is not None and _dangerous_call(resolved):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    self._aliases[target.id] = resolved
+                    self._record(target, "python-dangerous-alias", resolved)
+        if isinstance(node.value, ast.Lambda):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and _is_mutation_name(target.id):
+                    self._record(node, "python-lambda", target.id)
+        self.generic_visit(node)
+
+    @override
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
+        if node.value is not None and isinstance(node.target, ast.Name):
+            resolved = self._resolved_name(node.value)
+            if resolved is not None and _dangerous_call(resolved):
+                self._aliases[node.target.id] = resolved
+                self._record(node.target, "python-dangerous-alias", resolved)
+            if isinstance(node.value, ast.Lambda) and _is_mutation_name(node.target.id):
+                self._record(node, "python-lambda", node.target.id)
+        self.generic_visit(node)
+
+
+def _dangerous_call(name: str) -> bool:
+    return name in DANGEROUS_CALLS or name.startswith(("os.exec", "os.spawn"))
+
 
 def _excluded(path: Path) -> bool:
-    return bool(set(path.parts) & EXCLUDED_DIRECTORY_NAMES)
+    resolved = path.resolve()
+    return bool(set(path.parts) & EXCLUDED_DIRECTORY_NAMES) or any(
+        resolved.is_relative_to(root) for root in REVIEWED_ADAPTER_ROOTS
+    )
 
 
 def _python_findings(path: Path) -> tuple[MutationSurface, ...]:
