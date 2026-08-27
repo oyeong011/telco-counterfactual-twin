@@ -10,7 +10,7 @@ from pydantic import Field, model_validator
 from telco_twin.domain._contract import ContractId, RootContract, StrictContract, UtcTimestamp
 from telco_twin.domain._validation import fail_validation
 from telco_twin.domain.scenario import Scenario
-from telco_twin.simulator.metrics import MetricWindow
+from telco_twin.simulator.metric_values import MetricWindow
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -41,7 +41,7 @@ class ConfigSnapshot(StrictContract):
     config_version: ContractId
     target_id: ContractId
     recorded_at: UtcTimestamp
-    neighbor_relation_valid: bool
+    neighbor_relation_valid: Annotated[bool, Field(strict=True)]
     slice_scheduler_share_pct: Annotated[float, Field(strict=True, ge=0, le=100)]
     expected_slice_share_pct: Annotated[float, Field(strict=True, gt=0, le=100)]
 

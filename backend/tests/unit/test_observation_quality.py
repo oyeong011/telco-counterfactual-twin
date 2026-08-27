@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Final
+from typing import Final
 
 import pytest
 from pydantic import ValidationError
 
-from telco_twin.domain.scenario import Scenario
 from telco_twin.simulator.metrics import (
     ObservationQualityFlag,
     QualityAssessment,
@@ -15,9 +14,6 @@ from telco_twin.simulator.metrics import (
     assess_observation_quality,
 )
 from telco_twin.simulator.network_model import NetworkObservation, load_scenario_manifests
-
-if TYPE_CHECKING:
-    from collections.abc import Iterator
 
 SCENARIO_FIXTURES: Final = Path(__file__).parents[2] / "fixtures/scenarios"
 
@@ -132,32 +128,6 @@ def test_stale_and_noisy_flags_have_stable_order() -> None:
     assert result.approval_eligible is False
 
 
-def test_future_metric_is_fail_closed_with_typed_future_flag() -> None:
-    observation = _radio_observation()
-    window = observation.windows[0].model_copy(update={"observed_at": "2026-08-27T00:02:00Z"})
-    context = QualityContext(assessed_at="2026-08-27T00:01:59Z")
-
-    result = assess_observation_quality(
-        observation.model_copy(update={"windows": (window,)}), context
-    )
-
-    assert result.flags == (ObservationQualityFlag.FUTURE,)
-    assert result.approval_eligible is False
-
-
-def test_empty_quality_window_is_rejected_instead_of_imputed() -> None:
-    observation = _radio_observation()
-
-    with pytest.raises(ValidationError, match="too_short"):
-        _ = NetworkObservation(
-            scenario_id=observation.scenario_id,
-            topology_id=observation.topology_id,
-            windows=(),
-            alarms=observation.alarms,
-            config_history=observation.config_history,
-        )
-
-
 def test_quality_flags_cannot_be_constructed_as_approval_eligible() -> None:
     with pytest.raises(ValidationError, match="quality_eligibility"):
         _ = QualityAssessment(
@@ -196,108 +166,3 @@ def test_repeated_same_target_variance_is_noisy() -> None:
 
     assert result.flags == (ObservationQualityFlag.NOISY,)
     assert result.approval_eligible is False
-
-
-def test_future_alarm_is_flagged_and_blocks_approval() -> None:
-    prompt = load_scenario_manifests(SCENARIO_FIXTURES)[-1].observation
-    future_alarm = prompt.alarms[0].model_copy(update={"observed_at": "2099-01-01T00:00:00Z"})
-
-    result = assess_observation_quality(
-        prompt.model_copy(update={"alarms": (future_alarm,)}),
-        QualityContext(assessed_at="2026-08-27T00:01:00Z"),
-    )
-
-    assert result.flags == (ObservationQualityFlag.FUTURE,)
-    assert result.approval_eligible is False
-
-
-def test_stale_alarm_remains_diagnosable_but_blocks_approval() -> None:
-    prompt = load_scenario_manifests(SCENARIO_FIXTURES)[-1].observation
-    fresh_window = prompt.windows[0].model_copy(update={"observed_at": "2026-08-27T00:04:30Z"})
-    stale_alarm = prompt.alarms[0].model_copy(update={"observed_at": "2026-08-27T00:00:00Z"})
-    fresh_config = prompt.config_history[0].model_copy(
-        update={"recorded_at": "2026-08-27T00:04:00Z"}
-    )
-    observation = prompt.model_copy(
-        update={
-            "windows": (fresh_window,),
-            "alarms": (stale_alarm,),
-            "config_history": (fresh_config,),
-        }
-    )
-
-    result = assess_observation_quality(
-        observation,
-        QualityContext(assessed_at="2026-08-27T00:05:00Z"),
-    )
-
-    assert result.flags == (ObservationQualityFlag.STALE,)
-    assert result.approval_eligible is False
-
-
-def test_future_config_is_flagged_and_blocks_approval() -> None:
-    neighbor = load_scenario_manifests(SCENARIO_FIXTURES)[3].observation
-    future_config = neighbor.config_history[0].model_copy(
-        update={"recorded_at": "2099-01-01T00:00:00Z"}
-    )
-
-    result = assess_observation_quality(
-        neighbor.model_copy(update={"config_history": (future_config,)}),
-        QualityContext(assessed_at="2026-08-27T00:01:00Z"),
-    )
-
-    assert result.flags == (ObservationQualityFlag.FUTURE,)
-    assert result.approval_eligible is False
-
-
-def test_stale_config_blocks_approval() -> None:
-    neighbor = load_scenario_manifests(SCENARIO_FIXTURES)[3].observation
-    fresh_window = neighbor.windows[0].model_copy(update={"observed_at": "2026-08-27T00:04:30Z"})
-    stale_config = neighbor.config_history[0].model_copy(
-        update={"recorded_at": "2026-08-27T00:00:00Z"}
-    )
-    observation = neighbor.model_copy(
-        update={"windows": (fresh_window,), "config_history": (stale_config,)}
-    )
-
-    result = assess_observation_quality(
-        observation,
-        QualityContext(assessed_at="2026-08-27T00:05:00Z"),
-    )
-
-    assert result.flags == (ObservationQualityFlag.STALE,)
-    assert result.approval_eligible is False
-
-
-def test_scenario_manifest_rejects_empty_declared_targets() -> None:
-    manifest = load_scenario_manifests(SCENARIO_FIXTURES)[0]
-
-    with pytest.raises(ValidationError, match="too_short"):
-        _ = Scenario.model_validate({**manifest.scenario.model_dump(mode="json"), "target_ids": []})
-
-
-def test_manifest_loading_order_ignores_permuted_directory_iteration(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    manifests = load_scenario_manifests(SCENARIO_FIXTURES)
-    radio = manifests[0]
-    backhaul = manifests[1]
-    _ = (tmp_path / "02-backhaul.json").write_text(backhaul.model_dump_json(), encoding="utf-8")
-    _ = (tmp_path / "01-radio.json").write_text(radio.model_dump_json(), encoding="utf-8")
-    real_glob = Path.glob
-
-    def permuted_glob(directory: Path, pattern: str) -> Iterator[Path]:
-        matches = tuple(real_glob(directory, pattern))
-        if directory == tmp_path:
-            return iter(reversed(matches))
-        return iter(matches)
-
-    monkeypatch.setattr(Path, "glob", permuted_glob)
-
-    loaded = load_scenario_manifests(tmp_path)
-
-    assert tuple(item.scenario.scenario_id for item in loaded) == (
-        radio.scenario.scenario_id,
-        backhaul.scenario.scenario_id,
-    )

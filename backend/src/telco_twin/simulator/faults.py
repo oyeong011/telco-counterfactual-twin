@@ -51,9 +51,7 @@ class FaultDiagnosis:
 
 def diagnose_fault(observation: NetworkObservation) -> FaultDiagnosis:
     """Evaluate every family independently in deterministic enum order."""
-    windows = tuple(
-        sorted(observation.windows, key=lambda item: (item.observed_at, item.target_id))
-    )
+    windows = observation.windows
     candidates = tuple(
         family
         for family, detected in (

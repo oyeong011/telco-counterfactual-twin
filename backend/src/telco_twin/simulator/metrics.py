@@ -3,61 +3,18 @@
 from __future__ import annotations
 
 from enum import StrEnum, unique
-from typing import TYPE_CHECKING, Annotated, Protocol, Self
+from typing import TYPE_CHECKING, Annotated, Self
 
 from pydantic import Field, model_validator
 
-from telco_twin.domain._contract import (
-    ContractId,
-    StrictContract,
-    UtcTimestamp,
-    utc_datetime,
-)
+from telco_twin.domain._contract import StrictContract, UtcTimestamp, utc_datetime
 from telco_twin.domain._validation import fail_validation
+from telco_twin.simulator.metric_values import MetricWindow
+
+__all__ = ("MetricWindow",)
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
-
-type Percent = Annotated[float, Field(strict=True, ge=0, le=100)]
-type NonnegativeMetric = Annotated[float, Field(strict=True, ge=0, le=1_000_000)]
-type PositiveMetric = Annotated[float, Field(strict=True, gt=0, le=1_000_000)]
-
-
-class ObservedEvidence(Protocol):
-    """Quality-visible evidence carrying an observation timestamp."""
-
-    @property
-    def observed_at(self) -> str:
-        """Return the validated UTC observation timestamp."""
-        ...
-
-
-class RecordedEvidence(Protocol):
-    """Quality-visible configuration carrying a record timestamp."""
-
-    @property
-    def recorded_at(self) -> str:
-        """Return the validated UTC configuration timestamp."""
-        ...
-
-
-class QualityObservation(Protocol):
-    """Structural evidence bundle consumed by the quality gate."""
-
-    @property
-    def windows(self) -> Sequence[MetricWindow]:
-        """Return complete metric windows."""
-        ...
-
-    @property
-    def alarms(self) -> Sequence[ObservedEvidence]:
-        """Return typed alarm evidence."""
-        ...
-
-    @property
-    def config_history(self) -> Sequence[RecordedEvidence]:
-        """Return typed configuration evidence."""
-        ...
+    from telco_twin.simulator.network_model import NetworkObservation
 
 
 @unique
@@ -67,35 +24,6 @@ class ObservationQualityFlag(StrEnum):
     STALE = "stale-window"
     FUTURE = "future-evidence"
     NOISY = "noisy-window"
-
-
-class MetricWindow(StrictContract):
-    """One complete telecom observation window; missing values are never imputed."""
-
-    target_id: ContractId
-    observed_at: UtcTimestamp
-    prb_utilization_pct: Percent
-    sinr_db: Annotated[float, Field(strict=True, ge=-30, le=50)]
-    rsrp_dbm: Annotated[float, Field(strict=True, ge=-160, le=-40)]
-    rsrq_db: Annotated[float, Field(strict=True, ge=-30, le=0)]
-    throughput_mbps: NonnegativeMetric
-    latency_ms: Annotated[float, Field(strict=True, ge=0, le=60_000)]
-    packet_loss_pct: Percent
-    handover_attempts: Annotated[int, Field(strict=True, ge=0, le=1_000_000)]
-    handover_failures: Annotated[int, Field(strict=True, ge=0, le=1_000_000)]
-    active_ues: Annotated[int, Field(strict=True, ge=0, le=1_000_000)]
-    slice_slo_throughput_mbps: PositiveMetric
-    slice_throughput_mbps: NonnegativeMetric
-    slice_slo_latency_ms: Annotated[float, Field(strict=True, gt=0, le=60_000)]
-    slice_latency_ms: Annotated[float, Field(strict=True, ge=0, le=60_000)]
-    nf_cpu_utilization_pct: Percent
-
-    @model_validator(mode="after")
-    def failures_do_not_exceed_attempts(self) -> Self:
-        """Keep handover counts physically ordered."""
-        if self.handover_failures > self.handover_attempts:
-            fail_validation("handover_count_order", "handover failures exceed attempts")
-        return self
 
 
 class QualityPolicy(StrictContract):
@@ -129,7 +57,7 @@ class QualityAssessment(StrictContract):
 
 
 def assess_observation_quality(
-    observation: QualityObservation,
+    observation: NetworkObservation,
     context: QualityContext,
 ) -> QualityAssessment:
     """Assess all diagnosis evidence without conflating distinct targets."""

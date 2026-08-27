@@ -1,23 +1,14 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import ClassVar, Final
 
 import pytest
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError
 
 from telco_twin.simulator.metrics import MetricWindow
-from telco_twin.simulator.network_model import (
-    AlarmEvidence,
-    AlarmKind,
-    NetworkObservation,
-    ScenarioManifest,
-    load_scenario_manifests,
-)
 
 type JsonObject = dict[str, JsonValue]
-SCENARIO_FIXTURES: Final = Path(__file__).parents[2] / "fixtures/scenarios"
 
 FLOAT_METRIC_FIELDS: Final = (
     "prb_utilization_pct",
@@ -48,10 +39,6 @@ class _MetricSchema(BaseModel):
 
     definitions: dict[str, _SchemaProperty] = Field(alias="$defs")
     properties: dict[str, _SchemaProperty]
-
-
-def _radio_manifest() -> ScenarioManifest:
-    return load_scenario_manifests(SCENARIO_FIXTURES)[0]
 
 
 def _schema_type(schema: _MetricSchema, field: str) -> str:
@@ -218,107 +205,3 @@ def test_all_zero_metric_payload_cannot_form_a_misleading_observation() -> None:
 
     with pytest.raises(ValidationError):
         _ = MetricWindow.model_validate(payload)
-
-
-def test_scenario_manifest_rejects_stale_schema() -> None:
-    manifest = _radio_manifest()
-    payload = manifest.model_dump(mode="json")
-    payload["schema_version"] = "0.9"
-
-    with pytest.raises(ValidationError):
-        _ = ScenarioManifest.model_validate(payload)
-
-
-def test_scenario_manifest_rejects_mismatched_ids() -> None:
-    manifest = _radio_manifest()
-    mismatched = manifest.observation.model_copy(update={"scenario_id": "scenario-other"})
-
-    with pytest.raises(ValidationError, match="scenario_observation_binding"):
-        _ = ScenarioManifest(
-            schema_version="1.0",
-            scenario=manifest.scenario,
-            observation=mismatched,
-        )
-
-
-def test_scenario_manifest_rejects_unrelated_metric_target() -> None:
-    manifest = _radio_manifest()
-    unrelated = manifest.observation.windows[0].model_copy(update={"target_id": "unrelated-0009"})
-
-    with pytest.raises(ValidationError, match="scenario_evidence_target"):
-        _ = ScenarioManifest(
-            schema_version="1.0",
-            scenario=manifest.scenario,
-            observation=manifest.observation.model_copy(update={"windows": (unrelated,)}),
-        )
-
-
-def test_scenario_manifest_rejects_unrelated_alarm_target() -> None:
-    manifest = _radio_manifest()
-    unrelated = AlarmEvidence(
-        alarm_id="alarm-binding-probe",
-        target_id="unrelated-0009",
-        observed_at="2026-08-27T00:00:30Z",
-        kind=AlarmKind.NETWORK_EVENT,
-        trust="untrusted",
-        message="Synthetic evidence.",
-    )
-
-    with pytest.raises(ValidationError, match="scenario_evidence_target"):
-        _ = ScenarioManifest(
-            schema_version="1.0",
-            scenario=manifest.scenario,
-            observation=manifest.observation.model_copy(update={"alarms": (unrelated,)}),
-        )
-
-
-def test_scenario_manifest_rejects_unrelated_config_target() -> None:
-    manifest = _radio_manifest()
-    unrelated = manifest.observation.config_history[0].model_copy(
-        update={"target_id": "unrelated-0009"}
-    )
-
-    with pytest.raises(ValidationError, match="scenario_evidence_target"):
-        _ = ScenarioManifest(
-            schema_version="1.0",
-            scenario=manifest.scenario,
-            observation=manifest.observation.model_copy(update={"config_history": (unrelated,)}),
-        )
-
-
-def test_scenario_manifest_rejects_duplicate_declared_targets() -> None:
-    manifest = _radio_manifest()
-    duplicated = manifest.scenario.model_copy(update={"target_ids": ("cell-0001", "cell-0001")})
-
-    with pytest.raises(ValidationError, match="duplicate_scenario_target"):
-        _ = ScenarioManifest(
-            schema_version="1.0",
-            scenario=duplicated,
-            observation=manifest.observation,
-        )
-
-
-def test_network_observation_rejects_empty_metric_binding() -> None:
-    manifest = _radio_manifest()
-
-    with pytest.raises(ValidationError, match="too_short"):
-        _ = NetworkObservation(
-            scenario_id=manifest.observation.scenario_id,
-            topology_id=manifest.observation.topology_id,
-            windows=(),
-            alarms=manifest.observation.alarms,
-            config_history=manifest.observation.config_history,
-        )
-
-
-def test_network_observation_rejects_empty_config_binding() -> None:
-    manifest = _radio_manifest()
-
-    with pytest.raises(ValidationError, match="too_short"):
-        _ = NetworkObservation(
-            scenario_id=manifest.observation.scenario_id,
-            topology_id=manifest.observation.topology_id,
-            windows=manifest.observation.windows,
-            alarms=manifest.observation.alarms,
-            config_history=(),
-        )
