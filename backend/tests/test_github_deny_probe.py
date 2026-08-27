@@ -283,13 +283,17 @@ def test_workflow_asserts_deny_exchange_failure_as_a_machine_contract() -> None:
         "id: control_auth",
         "${{ steps.control_auth.outcome }}",
         "continue-on-error: true",
-        "${{ steps.deny_auth.outcome }}",
-        '== "success"',
+        "timeout 15s gcloud iam workload-identity-pools providers describe",
+        "timeout 180s uv run --project backend python scripts/deny_exchange_probe.py",
+        "id: deny_classify",
+        "${{ steps.deny_classify.outputs.status }}",
         "workflow-result=deny-control-failed",
         "workflow-result=deny-control-succeeded",
+        "workflow-result=deny-exchange-rejection-unproven",
         "workflow-result=deny-unexpected-success",
         "workflow-result=deny-rejected",
     )
 
     # Then
     assert all(token in workflow for token in machine_tokens)
+    assert "id: deny_auth" not in workflow

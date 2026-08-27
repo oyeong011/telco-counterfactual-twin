@@ -10,9 +10,19 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
+from telco_twin.bootstrap.deny_exchange_classifier import classify_deny_exchange
+from telco_twin.bootstrap.deny_exchange_contract import DenyExchangeClassification
+from telco_twin.bootstrap.deny_exchange_wire import probe_deny_exchange
 from telco_twin.bootstrap.gcp_commands import run_command
 from telco_twin.bootstrap.preflight_contract import receipt_for
 from telco_twin.bootstrap.probe_errors import ProviderProbeError
+
+__all__ = [
+    "DenyExchangeClassification",
+    "assert_deny_exchange",
+    "classify_deny_exchange",
+    "probe_deny_exchange",
+]
 
 LOG_PREFIX = r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z"
 DENY_REJECTED_LINE = re.compile(f"{LOG_PREFIX} workflow-result=deny-rejected$")

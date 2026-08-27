@@ -73,6 +73,16 @@ jobs:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
           create_credentials_file: true
+      - name: Check out the classifier source
+        if: inputs.mode == 'deny-probe'
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - name: Install the pinned Python runtime
+        if: inputs.mode == 'deny-probe'
+        uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9
+        with:
+          version: "0.11.6"
+          python-version: "3.12"
+          enable-cache: true
       - name: Prove the matching provider can exchange this GitHub claim
         id: control_auth
         if: inputs.mode == 'deny-probe'
@@ -81,16 +91,59 @@ jobs:
         with:
           workload_identity_provider: ${{ inputs.matching_provider }}
           service_account: ${{ inputs.service_account }}
-          create_credentials_file: false
-      - name: Attempt the temporary deny-provider exchange
-        id: deny_auth
+          create_credentials_file: true
+      - name: Install gcloud for deny-provider verification
+        if: inputs.mode == 'deny-probe' && steps.control_auth.outcome == 'success'
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
+      - name: Read the exact temporary deny-provider snapshot
+        id: deny_provider
         if: inputs.mode == 'deny-probe' && steps.control_auth.outcome == 'success'
         continue-on-error: true
-        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
-        with:
-          workload_identity_provider: ${{ inputs.provider }}
-          service_account: ${{ inputs.service_account }}
-          create_credentials_file: false
+        shell: bash
+        env:
+          DENY_PROVIDER: ${{ inputs.provider }}
+          DENY_PROJECT_ID: ${{ inputs.project_id }}
+        run: |
+          set -euo pipefail
+          provider_id="${DENY_PROVIDER##*/}"
+          timeout 15s gcloud iam workload-identity-pools providers describe \
+            "$provider_id" \
+            --project="$DENY_PROJECT_ID" \
+            --location=global \
+            --workload-identity-pool=github-actions \
+            --format=json > "$RUNNER_TEMP/deny-provider.json"
+      - name: Classify the direct GitHub OIDC to Google STS exchange
+        id: deny_classify
+        if: inputs.mode == 'deny-probe' && steps.control_auth.outcome == 'success' && steps.deny_provider.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        env:
+          DENY_PROVIDER: ${{ inputs.provider }}
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/deny-classification.json"
+          set +e
+          timeout 180s uv run --project backend python scripts/deny_exchange_probe.py \
+            --provider-json "$RUNNER_TEMP/deny-provider.json" \
+            --provider-resource "$DENY_PROVIDER" \
+            --out "$report" > "$RUNNER_TEMP/deny-classifier.stdout"
+          set -e
+          status="deny-exchange-rejection-unproven"
+          evidence=""
+          if [[ -s "$report" ]]; then
+            status="$(jq -r '.status // empty' "$report")"
+            evidence="$(jq -r '.exchange_evidence // empty' "$report")"
+          fi
+          case "$status" in
+            deny-rejected|deny-exchange-rejection-unproven|deny-exchange-unexpected-success) ;;
+            *) status="deny-exchange-rejection-unproven" ;;
+          esac
+          if [[ ! "$evidence" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            evidence="absent"
+          fi
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          echo "classifier-status=$status"
+          echo "classifier-evidence=$evidence"
       - name: Assert the deny-provider rejected GitHub OIDC
         if: always() && inputs.mode == 'deny-probe'
         shell: bash
@@ -101,15 +154,23 @@ jobs:
             exit 1
           fi
           echo "workflow-result=deny-control-succeeded"
-          if [[ "${{ steps.deny_auth.outcome }}" == "success" ]]; then
-            echo "workflow-result=deny-unexpected-success"
+          if [[ "${{ steps.deny_provider.outcome }}" != "success" || "${{ steps.deny_classify.outcome }}" != "success" ]]; then
+            echo "workflow-result=deny-exchange-rejection-unproven"
             exit 1
           fi
-          if [[ "${{ steps.deny_auth.outcome }}" != "failure" ]]; then
-            echo "workflow-result=deny-invalid-outcome"
-            exit 1
-          fi
-          echo "workflow-result=deny-rejected"
+          case "${{ steps.deny_classify.outputs.status }}" in
+            deny-rejected)
+              echo "workflow-result=deny-rejected"
+              ;;
+            deny-exchange-unexpected-success)
+              echo "workflow-result=deny-unexpected-success"
+              exit 1
+              ;;
+            *)
+              echo "workflow-result=deny-exchange-rejection-unproven"
+              exit 1
+              ;;
+          esac
       - name: Install gcloud
         if: inputs.mode == 'preflight' && steps.authority.outputs.blocked == 'false'
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
