@@ -86,11 +86,10 @@ class KeyPolicyAnnotation(BaseModel):
     normalization: Literal["lowercase_alphanumeric"]
     recursive: Literal[True]
     safe_exact_keys: tuple[str, ...]
-    direct_pii_lexemes: tuple[str, ...]
-    exact_authority_keys: tuple[str, ...]
-    direct_secret_lexemes: tuple[str, ...]
-    authority_edge_lexemes: tuple[str, ...]
-    authority_collapsed_phrases: tuple[str, ...]
+    pii_direct_stems: tuple[str, ...]
+    authority_direct_stems: tuple[str, ...]
+    secret_direct_stems: tuple[str, ...]
+    authority_boundary_stems: tuple[str, ...]
     pii_unordered_groups: tuple[LexemeGroup, ...]
     authority_unordered_groups: tuple[LexemeGroup, ...]
     secret_unordered_groups: tuple[LexemeGroup, ...]
@@ -146,11 +145,10 @@ KEY_POLICY_ANNOTATION: Final = KeyPolicyAnnotation(
     normalization=KEY_POLICY.normalization,
     recursive=True,
     safe_exact_keys=KEY_POLICY.safe_exact_keys,
-    direct_pii_lexemes=KEY_POLICY.direct_pii_lexemes,
-    exact_authority_keys=KEY_POLICY.exact_authority_keys,
-    direct_secret_lexemes=KEY_POLICY.direct_secret_lexemes,
-    authority_edge_lexemes=KEY_POLICY.authority_edge_lexemes,
-    authority_collapsed_phrases=KEY_POLICY.authority_collapsed_phrases,
+    pii_direct_stems=KEY_POLICY.pii_direct_stems,
+    authority_direct_stems=KEY_POLICY.authority_direct_stems,
+    secret_direct_stems=KEY_POLICY.secret_direct_stems,
+    authority_boundary_stems=KEY_POLICY.authority_boundary_stems,
     pii_unordered_groups=KEY_POLICY.pii_unordered_groups,
     authority_unordered_groups=KEY_POLICY.authority_unordered_groups,
     secret_unordered_groups=KEY_POLICY.secret_unordered_groups,

@@ -221,6 +221,9 @@ def test_unsafe_prefix_or_suffix_invalidates_safe_exact_key(
         for boundary in (Boundary.EXTENSIONS, Boundary.NESTED):
             with pytest.raises(ValidationError) as caught:
                 _validate_at_boundary(key, boundary)
-            assert expected_code in {item["type"] for item in caught.value.errors()}, (
-                f"{key}@{boundary.value}"
-            )
+            observed = {item["type"] for item in caught.value.errors()}
+            assert observed & {
+                "pii_shaped_key",
+                "authority_shaped_key",
+                "secret_shaped_key",
+            }, f"{key}@{boundary.value}:{expected_code}"

@@ -33,11 +33,10 @@ class KeyPolicySpec:
     version: str
     normalization: Literal["lowercase_alphanumeric"]
     safe_exact_keys: tuple[str, ...]
-    direct_pii_lexemes: tuple[str, ...]
-    exact_authority_keys: tuple[str, ...]
-    direct_secret_lexemes: tuple[str, ...]
-    authority_edge_lexemes: tuple[str, ...]
-    authority_collapsed_phrases: tuple[str, ...]
+    pii_direct_stems: tuple[str, ...]
+    authority_direct_stems: tuple[str, ...]
+    secret_direct_stems: tuple[str, ...]
+    authority_boundary_stems: tuple[str, ...]
     pii_unordered_groups: tuple[LexemeGroup, ...]
     authority_unordered_groups: tuple[LexemeGroup, ...]
     secret_unordered_groups: tuple[LexemeGroup, ...]
@@ -54,20 +53,27 @@ KEY_POLICY: Final = KeyPolicySpec(
         "tokenization_mode",
         "ue_cohort_id",
     ),
-    direct_pii_lexemes=("email", "gpsi", "imei", "imsi", "msisdn", "phone", "supi"),
-    exact_authority_keys=(
+    pii_direct_stems=(
+        "customer",
+        "email",
+        "gpsi",
+        "imei",
+        "imsi",
+        "msisdn",
+        "phone",
+        "subscriber",
+        "supi",
+    ),
+    authority_direct_stems=(
         "command",
         "execute",
         "execution",
         "revoke",
         "revocation",
         "shell",
-        "uri",
-        "url",
     ),
-    direct_secret_lexemes=("credential", "passwd", "password", "secret", "token"),
-    authority_edge_lexemes=("uri", "url"),
-    authority_collapsed_phrases=("arbitraryuri", "arbitraryurl"),
+    secret_direct_stems=("credential", "passwd", "password", "secret", "token"),
+    authority_boundary_stems=("uri", "url"),
     pii_unordered_groups=(
         (("customer", "subscriber"), ("id", "identifier", "identifiers", "identity")),
     ),
@@ -75,6 +81,7 @@ KEY_POLICY: Final = KeyPolicySpec(
         (("push",), ("config", "network", "payload")),
         (("apply",), ("config", "network", "payload")),
         (("shell",), ("command",)),
+        (("arbitrary",), ("uri", "url")),
         (
             ("execute", "execution"),
             ("action", "command", "network", "operation", "payload", "plan", "request"),
@@ -82,12 +89,15 @@ KEY_POLICY: Final = KeyPolicySpec(
         (("command",), ("action", "network", "operation", "payload", "plan", "request")),
         (("revoke", "revocation"), ("id", "identifier", "reason", "status", "token")),
     ),
-    secret_unordered_groups=((("access", "api"), ("key", "secret", "token")),),
+    secret_unordered_groups=(
+        (("api",), ("key", "secret", "token")),
+        (("access",), ("key", "secret", "token")),
+    ),
 )
 _CAMEL_ACRONYM_BOUNDARY: Final = re.compile(r"([A-Z]+)([A-Z][a-z])")
 _CAMEL_WORD_BOUNDARY: Final = re.compile(r"([a-z0-9])([A-Z])")
 _TOKEN_SEPARATOR: Final = re.compile(r"[^A-Za-z0-9]+")
-_EDGE_ONLY_GROUP_LEXEMES: Final = frozenset(("api", "id", "key", "uri", "url"))
+_EDGE_ONLY_GROUP_LEXEMES: Final = frozenset(("api",))
 
 
 def _key_tokens(value: str) -> frozenset[str]:
@@ -105,6 +115,16 @@ _NORMALIZED_SAFE_KEYS: Final = frozenset(_normalized_key(key) for key in KEY_POL
 
 def _contains_any(value: str, stems: tuple[str, ...]) -> bool:
     return any(stem in value for stem in stems)
+
+
+def _contains_boundary_stem(
+    tokens: frozenset[str],
+    normalized: str,
+    stems: tuple[str, ...],
+) -> bool:
+    return any(
+        stem in tokens or normalized.startswith(stem) or normalized.endswith(stem) for stem in stems
+    )
 
 
 def _tokens_match_group(tokens: frozenset[str], group: LexemeGroup) -> bool:
@@ -144,28 +164,20 @@ def _validate_semantic_key(value: str) -> None:
     if normalized in _NORMALIZED_SAFE_KEYS:
         return
     tokens = _key_tokens(value)
-    if (
-        any(lexeme in tokens for lexeme in KEY_POLICY.direct_pii_lexemes)
-        or _contains_any(normalized, KEY_POLICY.direct_pii_lexemes)
-        or _matches_groups(tokens, normalized, KEY_POLICY.pii_unordered_groups)
+    if _contains_any(normalized, KEY_POLICY.pii_direct_stems) or _matches_groups(
+        tokens, normalized, KEY_POLICY.pii_unordered_groups
     ):
         fail_validation("pii_shaped_key", "PII-shaped keys are forbidden")
     if (
-        normalized in KEY_POLICY.exact_authority_keys
-        or any(
-            normalized.startswith(lexeme) or normalized.endswith(lexeme)
-            for lexeme in KEY_POLICY.authority_edge_lexemes
-        )
-        or _contains_any(normalized, KEY_POLICY.authority_collapsed_phrases)
+        _contains_any(normalized, KEY_POLICY.authority_direct_stems)
+        or _contains_boundary_stem(tokens, normalized, KEY_POLICY.authority_boundary_stems)
         or _matches_groups(tokens, normalized, KEY_POLICY.authority_unordered_groups)
     ):
         fail_validation(
             "authority_shaped_key", "execution and command authority keys are forbidden"
         )
-    if (
-        any(lexeme in tokens for lexeme in KEY_POLICY.direct_secret_lexemes)
-        or _contains_any(normalized, KEY_POLICY.direct_secret_lexemes)
-        or _matches_groups(tokens, normalized, KEY_POLICY.secret_unordered_groups)
+    if _contains_any(normalized, KEY_POLICY.secret_direct_stems) or _matches_groups(
+        tokens, normalized, KEY_POLICY.secret_unordered_groups
     ):
         fail_validation("secret_shaped_key", "secret-shaped keys are forbidden")
 
