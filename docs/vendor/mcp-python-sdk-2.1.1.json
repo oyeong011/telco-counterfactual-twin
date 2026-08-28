@@ -1,0 +1,125 @@
+{
+  "artifacts": {
+    "runtime_wheel": {
+      "filename": "mcp-2.1.1-py3-none-any.whl",
+      "packagetype": "bdist_wheel",
+      "sha256": "1c6c31c5d6471c58db76af3af8af67f46d11d01f0a59077d0a308cbdb3d3e915",
+      "size": 357912,
+      "upload_time_iso_8601": "2026-08-25T16:13:59.024858Z",
+      "url": "https://files.pythonhosted.org/packages/50/af/8644cc5fa26a59afd2df2e98eeb19e72926887fa4b7441aba4ff661140db/mcp-2.1.1-py3-none-any.whl"
+    },
+    "source_distribution": {
+      "filename": "mcp-2.1.1.tar.gz",
+      "packagetype": "sdist",
+      "sha256": "50b7ba1ebbe117008ea7bdd288234043e69c20b403d6851d19661e6d431a75ef",
+      "size": 3984589,
+      "upload_time_iso_8601": "2026-08-25T16:14:02.376457Z",
+      "url": "https://files.pythonhosted.org/packages/d4/6e/21fb8e5d579dbe21d96ea4d5034200d46d8bdf2261053b5bd041f3c2f612/mcp-2.1.1.tar.gz"
+    }
+  },
+  "authority": "Pinned PyPI wheel snapshot for Task 8; floating documentation is informational.",
+  "metadata": {
+    "license": "MIT",
+    "license_files": [
+      "LICENSE"
+    ],
+    "requires_python": ">=3.10",
+    "vulnerabilities": [],
+    "yanked": false
+  },
+  "package": "mcp",
+  "protocol_version": "2025-06-18",
+  "runtime_member_files": [
+    {
+      "path": "mcp/server/__init__.py",
+      "role": "exports MCPServer and low-level Server",
+      "sha256": "8d5c6e0c6017f9cc5ee242f3dab83c5afcec5117a5e0d78413d83a7c8e9eaac6"
+    },
+    {
+      "path": "mcp/server/lowlevel/server.py",
+      "role": "Server lifespan, run loop, streamable_http_app builder",
+      "sha256": "cc92c45eb6a8478643b0bddd8cd09d94e775aa63b42f38f861c7248afb77cb30"
+    },
+    {
+      "path": "mcp/server/stdio.py",
+      "role": "stdio_server transport",
+      "sha256": "2a3e73aee57056a05def81cbad210458437de97b4da0c9993325b19636bca9ec"
+    },
+    {
+      "path": "mcp/server/streamable_http.py",
+      "role": "StreamableHTTPServerTransport request handlers",
+      "sha256": "85ec47d4d7277e7b3502f2106924bba596855591e1b2ce295b873d53f933babb"
+    },
+    {
+      "path": "mcp/server/streamable_http_manager.py",
+      "role": "StreamableHTTPSessionManager and ASGI app wrapper",
+      "sha256": "fe6d21e10c90a4821f0cd51def844e8470b44045df66d63591132962b8dacb22"
+    },
+    {
+      "path": "mcp/server/_streamable_http_modern.py",
+      "role": "modern/stateless streamable HTTP helpers",
+      "sha256": "f8286b4b61f14d1cf3166a4236d46b08bf59dd8eb63fbd658a97c6c7fa8a714f"
+    },
+    {
+      "path": "mcp/server/transport_security.py",
+      "role": "Host/Origin security and request body limit middleware",
+      "sha256": "0ef1be70594071ed248bf0438de405cb27fe9b07c234213da9103caaeb917a7c"
+    }
+  ],
+  "signatures": {
+    "asgi_app_call": "async def StreamableHTTPASGIApp.__call__(scope: Scope, receive: Receive, send: Send) -> None",
+    "default_lifespan": "async def lifespan(_: Server[Any]) -> AsyncIterator[dict[str, Any]]",
+    "server_run": "async def Server.run(read_stream, write_stream, initialization_options, raise_exceptions: bool = False) -> None",
+    "server_streamable_http_app": "def Server.streamable_http_app(*, streamable_http_path: str = '/mcp', json_response: bool = False, stateless_http: bool = False, event_store: EventStore | None = None, retry_interval: int | None = None, max_request_body_size: int = DEFAULT_MAX_REQUEST_BODY_SIZE, transport_security: TransportSecuritySettings | None = None, host: str = '127.0.0.1', auth: AuthSettings | None = None, token_verifier: TokenVerifier | None = None, auth_server_provider: OAuthAuthorizationServerProvider[Any, Any, Any] | None = None, custom_starlette_routes: list[Route] | None = None, debug: bool = False) -> Starlette",
+    "session_manager_handle_request": "async def StreamableHTTPSessionManager.handle_request(scope: Scope, receive: Receive, send: Send) -> None",
+    "session_manager_init": "def StreamableHTTPSessionManager.__init__(app, event_store=None, json_response=False, stateless=False, security_settings=None, retry_interval=None, session_idle_timeout=None, max_request_body_size=DEFAULT_MAX_REQUEST_BODY_SIZE)",
+    "session_manager_run": "async def StreamableHTTPSessionManager.run() -> AsyncIterator[None]",
+    "stdio_server": "async def stdio_server(stdin: anyio.AsyncFile[str] | None = None, stdout: anyio.AsyncFile[str] | None = None)",
+    "transport_handle_request": "async def StreamableHTTPServerTransport.handle_request(scope: Scope, receive: Receive, send: Send) -> None"
+  },
+  "snapshot_schema_version": 1,
+  "snapshot_sha256": "deee4dd00ee6f2c6479cdd95e8def5c61716d8e8f1bbdebf4b6e64e694609057",
+  "snapshot_sha256_scope": "sha256 of canonical JSON UTF-8 with snapshot_sha256 omitted; canonical form is json.dumps(obj, sort_keys=True, separators=(',', ':'))",
+  "supplemental_sdist_files": [
+    {
+      "path": "docs/run/asgi.md",
+      "role": "ASGI deployment guidance",
+      "sha256": "beff84db15de93589ce7eb6300247de8b01a725ff29fc99f624af46fbec39345"
+    },
+    {
+      "path": "docs/handlers/lifespan.md",
+      "role": "lifespan guidance",
+      "sha256": "d32e866d7bf28d622af89510eea5b6c8d6e129cfd33e21baee639d4b80235e19"
+    },
+    {
+      "path": "docs_src/asgi/tutorial001.py",
+      "role": "direct streamable_http_app example",
+      "sha256": "8fa67e5995a7a3596d87b172cc102ea67ad998dd4aed6142deb60e35e7d0ebe9"
+    },
+    {
+      "path": "docs_src/asgi/tutorial002.py",
+      "role": "mounted Starlette app with lifespan example",
+      "sha256": "cad2271885876c8fdfcdcfd9e81f5529f756b37f41b111bd1c838d204e931998"
+    },
+    {
+      "path": "docs_src/lifespan/tutorial001.py",
+      "role": "MCPServer lifespan example",
+      "sha256": "fe18bd85b3c92675a2ee96e0dc5027c6b51b8ae873581b59710593a9b4438069"
+    },
+    {
+      "path": "examples/snippets/servers/streamable_http_basic_mounting.py",
+      "role": "mounted streamable HTTP snippet",
+      "sha256": "18b113d7e919633a427e3f0065071ed73fec5fb6e2f6d91607c6cc21f6bb66b5"
+    },
+    {
+      "path": "examples/servers/simple-streamablehttp/mcp_simple_streamablehttp/server.py",
+      "role": "sessionful streamable HTTP example server",
+      "sha256": "fbdf59a080be8c7c993ba8dce9837015b75ea71581b3f3efa66d0cb902e35122"
+    }
+  ],
+  "transports": [
+    "stdio",
+    "streamable-http"
+  ],
+  "version": "2.1.1"
+}
