@@ -17,7 +17,7 @@ export type MetricDeltaRow = {
   readonly baseline: string
   readonly candidate: string
   readonly delta: string
-  readonly direction: "improved" | "degraded" | "neutral"
+  readonly direction: "changed" | "improved" | "degraded" | "neutral"
 }
 
 type MetricDeltaProps = {
@@ -87,7 +87,11 @@ export function MetricDelta({
     { id: "baseline", header: "Baseline", render: (row: MetricDeltaRow) => row.baseline },
     { id: "candidate", header: "Candidate", render: (row: MetricDeltaRow) => row.candidate },
     { id: "delta", header: "Delta", render: (row: MetricDeltaRow) => row.delta },
-    { id: "direction", header: "Impact", render: (row: MetricDeltaRow) => row.direction },
+    {
+      id: "direction",
+      header: "Interpretation",
+      render: (row: MetricDeltaRow) => row.direction,
+    },
   ] satisfies readonly DataTableColumn<MetricDeltaRow>[]
   if (state === "error") {
     return (

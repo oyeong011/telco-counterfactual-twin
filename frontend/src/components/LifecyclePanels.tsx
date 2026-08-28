@@ -47,12 +47,7 @@ export function TopologyContractPanel() {
   const topologyId = model.snapshot.scenario?.scenario.topology_id
   return (
     <div className="topologyContractStack">
-      <TopologyCanvas
-        title="Physical topology"
-        nodes={[]}
-        edges={[]}
-        state={topologyId ? "empty" : "empty"}
-      />
+      <TopologyCanvas title="Physical topology" nodes={[]} edges={[]} state="empty" />
       <p className="contractGap">
         {topologyId
           ? `Scenario ${topologyId} exposes an identifier and hash, but the HTTP contract has no node or link read endpoint. No physical graph has been fabricated.`
@@ -122,7 +117,7 @@ function metricRows(model: ReturnType<typeof useConsole>["model"]): readonly Met
       baseline: `${metric.baseline} ${metric.unit}`,
       candidate: `${metric.candidate} ${metric.unit}`,
       delta: `${delta >= 0 ? "+" : ""}${delta} ${metric.unit}`,
-      direction: delta > 0 ? "improved" : delta < 0 ? "degraded" : "neutral",
+      direction: delta === 0 ? "neutral" : "changed",
     }
   })
 }
@@ -195,6 +190,9 @@ export function ApprovalPanel() {
         : {})}
       {...(model.workflow.phase === "approval-pending"
         ? {
+            ...(model.busy !== null
+              ? { allActionsDisabledReason: `${model.busy} is already in progress.` }
+              : {}),
             onApprove: () => void actions.decide("approve"),
             onReject: () => void actions.decide("reject"),
           }

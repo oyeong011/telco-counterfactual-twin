@@ -24,6 +24,8 @@ describe("product router", () => {
     expect(
       await screen.findByRole("heading", { level: 1, name: "System boundaries" }),
     ).toBeVisible()
+    expect(document.title).toBe("System boundaries · Telco Counterfactual Twin Console")
+    expect(screen.getByRole("main")).toHaveFocus()
     expect(document.querySelector('a[href="/showcase"]')).toBeNull()
   })
 

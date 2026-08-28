@@ -6,6 +6,7 @@ import {
   type ApiFailure,
   type ApiResult,
   ApprovalDecisionResponseSchema,
+  type BenchmarkRequest,
   BenchmarkResponseSchema,
   ContractIdSchema,
   type Event,
@@ -13,6 +14,7 @@ import {
   type EventType,
   EventTypeSchema,
   EvidenceResponseSchema,
+  type ScenarioCreateRequest,
 } from "../contracts/generated"
 import {
   approval,
@@ -33,12 +35,17 @@ type FixtureOptions = {
   readonly bootstrapException?: Error
   readonly bootstrapFailure?: ApiFailure
   readonly diagnosisFailure?: ApiFailure
+  readonly diagnosisGate?: Promise<void>
+  readonly patchFailure?: ApiFailure
   readonly policyFailure?: ApiFailure
 }
 
 export type ConsoleApiFixture = {
   readonly client: ApiClient
   readonly idempotencyKeys: readonly IdempotencyKey[]
+  readonly callCounts: { diagnosis: number }
+  readonly scenarioInputs: ScenarioCreateRequest[]
+  readonly benchmarkInputs: BenchmarkRequest[]
 }
 
 function lifecycleEvent(
@@ -68,6 +75,9 @@ export function createConsoleApiFixture(options: FixtureOptions = {}): ConsoleAp
   const keys: IdempotencyKey[] = []
   let submittedPatchId = patch.patch.patch_id
   let terminalDecision: "approved" | "rejected" = "rejected"
+  const callCounts = { diagnosis: 0 }
+  const scenarioInputs: ScenarioCreateRequest[] = []
+  const benchmarkInputs: BenchmarkRequest[] = []
   const remember = (key: IdempotencyKey): void => {
     keys.push(key)
   }
@@ -85,21 +95,26 @@ export function createConsoleApiFixture(options: FixtureOptions = {}): ConsoleAp
     getBuildInfo: () => Promise.resolve(failure),
     getApprovalRoot: () => Promise.resolve(failure),
     listScenarios: () => success({ items: [] }),
-    createScenario: (_auth, key) => {
+    createScenario: (_auth, key, input) => {
       remember(key)
+      scenarioInputs.push(input)
       return success(scenario)
     },
     getScenario: () => success(scenario),
-    diagnoseScenario: (_auth, key) => {
+    diagnoseScenario: async (_auth, key) => {
       remember(key)
+      callCounts.diagnosis += 1
+      await options.diagnosisGate
       return options.diagnosisFailure
-        ? Promise.resolve(options.diagnosisFailure)
-        : success(diagnosis)
+        ? options.diagnosisFailure
+        : { ok: true, data: diagnosis, meta: META }
     },
     proposePatch: (_auth, key, _scenarioId, submitted) => {
       remember(key)
       submittedPatchId = submitted.patch_id
-      return success({ ...patch, patch: submitted })
+      return options.patchFailure
+        ? Promise.resolve(options.patchFailure)
+        : success({ ...patch, patch: submitted })
     },
     createSimulation: (_auth, key) => {
       remember(key)
@@ -131,6 +146,7 @@ export function createConsoleApiFixture(options: FixtureOptions = {}): ConsoleAp
     getRunEvidence: () => success(evidenceResponse(terminalDecision, submittedPatchId)),
     runBenchmark: (_auth, key, input) => {
       remember(key)
+      benchmarkInputs.push(input)
       return success(
         BenchmarkResponseSchema.parse({
           ...input,
@@ -146,7 +162,7 @@ export function createConsoleApiFixture(options: FixtureOptions = {}): ConsoleAp
       }
     },
   }
-  return { client, idempotencyKeys: keys }
+  return { client, idempotencyKeys: keys, callCounts, scenarioInputs, benchmarkInputs }
 }
 
 function decisionResponse(decision: "approved" | "rejected") {

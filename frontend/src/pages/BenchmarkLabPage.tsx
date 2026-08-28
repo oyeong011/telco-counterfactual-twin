@@ -3,6 +3,7 @@ import { ConsolePage } from "../components/ConsolePage"
 import { FailureNotice } from "../components/FailureNotice"
 import { SessionContextState } from "../components/SessionContextState"
 import { useConsole } from "../console/ConsoleContext"
+import { parseBenchmarkForm } from "../console/form-inputs"
 import type { BenchmarkResponse } from "../contracts/generated"
 import { DataTable, type DataTableColumn } from "../design/primitives/DataTable"
 import { StatusChip } from "../design/primitives/StatusChip"
@@ -25,8 +26,16 @@ const RESULT_COLUMNS = [
 
 export function BenchmarkLabPage() {
   const { model, actions } = useConsole()
-  const [seed, setSeed] = useState(6701)
-  const [iterations, setIterations] = useState(5)
+  const [seedInput, setSeedInput] = useState("6701")
+  const [iterationsInput, setIterationsInput] = useState("5")
+  const submit = (): void => {
+    const parsed = parseBenchmarkForm(seedInput, iterationsInput)
+    if (!parsed.ok) {
+      actions.reportValidation(parsed.issue)
+      return
+    }
+    void actions.runBenchmark(parsed.value)
+  }
   return (
     <ConsolePage title="Benchmark lab">
       {model.snapshot.session === undefined ? (
@@ -47,9 +56,10 @@ export function BenchmarkLabPage() {
             </div>
             <form
               className="scenarioForm"
+              noValidate
               onSubmit={(event) => {
                 event.preventDefault()
-                void actions.runBenchmark({ seed, iterations })
+                submit()
               }}
             >
               <label>
@@ -57,8 +67,10 @@ export function BenchmarkLabPage() {
                 <input
                   type="number"
                   min={0}
-                  value={seed}
-                  onChange={(event) => setSeed(event.currentTarget.valueAsNumber)}
+                  step={1}
+                  required
+                  value={seedInput}
+                  onChange={(event) => setSeedInput(event.currentTarget.value)}
                 />
               </label>
               <label>
@@ -67,11 +79,13 @@ export function BenchmarkLabPage() {
                   type="number"
                   min={2}
                   max={25}
-                  value={iterations}
-                  onChange={(event) => setIterations(event.currentTarget.valueAsNumber)}
+                  step={1}
+                  required
+                  value={iterationsInput}
+                  onChange={(event) => setIterationsInput(event.currentTarget.value)}
                 />
               </label>
-              <button className="primaryAction" type="submit" disabled={model.busy === "benchmark"}>
+              <button className="primaryAction" type="submit" disabled={model.busy !== null}>
                 Run determinism probe
               </button>
             </form>

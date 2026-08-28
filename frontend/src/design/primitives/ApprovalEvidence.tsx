@@ -22,6 +22,7 @@ type ApprovalEvidenceProps = {
   readonly reason?: string
   readonly proofHash?: string
   readonly actionsDisabledReason?: string
+  readonly allActionsDisabledReason?: string
   readonly onApprove?: () => void
   readonly onReject?: () => void
   readonly onHighlightAction?: (action: ApprovalAction | undefined) => void
@@ -46,6 +47,7 @@ export function ApprovalEvidence({
   reason,
   proofHash,
   actionsDisabledReason,
+  allActionsDisabledReason,
   onApprove,
   onReject,
   onHighlightAction,
@@ -102,8 +104,8 @@ export function ApprovalEvidence({
               type="button"
               aria-pressed={resolvedDecision === "approved"}
               data-highlighted={highlightedAction === "approve" || undefined}
-              disabled={Boolean(actionsDisabledReason)}
-              title={actionsDisabledReason}
+              disabled={Boolean(actionsDisabledReason || allActionsDisabledReason)}
+              title={allActionsDisabledReason ?? actionsDisabledReason}
               onClick={onApprove}
               onPointerEnter={() => onHighlightAction?.("approve")}
               onPointerLeave={() => onHighlightAction?.(undefined)}
@@ -119,6 +121,8 @@ export function ApprovalEvidence({
               type="button"
               aria-pressed={resolvedDecision === "rejected"}
               data-highlighted={highlightedAction === "reject" || undefined}
+              disabled={Boolean(allActionsDisabledReason)}
+              title={allActionsDisabledReason}
               onClick={onReject}
               onPointerEnter={() => onHighlightAction?.("reject")}
               onPointerLeave={() => onHighlightAction?.(undefined)}

@@ -1,6 +1,6 @@
 import { Link, useLocation } from "@tanstack/react-router"
 import { Activity, FileCheck2, Gauge, Info, Moon, Network, Sun } from "lucide-react"
-import type { ReactNode } from "react"
+import { type ReactNode, useEffect } from "react"
 import { useConsole } from "../console/ConsoleContext"
 import { AppShell } from "../design/primitives/AppShell"
 import { CommandBar } from "../design/primitives/CommandBar"
@@ -45,6 +45,10 @@ export function ConsolePage({
   const { model } = useConsole()
   const { resolvedTheme, setPreference } = useTheme()
   const location = useLocation()
+  useEffect(() => {
+    document.title = `${title} · Telco Counterfactual Twin Console`
+    document.getElementById("main-content")?.focus()
+  }, [title])
   const runId = model.snapshot.run?.runId ?? "current"
   const navigationContent = (
     <>

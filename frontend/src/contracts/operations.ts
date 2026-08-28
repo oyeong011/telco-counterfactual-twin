@@ -12,7 +12,7 @@ import {
   VersionedExtensionsSchema,
 } from "./primitives"
 
-const strictObject = <T extends z.ZodRawShape>(shape: T) => z.object(shape).strict()
+const strictObject = <T extends z.ZodRawShape>(shape: T) => z.strictObject(shape)
 
 export const DemoSessionRequestSchema = strictObject({
   synthetic_only: z.literal(true),
@@ -147,6 +147,16 @@ export const PROBLEM_CODES = [
   "jwt_jwks_invalid",
   "demo_event_capacity",
   "patch_exists",
+  "scenario-binding-mismatch",
+  "baseline-hash-mismatch",
+  "duplicate-patch-target",
+  "unknown-patch-target",
+  "target-kind-mismatch",
+  "operation-target-mismatch",
+  "unsupported-patch-parameters",
+  "patch-parameter-type",
+  "patch-parameter-range",
+  "blast-radius-exceeded",
   "route_not_found",
   "method_not_allowed",
   "client_transport_error",

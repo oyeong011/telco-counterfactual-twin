@@ -42,6 +42,7 @@ export class ConsoleRuntime {
   }
 
   setValidationIssue(issue: string): void {
+    this.failure = null
     this.validationIssue = issue
   }
 

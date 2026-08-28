@@ -4,6 +4,7 @@ import { CurrentEvidenceRail, ScenarioRail } from "../components/ConsoleRails"
 import { FailureNotice } from "../components/FailureNotice"
 import { SessionContextState } from "../components/SessionContextState"
 import { useConsole } from "../console/ConsoleContext"
+import { downloadEvidenceJson } from "../console/evidence-download"
 import type { Event } from "../contracts/generated"
 import { DataTable, type DataTableColumn } from "../design/primitives/DataTable"
 import { StatusChip } from "../design/primitives/StatusChip"
@@ -14,19 +15,6 @@ const EVENT_COLUMNS = [
   { id: "type", header: "Event", render: (event: Event) => event.event_type },
   { id: "evidence", header: "Evidence ID", render: (event: Event) => event.event_id },
 ] satisfies readonly DataTableColumn<Event>[]
-
-function downloadEvidence(
-  evidence: NonNullable<ReturnType<typeof useConsole>["model"]["snapshot"]["evidence"]>,
-): void {
-  const url = URL.createObjectURL(
-    new Blob([JSON.stringify(evidence, null, 2)], { type: "application/json" }),
-  )
-  const link = document.createElement("a")
-  link.href = url
-  link.download = `${evidence.evidence_card.evidence_id}.json`
-  link.click()
-  URL.revokeObjectURL(url)
-}
 
 export function EvidenceBoardPage() {
   const { model, actions } = useConsole()
@@ -53,12 +41,16 @@ export function EvidenceBoardPage() {
               </p>
             </div>
             {evidence ? (
-              <button type="button" onClick={() => downloadEvidence(evidence)}>
+              <button type="button" onClick={() => downloadEvidenceJson(evidence)}>
                 <Download aria-hidden="true" />
                 Download evidence JSON
               </button>
             ) : model.workflow.phase === "decision" ? (
-              <button type="button" onClick={() => void actions.loadEvidence()}>
+              <button
+                type="button"
+                disabled={model.busy !== null}
+                onClick={() => void actions.loadEvidence()}
+              >
                 Load evidence package
               </button>
             ) : (

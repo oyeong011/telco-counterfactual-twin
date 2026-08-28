@@ -18,6 +18,8 @@ import {
   simulation,
 } from "../src/state/workflow-fixtures"
 
+const BROWSER_ORIGIN = "http://localhost:4173"
+
 type RouteState = {
   readonly idempotencyKeys: string[]
   submittedPatch: typeof patch.patch
@@ -27,7 +29,11 @@ function json(route: Route, body: unknown, status = 200): Promise<void> {
   return route.fulfill({
     status,
     contentType: "application/json",
-    headers: { "X-Request-Id": `request-e2e-${status}` },
+    headers: {
+      "X-Request-Id": `request-e2e-${status}`,
+      "Access-Control-Allow-Origin": BROWSER_ORIGIN,
+      "Access-Control-Expose-Headers": "Idempotency-Replayed, X-Request-Id",
+    },
     body: JSON.stringify(body),
   })
 }
@@ -109,6 +115,15 @@ async function installApi(page: Page, state: RouteState): Promise<void> {
     const request = route.request()
     const path = new URL(request.url()).pathname
     if (!path.startsWith("/api/")) return route.continue()
+    if (request.method() === "OPTIONS")
+      return route.fulfill({
+        status: 204,
+        headers: {
+          "Access-Control-Allow-Origin": BROWSER_ORIGIN,
+          "Access-Control-Allow-Methods": "GET, POST",
+          "Access-Control-Allow-Headers": "Content-Type, Idempotency-Key, X-Demo-Session-Token",
+        },
+      })
     const key = request.headers()["idempotency-key"]
     if (key) state.idempotencyKeys.push(key)
     if (path === "/api/demo-sessions") return json(route, session, 201)

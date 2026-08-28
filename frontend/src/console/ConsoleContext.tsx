@@ -1,4 +1,5 @@
 import { createContext, type ReactNode, useContext, useMemo, useState } from "react"
+import { ZodError } from "zod"
 import { type ApiClient, createApiClient } from "../api/client"
 import { ContractParseError } from "../api/errors"
 import type { BenchmarkRequest, ScenarioCreateRequest, TypedPatch } from "../contracts/generated"
@@ -39,22 +40,26 @@ export function ConsoleProvider({ client, children }: ConsoleProviderProps) {
   const [model, setModel] = useState(() => runtime.getModel())
   const actions = useMemo<ConsoleActions>(() => {
     const sync = (): void => setModel(runtime.getModel())
-    const perform = async (
-      operation: ConsoleOperation,
-      task: () => Promise<void>,
-    ): Promise<void> => {
+    let inFlight: Promise<void> | null = null
+    const perform = (operation: ConsoleOperation, task: () => Promise<void>): Promise<void> => {
+      if (inFlight !== null) return inFlight
       runtime.clearTransient()
       runtime.setBusy(operation)
       sync()
-      try {
-        await task()
-      } catch (error) {
-        if (error instanceof ContractParseError) runtime.recordContractFailure()
-        else throw error
-      } finally {
-        runtime.setBusy(null)
-        sync()
-      }
+      const operationPromise = task()
+        .catch((error: unknown) => {
+          if (error instanceof ContractParseError) runtime.recordContractFailure()
+          else if (error instanceof ZodError)
+            runtime.setValidationIssue("Input values did not satisfy the public contract.")
+          else throw error
+        })
+        .finally(() => {
+          runtime.setBusy(null)
+          inFlight = null
+          sync()
+        })
+      inFlight = operationPromise
+      return operationPromise
     }
     return {
       bootstrap: () => perform("bootstrap", () => runtime.bootstrap()),

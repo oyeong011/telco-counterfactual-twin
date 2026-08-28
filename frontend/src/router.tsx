@@ -15,6 +15,15 @@ import { ScenarioWorkbenchPage } from "./pages/ScenarioWorkbenchPage"
 
 const rootRoute = createRootRoute({
   component: Outlet,
+  errorComponent: () => (
+    <main className="notFoundPage">
+      <ErrorState
+        title="Console route failed safely"
+        code="CLIENT_RENDER_ERROR"
+        detail="An unexpected client error stopped this route. Return to Workbench to start a fresh tab-scoped flow."
+      />
+    </main>
+  ),
   notFoundComponent: () => (
     <main className="notFoundPage">
       <ErrorState

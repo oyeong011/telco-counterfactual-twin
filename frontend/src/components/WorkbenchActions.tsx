@@ -1,10 +1,7 @@
 import { useState } from "react"
 import { useConsole } from "../console/ConsoleContext"
-import {
-  FaultFamilySchema,
-  FaultFamilyValues,
-  type ScenarioCreateRequest,
-} from "../contracts/generated"
+import { parseScenarioForm } from "../console/form-inputs"
+import { FaultFamilySchema, FaultFamilyValues } from "../contracts/generated"
 import { StatusChip } from "../design/primitives/StatusChip"
 
 export function WorkbenchEntry() {
@@ -22,7 +19,7 @@ export function WorkbenchEntry() {
           <button
             className="primaryAction"
             type="button"
-            disabled={model.busy === "bootstrap"}
+            disabled={model.busy !== null}
             onClick={() => void actions.bootstrap()}
           >
             Start synthetic session
@@ -36,7 +33,7 @@ export function WorkbenchEntry() {
         <section className="entryPanel">
           <h2>Session cannot continue</h2>
           <p>Reset the tab context before requesting a new isolated session.</p>
-          <button type="button" onClick={actions.resetSession}>
+          <button type="button" disabled={model.busy !== null} onClick={actions.resetSession}>
             Reset session context
           </button>
         </section>
@@ -50,10 +47,16 @@ export function WorkbenchEntry() {
 
 function ScenarioCreatePanel() {
   const { model, actions } = useConsole()
-  const [input, setInput] = useState<ScenarioCreateRequest>({
-    fault_family: "radio-congestion",
-    seed: 6701,
-  })
+  const [faultFamily, setFaultFamily] = useState("radio-congestion")
+  const [seedInput, setSeedInput] = useState("6701")
+  const submit = (): void => {
+    const parsed = parseScenarioForm(faultFamily, seedInput)
+    if (!parsed.ok) {
+      actions.reportValidation(parsed.issue)
+      return
+    }
+    void actions.createScenario(parsed.value)
+  }
   return (
     <section className="panel formPanel" aria-labelledby="scenario-create-heading">
       <div className="panelHeader">
@@ -64,18 +67,20 @@ function ScenarioCreatePanel() {
       </div>
       <form
         className="scenarioForm"
+        noValidate
         onSubmit={(event) => {
           event.preventDefault()
-          void actions.createScenario(input)
+          submit()
         }}
       >
         <label>
           Fault family
           <select
-            value={input.fault_family}
+            value={faultFamily}
             onChange={(event) => {
-              const parsed = FaultFamilySchema.safeParse(event.currentTarget.value)
-              if (parsed.success) setInput((current) => ({ ...current, fault_family: parsed.data }))
+              const value = event.currentTarget.value
+              const parsed = FaultFamilySchema.safeParse(value)
+              if (parsed.success) setFaultFamily(parsed.data)
             }}
           >
             {FaultFamilyValues.map((fault) => (
@@ -90,13 +95,13 @@ function ScenarioCreatePanel() {
           <input
             type="number"
             min={0}
-            value={input.seed}
-            onChange={(event) =>
-              setInput((current) => ({ ...current, seed: event.currentTarget.valueAsNumber }))
-            }
+            step={1}
+            required
+            value={seedInput}
+            onChange={(event) => setSeedInput(event.currentTarget.value)}
           />
         </label>
-        <button className="primaryAction" type="submit" disabled={model.busy === "scenario"}>
+        <button className="primaryAction" type="submit" disabled={model.busy !== null}>
           Create scenario
         </button>
       </form>
@@ -109,19 +114,34 @@ function LifecycleAction() {
   const phase = model.workflow.phase
   if (phase === "scenario")
     return (
-      <button className="primaryAction" type="button" onClick={() => void actions.diagnose()}>
+      <button
+        className="primaryAction"
+        type="button"
+        disabled={model.busy !== null}
+        onClick={() => void actions.diagnose()}
+      >
         Diagnose scenario
       </button>
     )
   if (phase === "patch")
     return (
-      <button className="primaryAction" type="button" onClick={() => void actions.simulate()}>
+      <button
+        className="primaryAction"
+        type="button"
+        disabled={model.busy !== null}
+        onClick={() => void actions.simulate()}
+      >
         Simulate candidate
       </button>
     )
   if (phase === "simulation")
     return (
-      <button className="primaryAction" type="button" onClick={() => void actions.compare()}>
+      <button
+        className="primaryAction"
+        type="button"
+        disabled={model.busy !== null}
+        onClick={() => void actions.compare()}
+      >
         Compare evidence
       </button>
     )
@@ -130,6 +150,7 @@ function LifecycleAction() {
       <button
         className="primaryAction"
         type="button"
+        disabled={model.busy !== null}
         onClick={() => void actions.requestApproval()}
       >
         Request approval evidence
@@ -137,7 +158,12 @@ function LifecycleAction() {
     )
   if (phase === "decision")
     return (
-      <button className="primaryAction" type="button" onClick={() => void actions.loadEvidence()}>
+      <button
+        className="primaryAction"
+        type="button"
+        disabled={model.busy !== null}
+        onClick={() => void actions.loadEvidence()}
+      >
         Load evidence package
       </button>
     )

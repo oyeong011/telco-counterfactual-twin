@@ -1,5 +1,5 @@
 import { createMemoryHistory } from "@tanstack/react-router"
-import { render, screen } from "@testing-library/react"
+import { render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { ConsoleApplication } from "./ConsoleApplication"
@@ -54,6 +54,25 @@ describe("artifact-backed secondary routes", () => {
     expect(await screen.findByText("Verified benchmark response")).toBeVisible()
     expect(screen.getByRole("cell", { name: "Yes" })).toBeVisible()
     expect(screen.getByRole("cell", { name: "1" })).toBeVisible()
-    expect(screen.queryByText(/accuracy|quality score|latency percentile/i)).not.toBeInTheDocument()
+    const table = screen.getByRole("table", { name: "Verified benchmark response" })
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((header) => header.textContent),
+    ).toEqual(["Seed", "Iterations", "Unique trace hashes", "Deterministic", "Trace hash"])
+  })
+
+  it("keeps empty benchmark numbers local and shows an actionable field error", async () => {
+    const fixture = createConsoleApiFixture()
+    const history = createMemoryHistory({ initialEntries: ["/"] })
+    render(<ConsoleApplication client={fixture.client} history={history} />)
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole("button", { name: "Start synthetic session" }))
+    await user.click(screen.getByRole("link", { name: "Benchmarks" }))
+    await user.clear(await screen.findByLabelText("Iterations"))
+    await user.click(screen.getByRole("button", { name: "Run determinism probe" }))
+
+    expect(await screen.findByText(/Iterations must be a whole number/)).toBeVisible()
+    expect(fixture.benchmarkInputs).toEqual([])
   })
 })

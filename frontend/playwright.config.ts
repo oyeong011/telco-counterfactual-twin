@@ -7,16 +7,25 @@ export default defineConfig({
   workers: 1,
   reporter: "line",
   use: {
-    baseURL: "http://127.0.0.1:4173",
+    baseURL: "http://localhost:4173",
     channel: "chrome",
     headless: true,
     trace: "retain-on-failure",
   },
-  webServer: {
-    command:
-      "VITE_DISABLE_REACT_DEVTOOLS=1 node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 4173 --strictPort",
-    url: "http://127.0.0.1:4173/__showcase",
-    reuseExistingServer: false,
-    timeout: 120_000,
-  },
+  webServer: [
+    {
+      command:
+        "uv run --project ../backend uvicorn telco_twin.api.app:app --app-dir ../backend/src --host 127.0.0.1 --port 18080",
+      url: "http://127.0.0.1:18080/healthz",
+      reuseExistingServer: false,
+      timeout: 120_000,
+    },
+    {
+      command:
+        "VITE_API_BASE_URL=http://127.0.0.1:18080 VITE_DISABLE_REACT_DEVTOOLS=1 node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 4173 --strictPort",
+      url: "http://localhost:4173/__showcase",
+      reuseExistingServer: false,
+      timeout: 120_000,
+    },
+  ],
 })

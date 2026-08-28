@@ -1,6 +1,11 @@
 import { useState } from "react"
 import { useConsole } from "../console/ConsoleContext"
-import { buildTypedPatch, defaultPatchInput, type PatchEditorInput } from "../console/patch-builder"
+import {
+  buildTypedPatch,
+  defaultPatchInput,
+  type PatchEditorInput,
+  patchDefaultsForOperation,
+} from "../console/patch-builder"
 import {
   PatchOperationSchema,
   PatchOperationValues,
@@ -17,7 +22,7 @@ export function PatchEditor() {
   return (
     <PatchEditorForm
       scenario={scenario}
-      busy={model.busy === "patch"}
+      busy={model.busy !== null}
       onSubmit={actions.proposePatch}
       onInvalid={actions.reportValidation}
     />
@@ -95,7 +100,8 @@ function PatchEditorForm({ scenario, busy, onSubmit, onInvalid }: PatchEditorFor
             value={input.operation}
             onChange={(event) => {
               const parsed = PatchOperationSchema.safeParse(event.currentTarget.value)
-              if (parsed.success) update({ operation: parsed.data })
+              if (parsed.success)
+                update({ operation: parsed.data, ...patchDefaultsForOperation(parsed.data) })
             }}
           >
             {PatchOperationValues.map((value) => (

@@ -12,6 +12,12 @@ function renderConsole(fixture: ConsoleApiFixture, path = "/") {
   render(<ConsoleApplication client={fixture.client} history={history} />)
 }
 
+function sessionValues(): string {
+  return Array.from({ length: sessionStorage.length }, (_, index) =>
+    sessionStorage.getItem(sessionStorage.key(index) ?? ""),
+  ).join("")
+}
+
 async function bootstrapAndCreate(fixture: ConsoleApiFixture): Promise<void> {
   renderConsole(fixture)
   const user = userEvent.setup()
@@ -44,6 +50,41 @@ const policyFailure: ApiFailure = {
 beforeEach(() => sessionStorage.clear())
 
 describe("governed console lifecycle", () => {
+  it("labels metric deltas as neutral changes without inventing an optimization direction", async () => {
+    const fixture = createConsoleApiFixture()
+    await advanceToComparison(fixture)
+
+    expect(screen.getByRole("cell", { name: "changed" })).toBeVisible()
+    expect(screen.queryByRole("cell", { name: "improved" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("cell", { name: "degraded" })).not.toBeInTheDocument()
+  })
+
+  it("captures an edited scenario seed before React clears the event", async () => {
+    const fixture = createConsoleApiFixture()
+    renderConsole(fixture)
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole("button", { name: "Start synthetic session" }))
+    const seed = await screen.findByLabelText("Deterministic seed")
+
+    await user.clear(seed)
+    await user.type(seed, "42")
+    await user.click(screen.getByRole("button", { name: "Create scenario" }))
+
+    expect(fixture.scenarioInputs).toEqual([{ fault_family: "radio-congestion", seed: 42 }])
+  })
+
+  it("keeps an empty scenario seed local and shows an actionable field error", async () => {
+    const fixture = createConsoleApiFixture()
+    renderConsole(fixture)
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole("button", { name: "Start synthetic session" }))
+    await user.clear(await screen.findByLabelText("Deterministic seed"))
+    await user.click(screen.getByRole("button", { name: "Create scenario" }))
+
+    expect(await screen.findByText(/Seed must be a whole number/)).toBeVisible()
+    expect(fixture.scenarioInputs).toEqual([])
+  })
+
   it("records an approved evidence-only lifecycle without implying execution", async () => {
     const fixture = createConsoleApiFixture()
     await advanceToComparison(fixture)
@@ -75,7 +116,7 @@ describe("governed console lifecycle", () => {
     expect(screen.getAllByText("Certificate hash").length).toBeGreaterThan(0)
     expect(screen.getAllByText("rejected", { selector: "span" }).length).toBeGreaterThan(0)
     expect(document.body).not.toHaveTextContent("demo-token-secret")
-    expect(JSON.stringify(sessionStorage)).not.toContain("demo-token-secret")
+    expect(sessionValues()).not.toContain("demo-token-secret")
     expect(fixture.idempotencyKeys).toHaveLength(7)
     expect(new Set(fixture.idempotencyKeys).size).toBe(7)
   })
@@ -91,6 +132,33 @@ describe("governed console lifecycle", () => {
 
     expect(await screen.findByText("Parameters must be valid JSON.")).toBeVisible()
     expect(fixture.idempotencyKeys).toHaveLength(2)
+  })
+
+  it("replaces a stale server failure with the latest local validation error", async () => {
+    const patchFailure: ApiFailure = {
+      ok: false,
+      problem: {
+        type: "https://telco-twin.invalid/problems/unsupported-patch-parameters",
+        title: "Patch rejected",
+        status: 422,
+        code: "unsupported-patch-parameters",
+        detail: "The typed patch is not valid for this scenario baseline.",
+        request_id: "request-patch-r2",
+      },
+      requestId: "request-patch-r2",
+    }
+    const fixture = createConsoleApiFixture({ patchFailure })
+    await bootstrapAndCreate(fixture)
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole("button", { name: "Diagnose scenario" }))
+    await user.click(await screen.findByRole("button", { name: "Validate and propose patch" }))
+    expect(await screen.findByText("unsupported-patch-parameters")).toBeVisible()
+
+    fireEvent.change(screen.getByLabelText("Patch parameters (JSON)"), { target: { value: "{" } })
+    await user.click(screen.getByRole("button", { name: "Validate and propose patch" }))
+
+    expect(await screen.findByText("Parameters must be valid JSON.")).toBeVisible()
+    expect(screen.queryByText("unsupported-patch-parameters")).not.toBeInTheDocument()
   })
 
   it("shows the exact policy failure and the backend explainability gap", async () => {
@@ -161,6 +229,6 @@ describe("governed console lifecycle", () => {
     expect(screen.getByText("Request request-lost-001")).toBeVisible()
     expect(screen.getByRole("button", { name: "Reset session context" })).toBeVisible()
     expect(document.body).not.toHaveTextContent("demo-token-secret")
-    expect(JSON.stringify(sessionStorage)).not.toContain("scenario-001")
+    expect(sessionValues()).not.toContain("scenario-001")
   })
 })
