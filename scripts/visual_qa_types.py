@@ -204,8 +204,17 @@ def _scan_untrusted(value: JsonValue, path: str = "manifest") -> None:
 
 def _read_json(path: Path) -> JsonValue:
     try:
-        return JSON_ADAPTER.validate_python(
-            json.loads(path.read_bytes(), object_pairs_hook=_reject_duplicate_keys)
-        )
-    except (OSError, ValueError, ValidationError) as error:
+        encoded = path.read_bytes()
+    except OSError as error:
         raise VisualQaError("invalid-json", path.as_posix()) from error
+    return _read_json_bytes(encoded, path.as_posix())
+
+
+def _read_json_bytes(encoded: bytes, context: str) -> JsonValue:
+    """Parse one immutable JSON byte snapshot with duplicate-key rejection."""
+    try:
+        return JSON_ADAPTER.validate_python(
+            json.loads(encoded, object_pairs_hook=_reject_duplicate_keys)
+        )
+    except (ValueError, ValidationError) as error:
+        raise VisualQaError("invalid-json", context) from error

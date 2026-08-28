@@ -9,12 +9,19 @@ import subprocess
 from pathlib import Path
 from typing import Final
 
+import rfc8785
 from pydantic import JsonValue, TypeAdapter
 
 REPO_ROOT: Final = Path(__file__).resolve().parents[3]
 BUILD_SCRIPT: Final = REPO_ROOT / "scripts/generate_frontend_build_info.py"
 JSON_ADAPTER: Final[TypeAdapter[JsonValue]] = TypeAdapter(JsonValue)
 ASSET_MANIFEST: Final = Path(".vite/manifest.json")
+TRUST_DESCRIPTOR: Final = Path("specs/schemas/visual-qa-reviewers-trust")
+SHARED_NODE_MODULES: Final = (
+    REPO_ROOT.parent / "task9-console/frontend/node_modules"
+    if (REPO_ROOT.parent / "task9-console/frontend/node_modules/.bin/vite").is_file()
+    else REPO_ROOT / "frontend/node_modules"
+)
 
 
 def json_object(raw: bytes) -> dict[str, JsonValue]:
@@ -29,8 +36,8 @@ def run(command: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, cwd=cwd, text=True, capture_output=True, check=False)
 
 
-def write_vite_dist(root: Path) -> Path:
-    """Write a small complete Vite-style output tree with a real manifest."""
+def write_stale_vite_dist(root: Path) -> Path:
+    """Write a forged ignored output tree that must never define identity."""
     dist = root / "frontend/dist"
     assets = dist / "assets"
     manifest = dist / ASSET_MANIFEST
@@ -57,7 +64,7 @@ def write_vite_dist(root: Path) -> Path:
 
 
 def copy_repo(tmp_path: Path) -> Path:
-    """Copy the source into a clean local Git repository and emit Vite assets."""
+    """Copy source into clean Git with dependencies but no ignored build output."""
     root = tmp_path / "repo"
     _ = shutil.copytree(
         REPO_ROOT,
@@ -65,11 +72,41 @@ def copy_repo(tmp_path: Path) -> Path:
         ignore=shutil.ignore_patterns(".git", ".venv", "node_modules", "dist", "__pycache__"),
     )
     _ = run(["git", "init", "-q"], root)
+    exclude = root / ".git/info/exclude"
+    _ = exclude.write_text(
+        exclude.read_text(encoding="utf-8") + "\nfrontend/node_modules\n",
+        encoding="utf-8",
+    )
     _ = run(["git", "config", "user.email", "task9@example.invalid"], root)
     _ = run(["git", "config", "user.name", "Task9"], root)
+    descriptor = root / TRUST_DESCRIPTOR
+    descriptor.parent.mkdir(parents=True, exist_ok=True)
+    _ = descriptor.write_text(
+        json.dumps(
+            {
+                "reviewers": [
+                    {
+                        "key_id": "visual-review-root-v1",
+                        "public_key": "zlYCzcL_WIkT3sEYc15zM39s_TP1zlmQqJSSZjarlzM",
+                        "role": "visual-fidelity",
+                    },
+                    {
+                        "key_id": "accessibility-review-root-v1",
+                        "public_key": "QnLIVBBl7D_x2E8fX7z-OU6JyUc2Y8o3bfabn61rFoI",
+                        "role": "accessibility",
+                    },
+                ],
+                "schema_version": "1.0",
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     assert run(["git", "add", "."], root).returncode == 0
     assert run(["git", "commit", "-qm", "fixture"], root).returncode == 0
-    _ = write_vite_dist(root)
+    (root / "frontend/node_modules").symlink_to(SHARED_NODE_MODULES, target_is_directory=True)
     return root
 
 
@@ -103,3 +140,9 @@ def emitted_asset_hash(root: Path) -> str:
     excluded = {dist / "build-info.json", dist / ASSET_MANIFEST}
     files = tuple(path for path in dist.rglob("*") if path.is_file() and path not in excluded)
     return records_hash(dist, files)
+
+
+def canonical_json_file_hash(path: Path) -> str:
+    """Hash one parsed JSON descriptor independently with RFC8785 plus newline."""
+    value = JSON_ADAPTER.validate_json(path.read_bytes())
+    return hashlib.sha256(rfc8785.dumps(value) + b"\n").hexdigest()

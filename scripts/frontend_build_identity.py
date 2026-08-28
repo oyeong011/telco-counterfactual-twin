@@ -27,6 +27,7 @@ from telco_twin.safety.local_policy import LOCAL_POLICY_DEFINITION_HASH
 
 from scripts import frontend_build_support as support
 from scripts.frontend_build_support import (
+    BuildClaims,
     BuildIdentityError,
     BuildPaths,
     _canonical_file_hash,
@@ -44,22 +45,21 @@ from scripts.frontend_build_support import (
 from scripts.frontend_build_tree import (
     commit_runtime_hash,
     current_runtime_hash,
-    emitted_asset_hash,
 )
+from scripts.frontend_vite_build import ephemeral_vite_asset_hash
 
 
-def _payload(
-    paths: BuildPaths, *, source_sha: str, release_sha: str, built_at: str
-) -> dict[str, JsonValue]:
+def _payload(paths: BuildPaths, claims: BuildClaims) -> dict[str, JsonValue]:
     schema_hashes = _schema_hashes(paths)
-    asset_hash = emitted_asset_hash(paths)
+    if not paths.trusted_roots_path.is_file():
+        raise BuildIdentityError("missing-input", paths.trusted_roots_path.as_posix())
     lock_hash = _sha256_file(paths.lock_path)
     contract_hash = _sha256_bytes(rfc8785.dumps(schema_hashes))
     extensions: dict[str, JsonValue] = {
         "schema_version": support.SCHEMA_VERSION,
         "values": {
             "frontend_lock_hash": lock_hash,
-            "frontend_assets_hash": asset_hash,
+            "frontend_assets_hash": claims.asset_hash,
             "contract_manifest_hash": contract_hash,
         },
     }
@@ -67,8 +67,8 @@ def _payload(
         "schema_version": support.SCHEMA_VERSION,
         "service_name": "telco-twin-console",
         "version": "0.1.0",
-        "runtime_source_commit_sha": source_sha,
-        "release_commit_sha": release_sha,
+        "runtime_source_commit_sha": claims.source_sha,
+        "release_commit_sha": claims.release_sha,
         "runtime_tree_hash": current_runtime_hash(paths.root),
         "schema_hashes": schema_hashes,
         "mcp_hash": _canonical_file_hash(paths.mcp_path, support.EMPTY_ARTIFACT_HASH),
@@ -76,13 +76,13 @@ def _payload(
         "trusted_root_hashes": _canonical_file_hash(
             paths.trusted_roots_path, support.EMPTY_ARTIFACT_HASH
         ),
-        "built_at": built_at,
-        "asset_manifest_hash": asset_hash,
+        "built_at": claims.built_at,
+        "asset_manifest_hash": claims.asset_hash,
         "extensions": extensions,
     }
 
 
-def _read_payload(path: Path) -> dict[str, JsonValue]:
+def _read_payload(path: Path) -> tuple[dict[str, JsonValue], bytes]:
     try:
         raw = path.read_bytes()
         decoded = support.JSON_ADAPTER.validate_python(
@@ -100,7 +100,7 @@ def _read_payload(path: Path) -> dict[str, JsonValue]:
         raise BuildIdentityError(
             "schema-mismatch", str(error).splitlines()[0]
         ) from error
-    return decoded
+    return decoded, raw
 
 
 def _compare_identity(
@@ -142,9 +142,10 @@ def generate(
 ) -> None:
     """Generate one canonical UI identity or validate the checked-in identity."""
     head = _sha_argument(_git(paths.root, ["rev-parse", "HEAD"]), "HEAD")
-    actual = _read_payload(paths.output) if check else None
+    parsed = _read_payload(paths.output) if check else None
     if check:
-        assert actual is not None
+        assert parsed is not None
+        actual, actual_bytes = parsed
         actual_source = actual.get("runtime_source_commit_sha")
         actual_release = actual.get("release_commit_sha")
         actual_built_at = actual.get("built_at")
@@ -169,12 +170,19 @@ def generate(
             raise BuildIdentityError("source-commit-mismatch", source)
         if commit_runtime_hash(paths.root, release) != runtime_hash:
             raise BuildIdentityError("release-commit-mismatch", release)
+        asset_hash = ephemeral_vite_asset_hash(paths.root, actual_bytes)
         expected = _payload(
-            paths, source_sha=source, release_sha=release, built_at=actual_built_at
+            paths,
+            BuildClaims(
+                source_sha=source,
+                release_sha=release,
+                built_at=actual_built_at,
+                asset_hash=asset_hash,
+            ),
         )
         _compare_identity(actual, expected)
         canonical = rfc8785.dumps(actual) + b"\n"
-        if paths.output.read_bytes() != canonical:
+        if actual_bytes != canonical:
             raise BuildIdentityError("canonical-json-mismatch", paths.output.as_posix())
         _require_clean(paths.root, paths.output, check=True)
         return
@@ -190,11 +198,15 @@ def generate(
         raise BuildIdentityError("source-commit-mismatch", source)
     if commit_runtime_hash(paths.root, release) != runtime_hash:
         raise BuildIdentityError("release-commit-mismatch", release)
+    asset_hash = ephemeral_vite_asset_hash(paths.root, None)
     payload = _payload(
         paths,
-        source_sha=source,
-        release_sha=release,
-        built_at=_timestamp(paths.root, built_at),
+        BuildClaims(
+            source_sha=source,
+            release_sha=release,
+            built_at=_timestamp(paths.root, built_at),
+            asset_hash=asset_hash,
+        ),
     )
     encoded = rfc8785.dumps(payload) + b"\n"
     _atomic_write(paths.output, encoded)
@@ -209,33 +221,22 @@ def main(
     source_commit_sha: Annotated[str | None, typer.Option()] = None,
     release_commit_sha: Annotated[str | None, typer.Option()] = None,
     built_at: Annotated[str | None, typer.Option()] = None,
-    assets_root: Annotated[Path, typer.Option()] = support.DEFAULT_ASSETS_ROOT,
-    asset_manifest: Annotated[Path, typer.Option()] = support.DEFAULT_ASSET_MANIFEST,
     contract_root: Annotated[Path, typer.Option()] = support.DEFAULT_CONTRACT_ROOT,
     lock_path: Annotated[Path, typer.Option()] = support.DEFAULT_LOCK_PATH,
     mcp_path: Annotated[Path, typer.Option()] = support.DEFAULT_MCP_PATH,
-    trusted_roots_path: Annotated[Path | None, typer.Option()] = None,
+    trusted_roots_path: Annotated[Path, typer.Option()] = support.DEFAULT_TRUSTED_ROOTS,
 ) -> None:
     """Generate frontend/public/build-info.json or check it without mutation."""
     resolved_root = root.resolve()
     try:
-        resolved_assets = _repo_cli_path(resolved_root, assets_root, "assets_root")
         paths = BuildPaths(
             root=resolved_root,
             output=_repo_cli_path(resolved_root, output, "output"),
-            assets_root=resolved_assets,
-            asset_manifest=_repo_cli_path(
-                resolved_assets, asset_manifest, "asset_manifest"
-            ),
             contract_root=_repo_cli_path(resolved_root, contract_root, "contract_root"),
             lock_path=_repo_cli_path(resolved_root, lock_path, "lock_path"),
             mcp_path=_repo_cli_path(resolved_root, mcp_path, "mcp_path"),
-            trusted_roots_path=(
-                None
-                if trusted_roots_path is None
-                else _repo_cli_path(
-                    resolved_root, trusted_roots_path, "trusted_roots_path"
-                )
+            trusted_roots_path=_repo_cli_path(
+                resolved_root, trusted_roots_path, "trusted_roots_path"
             ),
         )
         generate(

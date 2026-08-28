@@ -14,11 +14,14 @@ if TYPE_CHECKING:
 
 from .task9_build_info_fixtures import (
     BUILD_SCRIPT,
+    TRUST_DESCRIPTOR,
+    canonical_json_file_hash,
     canonical_runtime_hash,
     copy_repo,
     emitted_asset_hash,
     json_object,
     run,
+    write_stale_vite_dist,
 )
 
 
@@ -32,7 +35,9 @@ def _generate(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
 def test_build_info_accepts_positional_output_for_checked_artifact(tmp_path: Path) -> None:
     # Given: a checked-in UI artifact at the canonical relative output path.
     root = copy_repo(tmp_path)
+    assert not (root / "frontend/dist").exists()
     assert _generate(root).returncode == 0
+    assert not (root / "frontend/dist").exists()
     output = root / "frontend/public/build-info.json"
     _ = run(["git", "add", str(output.relative_to(root))], root)
     assert run(["git", "commit", "-qm", "generated"], root).returncode == 0
@@ -50,6 +55,7 @@ def test_build_info_accepts_positional_output_for_checked_artifact(tmp_path: Pat
     )
     # Then: the compatibility surface accepts the exact invocation.
     assert result.returncode == 0, result.stdout + result.stderr
+    assert not (root / "frontend/dist").exists()
 
 
 @pytest.mark.parametrize("path_kind", ["absolute", "parent", "symlink"])
@@ -121,7 +127,8 @@ def test_build_info_generation_and_check_bind_clean_source(tmp_path: Path) -> No
     payload = json_object(output.read_bytes())
     assert "image_digest" not in payload
     assert payload.get("runtime_tree_hash") == canonical_runtime_hash(root)
-    assert payload.get("asset_manifest_hash") == emitted_asset_hash(root)
+    assert not (root / "frontend/dist").exists()
+    assert payload.get("trusted_root_hashes") == canonical_json_file_hash(root / TRUST_DESCRIPTOR)
     assert payload.get("schema_hashes")
     extensions = payload.get("extensions")
     assert isinstance(extensions, dict)
@@ -201,35 +208,50 @@ def test_build_info_check_rejects_ui_image_digest(tmp_path: Path) -> None:
     assert "build-info-error:schema-mismatch:" in result.stderr
 
 
-def test_build_info_check_binds_actual_emitted_asset_bytes(tmp_path: Path) -> None:
-    # Given: a committed identity generated from one emitted Vite asset tree.
+def test_build_info_does_not_trust_stale_ignored_dist(tmp_path: Path) -> None:
+    # Given: a forged ignored output tree unrelated to the committed UI source.
     root = copy_repo(tmp_path)
+    _ = write_stale_vite_dist(root)
+    stale_hash = emitted_asset_hash(root)
     assert _generate(root).returncode == 0
     output = root / "frontend/public/build-info.json"
+    payload = json_object(output.read_bytes())
     _ = run(["git", "add", str(output.relative_to(root))], root)
     assert run(["git", "commit", "-qm", "generated"], root).returncode == 0
-    _ = (root / "frontend/dist/assets/main.js").write_text(
-        "console.log('tampered')\n", encoding="utf-8"
-    )
-    # When: the ignored build output no longer matches its recorded hash.
+    # When: the checked artifact is verified while stale dist remains present.
     result = _generate(root, "--check")
-    # Then: checking observes the actual emitted bytes, not public placeholders.
-    assert result.returncode != 0
-    assert "build-info-error:hash-mismatch:asset_manifest_hash" in result.stderr
+    # Then: the forged ignored files neither define nor invalidate source identity.
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert payload.get("asset_manifest_hash") != stale_hash
 
 
-def test_build_info_failure_preserves_existing_output_atomically(tmp_path: Path) -> None:
-    # Given: an existing output and a missing Vite manifest precondition.
+def test_build_info_vite_failure_preserves_existing_output_atomically(tmp_path: Path) -> None:
+    # Given: an existing output but no installed Vite executable.
     root = copy_repo(tmp_path)
     output = root / "frontend/public/build-info.json"
     before = output.read_bytes()
-    (root / "frontend/dist/.vite/manifest.json").unlink()
+    (root / "frontend/node_modules").unlink()
     # When: generation fails before publication.
     result = _generate(root)
     # Then: the previous artifact remains byte-identical.
     assert result.returncode != 0
-    assert "build-info-error:asset-manifest-missing:" in result.stderr
+    assert "build-info-error:vite-unavailable:" in result.stderr
     assert output.read_bytes() == before
+
+
+def test_standard_frontend_build_copies_identity_and_emits_manifest(tmp_path: Path) -> None:
+    # Given: a generated public identity from an ephemeral source build.
+    root = copy_repo(tmp_path)
+    assert _generate(root).returncode == 0
+    public = root / "frontend/public/build-info.json"
+    # When: the standard frontend build script runs afterward.
+    result = run(["pnpm", "--dir", "frontend", "build"], root)
+    # Then: production output carries byte-identical identity and a Vite manifest.
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert (root / "frontend/dist/build-info.json").read_bytes() == public.read_bytes()
+    assert (root / "frontend/dist/.vite/manifest.json").is_file()
+    payload = json_object(public.read_bytes())
+    assert payload.get("asset_manifest_hash") == emitted_asset_hash(root)
 
 
 def test_build_info_ignores_files_outside_canonical_runtime_contract(tmp_path: Path) -> None:

@@ -14,7 +14,7 @@
 from __future__ import annotations
 
 import re
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from typing import Annotated, Final
 
@@ -23,6 +23,7 @@ from pydantic import JsonValue
 
 from scripts import visual_qa_types as types
 from scripts.visual_qa_checks import assert_manifest
+from scripts.visual_qa_cli_support import csv_requirement, parse_now, repo_path
 from scripts.visual_qa_types import (
     Capture,
     Manifest,
@@ -41,6 +42,7 @@ from scripts.visual_qa_types import (
 )
 
 DEFAULT_BUILD_INFO: Final = Path("frontend/public/build-info.json")
+DEFAULT_REVIEWER_TRUST: Final = Path("specs/schemas/visual-qa-reviewers-trust")
 
 
 def _capture(value: JsonValue, index: int) -> Capture:
@@ -182,33 +184,18 @@ def parse_manifest(path: Path) -> Manifest:
     )
 
 
-def _now(value: str | None) -> datetime:
-    if value is None:
-        return datetime.now(UTC)
-    return _timestamp(value, "now")
-
-
-def _csv_requirement(
-    value: str | None, allowed: tuple[str, ...], field: str
-) -> tuple[str, ...]:
-    if value is None:
-        return allowed
-    parts = tuple(part.strip() for part in value.split(",") if part.strip())
-    if (
-        not parts
-        or len(parts) != len(set(parts))
-        or any(part not in allowed for part in parts)
-    ):
-        raise VisualQaError("requirement-invalid", field)
-    return parts
-
-
 def main(
     manifest: Annotated[
         Path | None, typer.Argument(exists=True, dir_okay=False)
     ] = None,
     manifest_option: Annotated[Path | None, typer.Option("--manifest")] = None,
     build_info: Annotated[Path, typer.Option("--build-info")] = DEFAULT_BUILD_INFO,
+    repo_root: Annotated[
+        Path, typer.Option("--repo-root", exists=True, file_okay=False)
+    ] = Path("."),
+    reviewer_trust_descriptor: Annotated[
+        Path, typer.Option("--reviewer-trust-descriptor")
+    ] = DEFAULT_REVIEWER_TRUST,
     root: Annotated[Path | None, typer.Option("--root")] = None,
     max_age_seconds: Annotated[int, typer.Option("--max-age-seconds", min=1)] = 86400,
     now: Annotated[str | None, typer.Option("--now")] = None,
@@ -224,21 +211,27 @@ def main(
         raise typer.Exit(code=3)
     try:
         parsed = parse_manifest(target)
+        resolved_repo = repo_root.resolve()
         requirements = VisualRequirements(
             routes=types.ROUTES
             if require_all_routes
             else tuple(sorted({capture.route for capture in parsed.captures})),
-            states=_csv_requirement(require_states, types.STATES, "states"),
-            viewports=_csv_requirement(viewports, types.VIEWPORTS, "viewports"),
+            states=csv_requirement(require_states, types.STATES, "states"),
+            viewports=csv_requirement(viewports, types.VIEWPORTS, "viewports"),
             reviewer_count=reviewers,
         )
         assert_manifest(
             parsed,
-            build_info.resolve(),
+            repo_path(resolved_repo, build_info, "build_info"),
             (root or target.parent).resolve(),
-            now=_now(now),
+            now=parse_now(now),
             max_age=timedelta(seconds=max_age_seconds),
             requirements=requirements,
+            reviewer_trust_path=repo_path(
+                resolved_repo,
+                reviewer_trust_descriptor,
+                "reviewer_trust_descriptor",
+            ),
         )
     except VisualQaError as error:
         typer.echo(str(error), err=True)

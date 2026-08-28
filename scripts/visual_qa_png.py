@@ -23,6 +23,7 @@ from scripts import visual_qa_types as types
 from scripts.visual_qa_types import VisualQaError
 
 MAX_DECODED_BYTES: Final = 128 * 1024 * 1024
+MAX_ENCODED_BYTES: Final = 64 * 1024 * 1024
 CHANNELS: Final = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}
 ALLOWED_DEPTHS: Final = {
     0: frozenset({1, 2, 4, 8, 16}),
@@ -40,6 +41,8 @@ class PngShape:
     width: int
     height: int
     row_bytes: int
+    bit_depth: int
+    color_type: int
 
 
 def _shape(data: bytes, path: Path) -> PngShape:
@@ -63,7 +66,13 @@ def _shape(data: bytes, path: Path) -> PngShape:
     expected = height * (row_bytes + 1)
     if expected > MAX_DECODED_BYTES:
         raise VisualQaError("invalid-png", path.as_posix())
-    return PngShape(width=width, height=height, row_bytes=row_bytes)
+    return PngShape(
+        width=width,
+        height=height,
+        row_bytes=row_bytes,
+        bit_depth=bit_depth,
+        color_type=color_type,
+    )
 
 
 def _decode_scanlines(compressed: bytes, shape: PngShape, path: Path) -> None:
@@ -87,18 +96,16 @@ def _decode_scanlines(compressed: bytes, shape: PngShape, path: Path) -> None:
         raise VisualQaError("invalid-png", path.as_posix())
 
 
-def png_dimensions(path: Path) -> tuple[int, int]:
+def png_dimensions(encoded: bytes, path: Path) -> tuple[int, int]:
     """Validate all chunks, CRCs, IDAT decoding, IEND, and return dimensions."""
-    try:
-        encoded = path.read_bytes()
-    except OSError as error:
-        raise VisualQaError("capture-missing", path.as_posix()) from error
-    if not encoded.startswith(types.PNG_SIGNATURE):
+    if len(encoded) > MAX_ENCODED_BYTES or not encoded.startswith(types.PNG_SIGNATURE):
         raise VisualQaError("invalid-png", path.as_posix())
     offset = len(types.PNG_SIGNATURE)
     shape: PngShape | None = None
     idat: list[bytes] = []
     ended = False
+    seen_plte = False
+    idat_closed = False
     while offset < len(encoded):
         if ended or len(encoded) - offset < 12:
             raise VisualQaError("invalid-png", path.as_posix())
@@ -107,6 +114,12 @@ def png_dimensions(path: Path) -> tuple[int, int]:
         if chunk_end > len(encoded):
             raise VisualQaError("invalid-png", path.as_posix())
         kind = encoded[offset + 4 : offset + 8]
+        if len(kind) != 4 or any(
+            byte not in range(ord("A"), ord("Z") + 1)
+            and byte not in range(ord("a"), ord("z") + 1)
+            for byte in kind
+        ):
+            raise VisualQaError("invalid-png", path.as_posix())
         data = encoded[offset + 8 : offset + 8 + length]
         declared_crc = struct.unpack(">I", encoded[offset + 8 + length : chunk_end])[0]
         if zlib.crc32(kind + data) & 0xFFFFFFFF != declared_crc:
@@ -116,13 +129,36 @@ def png_dimensions(path: Path) -> tuple[int, int]:
                 raise VisualQaError("invalid-png", path.as_posix())
             shape = _shape(data, path)
         elif kind == b"IDAT":
-            if shape is None or ended:
+            if (
+                shape is None
+                or ended
+                or idat_closed
+                or (shape.color_type == 3 and not seen_plte)
+            ):
                 raise VisualQaError("invalid-png", path.as_posix())
             idat.append(data)
+        elif kind == b"PLTE":
+            if (
+                shape is None
+                or idat
+                or seen_plte
+                or shape.color_type in {0, 4}
+                or len(data) < 3
+                or len(data) > 768
+                or len(data) % 3 != 0
+                or (shape.color_type == 3 and len(data) // 3 > 1 << shape.bit_depth)
+            ):
+                raise VisualQaError("invalid-png", path.as_posix())
+            seen_plte = True
         elif kind == b"IEND":
             if length != 0 or shape is None or not idat:
                 raise VisualQaError("invalid-png", path.as_posix())
             ended = True
+        else:
+            if kind[0] & 0x20 == 0:
+                raise VisualQaError("invalid-png", path.as_posix())
+            if idat:
+                idat_closed = True
         offset = chunk_end
     if shape is None or not ended or offset != len(encoded):
         raise VisualQaError("invalid-png", path.as_posix())

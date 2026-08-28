@@ -21,7 +21,7 @@ from typing import Final
 from pydantic import JsonValue, ValidationError
 
 from scripts import frontend_build_support as support
-from scripts.frontend_build_support import BuildIdentityError, BuildPaths
+from scripts.frontend_build_support import BuildIdentityError
 
 FIXED_RUNTIME_PATHS: Final = (
     "frontend/package.json",
@@ -113,16 +113,16 @@ def _asset_reference(assets_root: Path, value: JsonValue) -> Path:
     return support._repo_cli_path(assets_root, Path(value), "asset reference")
 
 
-def _manifest_references(paths: BuildPaths) -> frozenset[Path]:
-    if not paths.asset_manifest.is_file() or paths.asset_manifest.is_symlink():
+def _manifest_references(assets_root: Path, asset_manifest: Path) -> frozenset[Path]:
+    if not asset_manifest.is_file() or asset_manifest.is_symlink():
         raise BuildIdentityError(
             "asset-manifest-missing",
-            support._relative(paths.root, paths.asset_manifest),
+            support._relative(assets_root, asset_manifest),
         )
     try:
         parsed = support.JSON_ADAPTER.validate_python(
             json.loads(
-                paths.asset_manifest.read_bytes(),
+                asset_manifest.read_bytes(),
                 object_pairs_hook=support._reject_duplicate_keys,
             )
         )
@@ -134,32 +134,30 @@ def _manifest_references(paths: BuildPaths) -> frozenset[Path]:
     for entry in parsed.values():
         if not isinstance(entry, dict):
             raise BuildIdentityError("asset-manifest-invalid", "manifest entry")
-        references.add(_asset_reference(paths.assets_root, entry.get("file")))
+        references.add(_asset_reference(assets_root, entry.get("file")))
         for field in ASSET_REFERENCE_FIELDS:
             values = entry.get(field, [])
             if not isinstance(values, list):
                 raise BuildIdentityError("asset-manifest-invalid", field)
-            references.update(
-                _asset_reference(paths.assets_root, value) for value in values
-            )
+            references.update(_asset_reference(assets_root, value) for value in values)
     for path in references:
         if not path.is_file() or path.is_symlink():
             raise BuildIdentityError(
-                "asset-manifest-missing", support._relative(paths.root, path)
+                "asset-manifest-missing", support._relative(assets_root, path)
             )
     return frozenset(references)
 
 
-def emitted_asset_hash(paths: BuildPaths) -> str:
+def emitted_asset_hash(assets_root: Path, asset_manifest: Path) -> str:
     """Bind actual Vite output bytes while excluding self-referential manifests."""
-    references = _manifest_references(paths)
+    references = _manifest_references(assets_root, asset_manifest)
     excluded = frozenset(
         {
-            paths.asset_manifest,
-            paths.assets_root / "build-info.json",
+            asset_manifest,
+            assets_root / "build-info.json",
         }
     )
-    files = support._files_under(paths.root, paths.assets_root, exclude=excluded)
+    files = support._files_under(assets_root, assets_root, exclude=excluded)
     if not files or not references.issubset(files):
         raise BuildIdentityError("asset-manifest-invalid", "emitted asset set")
-    return support._records_hash(paths.assets_root, files)
+    return support._records_hash(assets_root, files)

@@ -26,11 +26,10 @@ from pydantic import JsonValue, TypeAdapter, ValidationError
 SCHEMA_VERSION: Final = "1.0"
 DEFAULT_ROOT: Final = Path(".")
 DEFAULT_OUTPUT: Final = Path("frontend/public/build-info.json")
-DEFAULT_ASSETS_ROOT: Final = Path("frontend/dist")
-DEFAULT_ASSET_MANIFEST: Final = Path(".vite/manifest.json")
 DEFAULT_CONTRACT_ROOT: Final = Path("specs/schemas")
 DEFAULT_LOCK_PATH: Final = Path("frontend/pnpm-lock.yaml")
 DEFAULT_MCP_PATH: Final = Path("artifacts/contracts/mcp.json")
+DEFAULT_TRUSTED_ROOTS: Final = Path("specs/schemas/visual-qa-reviewers-trust")
 EMPTY_ARTIFACT_HASH: Final = hashlib.sha256(b"{}\n").hexdigest()
 SHA1_PATTERN: Final = re.compile(r"[0-9a-f]{40}\Z")
 TIMESTAMP_PATTERN: Final = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\Z")
@@ -50,12 +49,20 @@ class BuildPaths:
 
     root: Path
     output: Path
-    assets_root: Path
-    asset_manifest: Path
     contract_root: Path
     lock_path: Path
     mcp_path: Path
-    trusted_roots_path: Path | None
+    trusted_roots_path: Path
+
+
+@dataclass(frozen=True, slots=True)
+class BuildClaims:
+    """Commit, time, and emitted-asset claims for one UI identity."""
+
+    source_sha: str
+    release_sha: str
+    built_at: str
+    asset_hash: str
 
 
 @dataclass(frozen=True, slots=True)

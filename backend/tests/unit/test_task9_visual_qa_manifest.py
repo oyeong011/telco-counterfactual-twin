@@ -14,14 +14,12 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 from .task9_visual_qa_fixtures import (
-    REVIEWER_ROLES,
-    ROUTES,
     STATES,
     assert_visual,
-    bind_reviewer_receipts,
     visual_fixture,
     write_png,
 )
+from .task9_visual_review_fixtures import bind_reviewer_receipts
 
 Mutation = Literal[
     "state",
@@ -170,9 +168,3 @@ def test_visual_manifest_rejects_declared_dimension_drift(tmp_path: Path) -> Non
     # Then: dimension drift is rejected.
     assert result.returncode != 0
     assert "visual-qa-error:dimensions-mismatch:" in result.stderr
-
-
-def test_visual_manifest_required_roles_are_stable() -> None:
-    # Given/When/Then: the two independent review concerns are explicit machine roles.
-    assert REVIEWER_ROLES == ("visual-fidelity", "accessibility")
-    assert len(ROUTES) == 5

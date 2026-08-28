@@ -21,12 +21,13 @@ from pydantic import ValidationError
 from telco_twin.domain.build_info import UiBuildInfo
 
 from scripts.visual_qa_png import png_dimensions
-from scripts.visual_qa_reviewers import assert_reviewers
+from scripts.visual_qa_reviewers import ReviewerEvidenceContext, assert_reviewers
+from scripts.visual_qa_trust import load_reviewer_trust
 from scripts.visual_qa_types import (
     Manifest,
     VisualQaError,
     VisualRequirements,
-    _read_json,
+    _read_json_bytes,
     _scan_untrusted,
 )
 
@@ -87,9 +88,14 @@ def assert_manifest(
     now: datetime,
     max_age: timedelta,
     requirements: VisualRequirements,
+    reviewer_trust_path: Path,
 ) -> None:
     """Verify identity, exact coverage, fresh PNGs, and zero blocking diagnostics."""
-    build_value = _read_json(build_info_path)
+    try:
+        build_bytes = build_info_path.read_bytes()
+    except OSError as error:
+        raise VisualQaError("build-info-missing", build_info_path.as_posix()) from error
+    build_value = _read_json_bytes(build_bytes, build_info_path.as_posix())
     _scan_untrusted(build_value)
     if not isinstance(build_value, dict) or "image_digest" in build_value:
         raise VisualQaError("build-info-mismatch", "UI build-info required")
@@ -99,10 +105,8 @@ def assert_manifest(
         raise VisualQaError(
             "build-info-mismatch", str(error).splitlines()[0]
         ) from error
-    try:
-        actual_build_hash = hashlib.sha256(build_info_path.read_bytes()).hexdigest()
-    except OSError as error:
-        raise VisualQaError("build-info-missing", build_info_path.as_posix()) from error
+    reviewer_trust = load_reviewer_trust(reviewer_trust_path, build.trusted_root_hashes)
+    actual_build_hash = hashlib.sha256(build_bytes).hexdigest()
     if (
         actual_build_hash != manifest.build_info_sha
         or build.runtime_source_commit_sha != manifest.source_sha
@@ -143,15 +147,18 @@ def assert_manifest(
             raise VisualQaError("network-errors", capture.path)
         path = _safe_capture_path(root, capture.path)
         try:
-            actual_hash = hashlib.sha256(path.read_bytes()).hexdigest()
+            encoded = path.read_bytes()
         except OSError as error:
             raise VisualQaError("capture-missing", capture.path) from error
+        actual_hash = hashlib.sha256(encoded).hexdigest()
         if actual_hash != capture.sha256:
             raise VisualQaError("capture-hash-mismatch", capture.path)
-        if png_dimensions(path) != (capture.width, capture.height):
+        if png_dimensions(encoded, path) != (capture.width, capture.height):
             raise VisualQaError("dimensions-mismatch", capture.path)
         _viewport_geometry(
             capture.viewport, capture.width, capture.height, capture.path
         )
         _fresh(path, capture.captured_at, now, max_age)
-    assert_reviewers(manifest, root, requirements.reviewer_count)
+    if requirements.reviewer_count != len(reviewer_trust.roots):
+        raise VisualQaError("reviewer-count", str(requirements.reviewer_count))
+    assert_reviewers(manifest, ReviewerEvidenceContext(root=root, trust=reviewer_trust))

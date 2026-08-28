@@ -13,27 +13,40 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import rfc8785
+from nacl.exceptions import BadSignatureError
 
 if TYPE_CHECKING:
     from pydantic import JsonValue
 
 from scripts import visual_qa_types as types
+from scripts.visual_qa_trust import REVIEW_DOMAIN, ReviewerTrust
 from scripts.visual_qa_types import (
     Manifest,
     Reviewer,
     VisualQaError,
-    _read_json,
+    _read_json_bytes,
     _required,
     _scan_untrusted,
     _sha,
     _sha256,
     _string,
 )
+
+
+@dataclass(frozen=True, slots=True)
+class ReviewerEvidenceContext:
+    """Filesystem and pre-bound roots for reviewer evidence assertions."""
+
+    root: Path
+    trust: ReviewerTrust
 
 
 def _capture_value(capture: types.Capture) -> dict[str, JsonValue]:
@@ -97,8 +110,22 @@ def _receipt_path(root: Path, reviewer: Reviewer) -> Path:
     return candidate
 
 
-def _assert_receipt(manifest: Manifest, reviewer: Reviewer, root: Path) -> None:
-    path = _receipt_path(root, reviewer)
+def _signature(value: str, role: str) -> bytes:
+    try:
+        decoded = base64.b64decode(
+            value + "=" * (-len(value) % 4), altchars=b"-_", validate=True
+        )
+    except (binascii.Error, ValueError) as error:
+        raise VisualQaError("reviewer-signature", role) from error
+    if len(decoded) != 64:
+        raise VisualQaError("reviewer-signature", role)
+    return decoded
+
+
+def _assert_receipt(
+    manifest: Manifest, reviewer: Reviewer, context: ReviewerEvidenceContext
+) -> None:
+    path = _receipt_path(context.root, reviewer)
     try:
         encoded = path.read_bytes()
     except OSError as error:
@@ -107,7 +134,7 @@ def _assert_receipt(manifest: Manifest, reviewer: Reviewer, root: Path) -> None:
         ) from error
     if hashlib.sha256(encoded).hexdigest() != reviewer.receipt_sha:
         raise VisualQaError("reviewer-receipt-hash", reviewer.role)
-    value = _read_json(path)
+    value = _read_json_bytes(encoded, path.as_posix())
     _scan_untrusted(value, "reviewer-receipt")
     if not isinstance(value, dict):
         raise VisualQaError("reviewer-attribution", reviewer.role)
@@ -115,17 +142,21 @@ def _assert_receipt(manifest: Manifest, reviewer: Reviewer, root: Path) -> None:
         "schema_version",
         "reviewer_role",
         "reviewer_run_id",
+        "key_id",
         "verdict",
         "source_commit_sha",
         "release_commit_sha",
         "build_info_sha256",
         "subject_sha256",
+        "signature",
     )
     _required(value, required, required, "reviewer-receipt")
+    reviewer_root = context.trust.for_role(reviewer.role)
     expected = (
         types.SCHEMA_VERSION,
         reviewer.role,
         reviewer.run_id,
+        reviewer_root.key_id,
         "approved",
         manifest.source_sha,
         manifest.release_sha,
@@ -136,6 +167,7 @@ def _assert_receipt(manifest: Manifest, reviewer: Reviewer, root: Path) -> None:
         _string(value, "schema_version", "reviewer-receipt"),
         _string(value, "reviewer_role", "reviewer-receipt"),
         _string(value, "reviewer_run_id", "reviewer-receipt"),
+        _string(value, "key_id", "reviewer-receipt"),
         _string(value, "verdict", "reviewer-receipt"),
         _sha(_string(value, "source_commit_sha", "reviewer-receipt"), "source"),
         _sha(_string(value, "release_commit_sha", "reviewer-receipt"), "release"),
@@ -144,10 +176,23 @@ def _assert_receipt(manifest: Manifest, reviewer: Reviewer, root: Path) -> None:
     )
     if actual != expected or encoded != rfc8785.dumps(value) + b"\n":
         raise VisualQaError("reviewer-mismatch", reviewer.role)
+    unsigned: dict[str, JsonValue] = {
+        key: nested for key, nested in value.items() if key != "signature"
+    }
+    signature = _signature(
+        _string(value, "signature", "reviewer-receipt"), reviewer.role
+    )
+    try:
+        _ = reviewer_root.verify_key.verify(
+            REVIEW_DOMAIN + rfc8785.dumps(unsigned) + b"\n", signature
+        )
+    except BadSignatureError as error:
+        raise VisualQaError("reviewer-signature", reviewer.role) from error
 
 
-def assert_reviewers(manifest: Manifest, root: Path, reviewer_count: int) -> None:
+def assert_reviewers(manifest: Manifest, context: ReviewerEvidenceContext) -> None:
     """Require fixed roles, distinct runs, exact receipts, and subject binding."""
+    reviewer_count = len(context.trust.roots)
     if len(manifest.reviewers) != reviewer_count:
         raise VisualQaError("reviewer-count", str(len(manifest.reviewers)))
     roles = tuple(reviewer.role for reviewer in manifest.reviewers)
@@ -165,4 +210,4 @@ def assert_reviewers(manifest: Manifest, root: Path, reviewer_count: int) -> Non
     if subject_hash(manifest) != manifest.subject_sha:
         raise VisualQaError("subject-mismatch", manifest.subject_sha)
     for reviewer in manifest.reviewers:
-        _assert_receipt(manifest, reviewer, root)
+        _assert_receipt(manifest, reviewer, context)
