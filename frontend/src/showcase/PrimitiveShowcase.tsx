@@ -18,6 +18,8 @@ import "../styles/showcase-preview.css"
 export function PrimitiveShowcase() {
   const theme = useTheme()
   const [selectedId, setSelectedId] = useState("run-024")
+  const [selectedEvidenceId, setSelectedEvidenceId] = useState("replay")
+  const [copiedEvidence, setCopiedEvidence] = useState(false)
   const themeControl = (
     <label className="themeControl">
       <MoonStar aria-hidden="true" />
@@ -60,7 +62,15 @@ export function PrimitiveShowcase() {
     />
   )
   const evidenceRail = (
-    <EvidenceRail title="Selected evidence" state="approved" fields={EVIDENCE_FIELDS} />
+    <EvidenceRail
+      title="Selected evidence"
+      state="approved"
+      fields={EVIDENCE_FIELDS}
+      selectedArtifactId={selectedEvidenceId}
+      {...(copiedEvidence ? { selectedAction: "copy" as const } : {})}
+      onSelectArtifact={setSelectedEvidenceId}
+      onCopy={() => setCopiedEvidence(true)}
+    />
   )
 
   return (

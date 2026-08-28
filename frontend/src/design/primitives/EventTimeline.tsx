@@ -18,6 +18,10 @@ type EventTimelineProps = {
   readonly title: string
   readonly events: readonly TimelineEvent[]
   readonly state?: SurfaceState
+  readonly selectedEventId?: string
+  readonly highlightedEventId?: string
+  readonly onSelectEvent?: (id: string) => void
+  readonly onHighlightEvent?: (id: string | undefined) => void
   readonly onRetry?: () => void
 }
 
@@ -27,7 +31,16 @@ const SEVERITY_ICONS = {
   critical: CircleAlert,
 } satisfies Record<TimelineEvent["severity"], LucideIcon>
 
-export function EventTimeline({ title, events, state = "default", onRetry }: EventTimelineProps) {
+export function EventTimeline({
+  title,
+  events,
+  state = "default",
+  selectedEventId,
+  highlightedEventId,
+  onSelectEvent,
+  onHighlightEvent,
+  onRetry,
+}: EventTimelineProps) {
   const headingId = useId()
 
   if (state === "loading") {
@@ -60,15 +73,33 @@ export function EventTimeline({ title, events, state = "default", onRetry }: Eve
           {events.map((event) => {
             const Icon = SEVERITY_ICONS[event.severity]
             return (
-              <li key={event.id} data-severity={event.severity} data-state={state}>
+              <li
+                key={event.id}
+                data-severity={event.severity}
+                data-state={state}
+                data-selected={event.id === selectedEventId || undefined}
+                data-highlighted={event.id === highlightedEventId || undefined}
+              >
                 <time className="mono">
                   <Clock3 aria-hidden="true" />
                   {event.timestamp}
                 </time>
-                <span className="timelineEvent">
+                <button
+                  type="button"
+                  className="timelineEvent"
+                  aria-label={`Select event ${event.type}`}
+                  aria-pressed={event.id === selectedEventId}
+                  data-highlighted={event.id === highlightedEventId || undefined}
+                  disabled={state === "disabled"}
+                  onClick={() => onSelectEvent?.(event.id)}
+                  onPointerEnter={() => onHighlightEvent?.(event.id)}
+                  onPointerLeave={() => onHighlightEvent?.(undefined)}
+                  onFocus={() => onHighlightEvent?.(event.id)}
+                  onBlur={() => onHighlightEvent?.(undefined)}
+                >
                   <Icon aria-hidden="true" />
                   {event.type}
-                </span>
+                </button>
                 <span>{event.impacted}</span>
                 <a
                   href={`#${event.evidenceId}`}

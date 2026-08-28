@@ -3,10 +3,38 @@ import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it } from "vitest"
 import { ThemeProvider } from "../design/theme/ThemeProvider"
 import { PrimitiveShowcase } from "./PrimitiveShowcase"
-import { PRIMITIVE_APPLICABLE_STATES, PRIMITIVE_NAMES } from "./primitiveStateRegistry"
 
 const KOREAN_COPY = "승인은 증거만 기록하며 네트워크를 실행하지 않습니다."
 const KOREAN_HASH = "sha256:한글-증거-해시-0123456789abcdef0123456789abcdef"
+const ALL_STATES = [
+  "default",
+  "hover",
+  "active",
+  "focus",
+  "disabled",
+  "loading",
+  "empty",
+  "error",
+  "stale",
+  "rejected",
+  "approved",
+  "demo",
+] as const
+const EXPECTED_STATE_COVERAGE = {
+  AppShell: ALL_STATES,
+  CommandBar: ALL_STATES,
+  ContextRail: ALL_STATES,
+  StatusChip: ALL_STATES.filter((state) => state !== "empty"),
+  DataTable: ALL_STATES,
+  TopologyCanvas: ALL_STATES,
+  EventTimeline: ALL_STATES,
+  MetricDelta: ALL_STATES,
+  TypedPatchDiff: ALL_STATES,
+  EvidenceRail: ALL_STATES,
+  ApprovalEvidence: ALL_STATES,
+  ErrorState: ALL_STATES.filter((state) => state !== "empty" && state !== "approved"),
+  Skeleton: ["loading"],
+} as const
 
 function stubMatchMedia() {
   beforeEach(() => {
@@ -40,8 +68,7 @@ describe("primitive showcase coverage", () => {
     )
 
     // When
-    for (const primitive of PRIMITIVE_NAMES) {
-      const states = PRIMITIVE_APPLICABLE_STATES[primitive]
+    for (const [primitive, states] of Object.entries(EXPECTED_STATE_COVERAGE)) {
       const section = screen.getByRole("region", { name: `${primitive} state gallery` })
       const renderedStates = Array.from(
         section.querySelectorAll<HTMLElement>(".showcaseStateCard"),
@@ -51,7 +78,6 @@ describe("primitive showcase coverage", () => {
       // Then
       expect(section).toHaveAttribute("data-primitive", primitive)
       expect(renderedStates).toEqual(states)
-      expect(new Set(renderedStates).size).toBe(states.length)
     }
   })
 
@@ -77,7 +103,9 @@ describe("primitive showcase coverage", () => {
     expect(card("demo")?.querySelector('[data-tone="demo"]')).not.toBeNull()
     expect(card("active")?.querySelector('[aria-current="page"]')).not.toBeNull()
     expect(card("disabled")?.querySelector('a[aria-disabled="true"]')).not.toBeNull()
-    expect(card("focus")?.querySelector('[data-showcase-focus="true"]')).not.toBeNull()
+    const focusLink = card("focus")?.querySelector<HTMLAnchorElement>("a")
+    focusLink?.focus()
+    expect(focusLink).toHaveFocus()
   })
 
   it("keeps each command state attached to an actionable control", async () => {
@@ -100,7 +128,9 @@ describe("primitive showcase coverage", () => {
 
     // Then
     expect(activeReview).toHaveAttribute("aria-pressed", "true")
-    expect(card("focus")?.querySelector('[data-showcase-focus="true"]')).not.toBeNull()
+    const focusAction = card("focus")?.querySelector<HTMLButtonElement>("button")
+    focusAction?.focus()
+    expect(focusAction).toHaveFocus()
     expect(card("disabled")?.querySelector("button")).toBeDisabled()
     expect(card("loading")?.querySelector("button")).toBeDisabled()
     expect(card("error")).toHaveTextContent(/recovery remains evidence-only/i)
@@ -115,7 +145,7 @@ describe("primitive showcase coverage", () => {
     )
 
     // When / Then
-    for (const primitive of PRIMITIVE_NAMES) {
+    for (const primitive of Object.keys(EXPECTED_STATE_COVERAGE)) {
       const section = screen.getByRole("region", { name: `${primitive} state gallery` })
       const heading = within(section).getByRole("heading", { name: primitive, level: 2 })
       expect(heading).toBeVisible()

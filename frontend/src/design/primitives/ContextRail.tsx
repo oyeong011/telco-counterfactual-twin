@@ -16,8 +16,10 @@ type ContextRailProps = {
   readonly title: string
   readonly items: readonly ContextRailItem[]
   readonly selectedId?: string
+  readonly highlightedId?: string
   readonly state?: SurfaceState
   readonly onSelect?: (id: string) => void
+  readonly onHighlight?: (id: string | undefined) => void
   readonly onRetry?: () => void
 }
 
@@ -25,8 +27,10 @@ export function ContextRail({
   title,
   items,
   selectedId,
+  highlightedId,
   state = "default",
   onSelect,
+  onHighlight,
   onRetry,
 }: ContextRailProps) {
   return (
@@ -52,9 +56,14 @@ export function ContextRail({
                 type="button"
                 className="railButton"
                 aria-pressed={item.id === selectedId}
+                data-highlighted={item.id === highlightedId || undefined}
                 disabled={item.disabled}
                 title={item.disabledReason}
                 onClick={() => onSelect?.(item.id)}
+                onPointerEnter={() => onHighlight?.(item.id)}
+                onPointerLeave={() => onHighlight?.(undefined)}
+                onFocus={() => onHighlight?.(item.id)}
+                onBlur={() => onHighlight?.(undefined)}
               >
                 <span className="railLabel" title={item.label}>
                   {item.label}

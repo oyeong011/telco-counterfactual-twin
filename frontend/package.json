@@ -16,6 +16,7 @@
     "check": "biome check .",
     "check:write": "biome check --write .",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "test:watch": "vitest"
   },
   "dependencies": {

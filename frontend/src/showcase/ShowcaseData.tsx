@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { DataTable, type DataTableColumn } from "../design/primitives/DataTable"
 import { EventTimeline } from "../design/primitives/EventTimeline"
 import { MetricDelta } from "../design/primitives/MetricDelta"
@@ -50,42 +51,77 @@ function TableExample({ state }: { readonly state: ShowcaseState }) {
 }
 
 function TopologyExample({ state }: { readonly state: ShowcaseState }) {
+  const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>(
+    state === "active" ? "agg-1" : undefined,
+  )
+  const [highlightedNodeId, setHighlightedNodeId] = useState<string | undefined>(
+    state === "hover" ? "core" : state === "focus" ? "agg-2" : undefined,
+  )
   return (
     <TopologyCanvas
       title="Topology snapshot"
-      nodes={state === "empty" ? [] : TOPOLOGY_NODES.slice(0, 3)}
-      edges={state === "empty" ? [] : TOPOLOGY_EDGES.slice(0, 2)}
+      nodes={state === "empty" ? [] : TOPOLOGY_NODES}
+      edges={state === "empty" ? [] : TOPOLOGY_EDGES}
       state={surfaceStateFor(state)}
-      onSelectNode={() => undefined}
+      {...(selectedNodeId ? { selectedNodeId } : {})}
+      {...(highlightedNodeId ? { highlightedNodeId } : {})}
+      onSelectNode={setSelectedNodeId}
+      onHighlightNode={setHighlightedNodeId}
       onRetry={() => undefined}
     />
   )
 }
 
 function TimelineExample({ state }: { readonly state: ShowcaseState }) {
+  const [selectedEventId, setSelectedEventId] = useState<string | undefined>(
+    state === "active" ? "event-2" : undefined,
+  )
+  const [highlightedEventId, setHighlightedEventId] = useState<string | undefined>(
+    state === "hover" ? "event-1" : state === "focus" ? "event-2" : undefined,
+  )
   return (
     <EventTimeline
       title="Simulation trace"
       events={state === "empty" ? [] : TIMELINE_EVENTS.slice(0, 2)}
       state={surfaceStateFor(state)}
+      {...(selectedEventId ? { selectedEventId } : {})}
+      {...(highlightedEventId ? { highlightedEventId } : {})}
+      onSelectEvent={setSelectedEventId}
+      onHighlightEvent={setHighlightedEventId}
       onRetry={() => undefined}
     />
   )
 }
 
 function MetricExample({ state }: { readonly state: ShowcaseState }) {
+  const [selectedMetricId, setSelectedMetricId] = useState<string | undefined>(
+    state === "active" ? "throughput" : undefined,
+  )
+  const [highlightedMetricId, setHighlightedMetricId] = useState<string | undefined>(
+    state === "hover" ? "latency" : state === "focus" ? "throughput" : undefined,
+  )
   return (
     <MetricDelta
       title="Metric deltas"
       series={METRIC_SERIES}
       rows={state === "empty" ? [] : METRIC_ROWS}
       state={surfaceStateFor(state)}
+      {...(selectedMetricId ? { selectedMetricId } : {})}
+      {...(highlightedMetricId ? { highlightedMetricId } : {})}
+      onSelectMetric={setSelectedMetricId}
+      onHighlightMetric={setHighlightedMetricId}
       onRetry={() => undefined}
     />
   )
 }
 
 function PatchExample({ state }: { readonly state: ShowcaseState }) {
+  const [selectedLineId, setSelectedLineId] = useState<string | undefined>(
+    state === "active" ? "line-130-addition" : undefined,
+  )
+  const [highlightedLineId, setHighlightedLineId] = useState<string | undefined>(
+    state === "hover" ? "line-130-removal" : state === "focus" ? "line-129-context" : undefined,
+  )
   return (
     <TypedPatchDiff
       path="configs/site-c/scheduler.yaml"
@@ -93,6 +129,10 @@ function PatchExample({ state }: { readonly state: ShowcaseState }) {
       state={surfaceStateFor(state)}
       validationSummary="Evidence-only fixture; no execution authority."
       lines={state === "empty" ? [] : PATCH_LINES}
+      {...(selectedLineId ? { selectedLineId } : {})}
+      {...(highlightedLineId ? { highlightedLineId } : {})}
+      onSelectLine={setSelectedLineId}
+      onHighlightLine={setHighlightedLineId}
       onCopy={() => undefined}
       copyDisabled={state === "disabled" || state === "rejected"}
       onRetry={() => undefined}

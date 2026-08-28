@@ -258,3 +258,22 @@
     display: none;
   }
 }
+
+@media (max-width: 480px) {
+  .primaryNav {
+    padding: var(--space-2);
+    overflow-x: hidden;
+  }
+
+  .primaryNavList {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-1);
+  }
+
+  .primaryNavLink {
+    min-inline-size: 0;
+    min-block-size: var(--target-min);
+    padding: var(--space-1);
+  }
+}

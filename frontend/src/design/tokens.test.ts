@@ -1,11 +1,48 @@
-import { describe, expect, it } from "vitest"
-import tokenCss from "../styles/tokens.css?raw"
+import { afterEach, describe, expect, it } from "vitest"
+import "../styles/tokens.css"
 
-function cssToken(block: string, name: string): string {
-  const match = block.match(new RegExp(`${name}:\\s*(#[0-9a-f]{6})`, "i"))
-  const value = match?.[1]
-  if (!value) throw new TypeError(`Missing color token ${name}`)
-  return value
+const EXPECTED_THEME_TOKENS = {
+  light: {
+    "--surface-root": "#f6f1f4",
+    "--surface-panel": "#fff9fc",
+    "--text-primary": "#211824",
+    "--text-secondary": "#5d5062",
+    "--border-subtle": "#ded1dc",
+    "--accent-primary": "#65408a",
+    "--accent-proof": "#527a23",
+    "--accent-warning": "#9a5b17",
+    "--accent-danger": "#ad3f36",
+    "--chart-baseline": "#6a5c71",
+    "--chart-candidate": "#65408a",
+  },
+  dark: {
+    "--surface-root": "#171019",
+    "--surface-panel": "#201724",
+    "--text-primary": "#f7eff8",
+    "--text-secondary": "#c3b4c8",
+    "--border-subtle": "#372b3d",
+    "--accent-primary": "#b890e6",
+    "--accent-proof": "#a4d65e",
+    "--accent-warning": "#e2a04d",
+    "--accent-danger": "#f07a68",
+    "--chart-baseline": "#b8a7c1",
+    "--chart-candidate": "#c09af0",
+  },
+} as const
+
+const EXPECTED_FOUNDATION_TOKENS = {
+  "--space-1": "0.25rem",
+  "--space-10": "2.5rem",
+  "--font-body": '"Rubik Variable", "Rubik", sans-serif',
+  "--font-mono": '"IBM Plex Mono", monospace',
+  "--text-body": "0.875rem",
+  "--target-min": "2.75rem",
+  "--radius-panel": "0.375rem",
+  "--motion-standard": "160ms",
+} as const
+
+function computedToken(name: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
 }
 
 function linearChannel(color: string, start: number): number {
@@ -28,65 +65,42 @@ function contrastRatio(foreground: string, background: string): number {
 }
 
 describe("design tokens", () => {
-  it("defines the semantic color contract for both explicit themes", () => {
-    // Given
-    const requiredTokens = [
-      "--surface-root",
-      "--surface-panel",
-      "--text-primary",
-      "--text-secondary",
-      "--border-subtle",
-      "--accent-primary",
-      "--accent-proof",
-      "--accent-warning",
-      "--accent-danger",
-      "--chart-baseline",
-      "--chart-candidate",
-    ]
+  afterEach(() => document.documentElement.removeAttribute("data-theme"))
 
-    // When
-    const themeBlocks = tokenCss.match(/\[data-theme="(?:light|dark)"\][^{]*\{[^}]+\}/g) ?? []
+  it("renders the independently specified DESIGN palette in both themes", () => {
+    for (const [theme, tokens] of Object.entries(EXPECTED_THEME_TOKENS)) {
+      // Given
+      document.documentElement.setAttribute("data-theme", theme)
 
-    // Then
-    expect(themeBlocks).toHaveLength(2)
-    for (const token of requiredTokens) {
-      expect(themeBlocks.every((block) => block.includes(token))).toBe(true)
+      // When / Then
+      for (const [name, expected] of Object.entries(tokens)) {
+        expect(computedToken(name)).toBe(expected)
+      }
     }
   })
 
-  it("defines the spacing, type, target, radius, and motion scales", () => {
+  it("renders the independently specified spacing, type, target, radius, and motion scales", () => {
     // Given
-    const requiredTokens = [
-      "--space-1",
-      "--space-10",
-      "--font-body",
-      "--font-mono",
-      "--text-body",
-      "--target-min",
-      "--radius-panel",
-      "--motion-standard",
-    ]
+    document.documentElement.setAttribute("data-theme", "light")
 
-    // When
-    const availableTokens = requiredTokens.filter((token) => tokenCss.includes(token))
-
-    // Then
-    expect(availableTokens).toEqual(requiredTokens)
+    // When / Then
+    for (const [name, expected] of Object.entries(EXPECTED_FOUNDATION_TOKENS)) {
+      expect(computedToken(name)).toBe(expected)
+    }
   })
 
-  it("keeps light proof and warning state pairs above WCAG AA body contrast", () => {
+  it("keeps rendered light proof and warning pairs above WCAG AA body contrast", () => {
     // Given
-    const lightBlock = tokenCss.match(/\[data-theme="light"\][^{]*\{[^}]+\}/)?.[0]
-    if (!lightBlock) throw new TypeError("Light theme token block is missing")
+    document.documentElement.setAttribute("data-theme", "light")
 
     // When
     const warningRatio = contrastRatio(
-      cssToken(lightBlock, "--accent-warning"),
-      cssToken(lightBlock, "--state-warning"),
+      computedToken("--accent-warning"),
+      computedToken("--state-warning"),
     )
     const proofRatio = contrastRatio(
-      cssToken(lightBlock, "--accent-proof"),
-      cssToken(lightBlock, "--state-proof"),
+      computedToken("--accent-proof"),
+      computedToken("--state-proof"),
     )
 
     // Then

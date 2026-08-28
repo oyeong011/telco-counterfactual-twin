@@ -129,17 +129,27 @@ export const TIMELINE_EVENTS = [
 ] satisfies readonly TimelineEvent[]
 
 export const PATCH_LINES = [
-  { number: 129, kind: "context", content: "prb_allocation:" },
-  { number: 130, kind: "removal", content: "max_prb_utilization: 85" },
-  { number: 130, kind: "addition", content: "max_prb_utilization: 75" },
-  { number: 131, kind: "context", content: "min_rb_reserve: 12" },
+  { id: "line-129-context", number: 129, kind: "context", content: "prb_allocation:" },
+  {
+    id: "line-130-removal",
+    number: 130,
+    kind: "removal",
+    content: "max_prb_utilization: 85",
+  },
+  {
+    id: "line-130-addition",
+    number: 130,
+    kind: "addition",
+    content: "max_prb_utilization: 75",
+  },
+  { id: "line-131-context", number: 131, kind: "context", content: "min_rb_reserve: 12" },
 ] satisfies readonly PatchLine[]
 
 export const EVIDENCE_FIELDS = [
-  { label: "Replay hash", value: "sha256:fixture-evidence-7f3a" },
-  { label: "Scenario", value: "CF-DEMO-RUN-024" },
-  { label: "Generated at", value: "2026-08-29T00:00:00Z" },
-  { label: "Boundary", value: "Evidence only. No network execution." },
+  { id: "replay", label: "Replay hash", value: "sha256:fixture-evidence-7f3a" },
+  { id: "scenario", label: "Scenario", value: "CF-DEMO-RUN-024" },
+  { id: "generated-at", label: "Generated at", value: "2026-08-29T00:00:00Z" },
+  { id: "boundary", label: "Boundary", value: "Evidence only. No network execution." },
 ] satisfies readonly EvidenceField[]
 
 export const APPROVAL_STEPS = [

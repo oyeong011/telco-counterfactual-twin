@@ -29,9 +29,22 @@ type TopologyCanvasProps = {
   readonly nodes: readonly TopologyNode[]
   readonly edges: readonly TopologyEdge[]
   readonly state?: SurfaceState
+  readonly selectedNodeId?: string
+  readonly highlightedNodeId?: string
   readonly onSelectNode?: (id: string) => void
+  readonly onHighlightNode?: (id: string | undefined) => void
   readonly onRetry?: () => void
 }
+
+type TopologyLabelGeometry = {
+  readonly x: number
+  readonly y: number
+  readonly width: number
+}
+
+const LABEL_FONT_SIZE = 4
+const LABEL_STROKE_WIDTH = 1.5
+const LABEL_HEIGHT = 6
 
 const EDGE_COLUMNS = [
   { id: "source", header: "Source", render: (edge: TopologyEdge) => edge.sourceId },
@@ -42,15 +55,27 @@ const EDGE_COLUMNS = [
   { id: "evidence", header: "Evidence ID", render: (edge: TopologyEdge) => edge.evidenceId },
 ] satisfies readonly DataTableColumn<TopologyEdge>[]
 
+function labelGeometry(node: TopologyNode): TopologyLabelGeometry {
+  const width = Math.max(12, node.label.length * 2.5 + 4)
+  if (node.y <= 25) return { x: node.x, y: 5, width }
+  if (node.y >= 70) return { x: node.x, y: 100, width }
+  return { x: node.x < 50 ? node.x - 18 : node.x + 18, y: node.y - 12, width }
+}
+
 export function TopologyCanvas({
   title,
   nodes,
   edges,
   state = "default",
+  selectedNodeId,
+  highlightedNodeId,
   onSelectNode,
+  onHighlightNode,
   onRetry,
 }: TopologyCanvasProps) {
   const headingId = useId()
+  const selectedNode = nodes.find((node) => node.id === selectedNodeId)
+  const highlightedNode = nodes.find((node) => node.id === highlightedNodeId)
 
   if (state === "loading") {
     return <Skeleton variant="topology" label={`Loading ${title}`} />
@@ -91,7 +116,7 @@ export function TopologyCanvas({
         <p className="emptyMessage">No topology snapshot is available.</p>
       ) : (
         <div className="topologyCanvas">
-          <svg viewBox="0 0 100 100" role="img" aria-label={`${title} graph`}>
+          <svg viewBox="0 0 100 108" role="img" aria-label={`${title} graph`}>
             <title>{title}</title>
             <desc>
               Keyboard traversable nodes with an adjacency table immediately after the graph.
@@ -117,30 +142,69 @@ export function TopologyCanvas({
                 key={node.id}
                 className="topologyNode"
                 data-status={node.status}
+                data-selected={node.id === selectedNodeId || undefined}
+                data-highlighted={node.id === highlightedNodeId || undefined}
                 transform={`translate(${node.x} ${node.y})`}
               >
                 <circle r="7" />
                 <Network aria-hidden="true" x="-4" y="-4" width="8" height="8" />
-                <text x="0" y="12" textAnchor="middle">
-                  {node.label}
-                </text>
               </g>
             ))}
-          </svg>
-          <ul className="topologyNodeControls" aria-label="Topology nodes">
-            {nodes.map((node) => (
-              <li key={node.id}>
-                <button
-                  type="button"
-                  className="topologyNodeButton"
-                  disabled={state === "disabled"}
-                  onClick={() => onSelectNode?.(node.id)}
+            {nodes.map((node) => {
+              const label = labelGeometry(node)
+              return (
+                <g
+                  key={`${node.id}-label`}
+                  className="topologyLabel"
+                  data-topology-label={node.id}
+                  data-selected={node.id === selectedNodeId || undefined}
+                  data-highlighted={node.id === highlightedNodeId || undefined}
                 >
-                  {node.label}, {node.status}
-                </button>
-              </li>
+                  <rect
+                    x={label.x - label.width / 2}
+                    y={label.y - 4}
+                    width={label.width}
+                    height={LABEL_HEIGHT}
+                    rx="1"
+                  />
+                  <text
+                    x={label.x}
+                    y={label.y}
+                    textAnchor="middle"
+                    fontSize={LABEL_FONT_SIZE}
+                    strokeWidth={LABEL_STROKE_WIDTH}
+                    paintOrder="stroke fill"
+                  >
+                    {node.label}
+                  </text>
+                </g>
+              )
+            })}
+          </svg>
+          <div className="topologyNodeControls" role="listbox" aria-label="Topology nodes">
+            {nodes.map((node) => (
+              <button
+                key={node.id}
+                type="button"
+                role="option"
+                className="topologyNodeButton"
+                aria-selected={node.id === selectedNodeId}
+                data-highlighted={node.id === highlightedNodeId || undefined}
+                disabled={state === "disabled"}
+                onClick={() => onSelectNode?.(node.id)}
+                onPointerEnter={() => onHighlightNode?.(node.id)}
+                onPointerLeave={() => onHighlightNode?.(undefined)}
+                onFocus={() => onHighlightNode?.(node.id)}
+                onBlur={() => onHighlightNode?.(undefined)}
+              >
+                {node.label}, {node.status}
+              </button>
             ))}
-          </ul>
+          </div>
+          <div className="topologySelection" aria-live="polite">
+            <span>Selected node: {selectedNode?.label ?? "None"}</span>
+            {highlightedNode ? <span>Highlighted node: {highlightedNode.label}</span> : null}
+          </div>
         </div>
       )}
       <DataTable

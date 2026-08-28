@@ -25,16 +25,12 @@ type MetricDeltaProps = {
   readonly series: readonly MetricSeries[]
   readonly rows: readonly MetricDeltaRow[]
   readonly state?: SurfaceState
+  readonly selectedMetricId?: string
+  readonly highlightedMetricId?: string
+  readonly onSelectMetric?: (id: string) => void
+  readonly onHighlightMetric?: (id: string | undefined) => void
   readonly onRetry?: () => void
 }
-
-const METRIC_COLUMNS = [
-  { id: "metric", header: "Metric", render: (row: MetricDeltaRow) => row.metric },
-  { id: "baseline", header: "Baseline", render: (row: MetricDeltaRow) => row.baseline },
-  { id: "candidate", header: "Candidate", render: (row: MetricDeltaRow) => row.candidate },
-  { id: "delta", header: "Delta", render: (row: MetricDeltaRow) => row.delta },
-  { id: "direction", header: "Impact", render: (row: MetricDeltaRow) => row.direction },
-] satisfies readonly DataTableColumn<MetricDeltaRow>[]
 
 function seriesPoints(values: readonly number[]): string {
   return values
@@ -46,12 +42,53 @@ function seriesPoints(values: readonly number[]): string {
     .join(" ")
 }
 
-export function MetricDelta({ title, series, rows, state = "default", onRetry }: MetricDeltaProps) {
+export function MetricDelta({
+  title,
+  series,
+  rows,
+  state = "default",
+  selectedMetricId,
+  highlightedMetricId,
+  onSelectMetric,
+  onHighlightMetric,
+  onRetry,
+}: MetricDeltaProps) {
   const headingId = useId()
 
   if (state === "loading") {
     return <Skeleton variant="chart" label={`Loading ${title}`} />
   }
+
+  const columns = [
+    {
+      id: "metric",
+      header: "Metric",
+      render: (row: MetricDeltaRow) =>
+        onSelectMetric ? (
+          <button
+            type="button"
+            className="metricSelectButton"
+            aria-label={`Select metric ${row.metric}`}
+            aria-pressed={row.id === selectedMetricId}
+            data-highlighted={row.id === highlightedMetricId || undefined}
+            disabled={state === "disabled"}
+            onClick={() => onSelectMetric(row.id)}
+            onPointerEnter={() => onHighlightMetric?.(row.id)}
+            onPointerLeave={() => onHighlightMetric?.(undefined)}
+            onFocus={() => onHighlightMetric?.(row.id)}
+            onBlur={() => onHighlightMetric?.(undefined)}
+          >
+            {row.metric}
+          </button>
+        ) : (
+          row.metric
+        ),
+    },
+    { id: "baseline", header: "Baseline", render: (row: MetricDeltaRow) => row.baseline },
+    { id: "candidate", header: "Candidate", render: (row: MetricDeltaRow) => row.candidate },
+    { id: "delta", header: "Delta", render: (row: MetricDeltaRow) => row.delta },
+    { id: "direction", header: "Impact", render: (row: MetricDeltaRow) => row.direction },
+  ] satisfies readonly DataTableColumn<MetricDeltaRow>[]
   if (state === "error") {
     return (
       <ErrorState
@@ -94,7 +131,7 @@ export function MetricDelta({ title, series, rows, state = "default", onRetry }:
       </div>
       <DataTable
         caption={`${title} values`}
-        columns={METRIC_COLUMNS}
+        columns={columns}
         rows={rows}
         rowKey={(row) => row.id}
         state={state}

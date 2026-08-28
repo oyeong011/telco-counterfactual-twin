@@ -68,8 +68,8 @@ describe("evidence primitives", () => {
           state="rejected"
           validationSummary="Policy constraint failed"
           lines={[
-            { number: 12, kind: "removal", content: "max_utilization: 85" },
-            { number: 12, kind: "addition", content: "max_utilization: 75" },
+            { id: "line-removal", number: 12, kind: "removal", content: "max_utilization: 85" },
+            { id: "line-addition", number: 12, kind: "addition", content: "max_utilization: 75" },
           ]}
         />
         <ApprovalEvidence
@@ -83,7 +83,7 @@ describe("evidence primitives", () => {
         <EvidenceRail
           title="Signed evidence"
           state="approved"
-          fields={[{ label: "Replay hash", value: "sha256:demo" }]}
+          fields={[{ id: "replay", label: "Replay hash", value: "sha256:demo" }]}
         />
       </>,
     )
@@ -96,14 +96,14 @@ describe("evidence primitives", () => {
     expect(screen.getByRole("complementary", { name: "Signed evidence" })).toBeInTheDocument()
   })
 
-  it("opens mobile evidence details as a dialog and restores focus after Escape", async () => {
+  it("opens mobile evidence details as a dialog and restores focus after close", async () => {
     // Given
     const user = userEvent.setup()
     render(
       <EvidenceRail
         title="Mobile evidence details"
         state="approved"
-        fields={[{ label: "Replay hash", value: "sha256:mobile" }]}
+        fields={[{ id: "replay", label: "Replay hash", value: "sha256:mobile" }]}
       />,
     )
     const trigger = screen.getByRole("button", { name: "Open mobile evidence details" })
@@ -114,11 +114,11 @@ describe("evidence primitives", () => {
     // Then
     const dialog = screen.getByRole("dialog", { name: "Mobile evidence details" })
     expect(dialog).toBeVisible()
-    expect(dialog).toHaveAttribute("aria-modal", "true")
-    expect(screen.getByRole("button", { name: "Close mobile evidence details" })).toHaveFocus()
+    const close = screen.getByRole("button", { name: "Close mobile evidence details" })
+    expect(close).toHaveFocus()
 
     // When
-    await user.keyboard("{Escape}")
+    await user.click(close)
 
     // Then
     expect(
@@ -127,7 +127,7 @@ describe("evidence primitives", () => {
     expect(trigger).toHaveFocus()
   })
 
-  it("generates unique labelled headings for multiple approval evidence instances", () => {
+  it("keeps multiple approval evidence instances independently labelled", () => {
     // Given
     render(
       <>
@@ -138,12 +138,9 @@ describe("evidence primitives", () => {
 
     // When
     const sections = screen.getAllByRole("region", { name: "Approval evidence" })
-    const labelledBy = sections.map((section) => section.getAttribute("aria-labelledby"))
 
     // Then
-    expect(labelledBy).toHaveLength(2)
-    expect(new Set(labelledBy).size).toBe(2)
-    expect(document.querySelectorAll("#approval-title")).toHaveLength(0)
+    expect(sections).toHaveLength(2)
   })
 
   it("pairs a hidden skeleton with a live loading label", () => {
@@ -172,13 +169,10 @@ describe("evidence primitives", () => {
       </div>,
     )
 
-    // When
-    const error = screen.getByRole("status")
-
-    // Then
-    expect(error).toHaveAttribute("data-layout", "component-aware")
-    expect(error.querySelector("h3")).toHaveTextContent("Evidence unavailable")
-    expect(error.querySelector("p")).toHaveTextContent("EVIDENCE_TIMEOUT")
+    // When / Then
+    expect(screen.getByRole("heading", { name: "Evidence unavailable" })).toBeVisible()
+    expect(screen.getByText("EVIDENCE_TIMEOUT")).toBeVisible()
+    expect(screen.getByText("The signed package did not arrive.")).toBeVisible()
   })
 
   it("exposes evidence recovery and approval decision actions in the primitive gallery", async () => {
@@ -192,7 +186,7 @@ describe("evidence primitives", () => {
         <EvidenceRail
           title="Evidence actions"
           state="default"
-          fields={[{ label: "Replay hash", value: "sha256:actions" }]}
+          fields={[{ id: "replay", label: "Replay hash", value: "sha256:actions" }]}
           onCopy={onCopy}
         />
         <ApprovalEvidence

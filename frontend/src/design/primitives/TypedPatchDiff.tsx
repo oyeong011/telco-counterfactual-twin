@@ -6,6 +6,7 @@ import { Skeleton } from "./Skeleton"
 import { StatusChip, type StatusTone } from "./StatusChip"
 
 export type PatchLine = {
+  readonly id: string
   readonly number: number
   readonly kind: "addition" | "removal" | "context"
   readonly content: string
@@ -17,6 +18,10 @@ type TypedPatchDiffProps = {
   readonly state?: SurfaceState
   readonly validationSummary: string
   readonly lines: readonly PatchLine[]
+  readonly selectedLineId?: string
+  readonly highlightedLineId?: string
+  readonly onSelectLine?: (id: string) => void
+  readonly onHighlightLine?: (id: string | undefined) => void
   readonly onCopy?: () => void
   readonly copyDisabled?: boolean
   readonly onRetry?: () => void
@@ -34,6 +39,10 @@ export function TypedPatchDiff({
   state = "default",
   validationSummary,
   lines,
+  selectedLineId,
+  highlightedLineId,
+  onSelectLine,
+  onHighlightLine,
   onCopy,
   copyDisabled = false,
   onRetry,
@@ -71,17 +80,46 @@ export function TypedPatchDiff({
         <p className="emptyMessage">No patch was proposed.</p>
       ) : (
         <ol className="patchLines" aria-label={`${path} patch lines`}>
-          {lines.map((line) => (
-            <li key={`${line.number}-${line.kind}`} data-kind={line.kind}>
-              <span className="patchLineNumber">{line.number}</span>
-              <code>
-                <span className="visuallyHidden">{LINE_LABELS[line.kind]}: </span>
-                <span aria-hidden="true">
-                  {LINE_LABELS[line.kind]}: {line.content}
-                </span>
-              </code>
-            </li>
-          ))}
+          {lines.map((line) => {
+            const content = (
+              <>
+                <span className="patchLineNumber">{line.number}</span>
+                <code>
+                  <span className="visuallyHidden">{LINE_LABELS[line.kind]}: </span>
+                  <span aria-hidden="true">
+                    {LINE_LABELS[line.kind]}: {line.content}
+                  </span>
+                </code>
+              </>
+            )
+            return (
+              <li
+                key={line.id}
+                data-kind={line.kind}
+                data-selected={line.id === selectedLineId || undefined}
+                data-highlighted={line.id === highlightedLineId || undefined}
+              >
+                {onSelectLine ? (
+                  <button
+                    type="button"
+                    className="patchLineButton"
+                    aria-label={`Select line ${line.number} ${LINE_LABELS[line.kind]}`}
+                    aria-pressed={line.id === selectedLineId}
+                    disabled={state === "disabled"}
+                    onClick={() => onSelectLine(line.id)}
+                    onPointerEnter={() => onHighlightLine?.(line.id)}
+                    onPointerLeave={() => onHighlightLine?.(undefined)}
+                    onFocus={() => onHighlightLine?.(line.id)}
+                    onBlur={() => onHighlightLine?.(undefined)}
+                  >
+                    {content}
+                  </button>
+                ) : (
+                  <div className="patchLineStatic">{content}</div>
+                )}
+              </li>
+            )
+          })}
         </ol>
       )}
       <footer className="patchFooter">

@@ -1,5 +1,10 @@
 import { useState } from "react"
-import { ApprovalEvidence, type ApprovalStep } from "../design/primitives/ApprovalEvidence"
+import {
+  type ApprovalAction,
+  type ApprovalDecision,
+  ApprovalEvidence,
+  type ApprovalStep,
+} from "../design/primitives/ApprovalEvidence"
 import { ErrorState } from "../design/primitives/ErrorState"
 import { EvidenceRail } from "../design/primitives/EvidenceRail"
 import { SKELETON_VARIANTS } from "../design/primitives/primitiveTypes"
@@ -24,12 +29,23 @@ function approvedSteps(): readonly ApprovalStep[] {
 function EvidenceExample({ state }: { readonly state: ShowcaseState }) {
   const [copied, setCopied] = useState(false)
   const [retried, setRetried] = useState(false)
+  const [selectedArtifactId, setSelectedArtifactId] = useState<string | undefined>(
+    state === "active" ? "scenario" : undefined,
+  )
+  const [highlightedArtifactId, setHighlightedArtifactId] = useState<string | undefined>(
+    state === "hover" ? "replay" : state === "focus" ? "generated-at" : undefined,
+  )
   return (
     <div className="showcaseEvidenceExample" data-behavior-state={state}>
       <EvidenceRail
         title="Evidence package"
         fields={state === "empty" ? [] : EVIDENCE_FIELDS}
         state={surfaceStateFor(state)}
+        {...(selectedArtifactId ? { selectedArtifactId } : {})}
+        {...(highlightedArtifactId ? { highlightedArtifactId } : {})}
+        {...(copied ? { selectedAction: "copy" as const } : {})}
+        onSelectArtifact={setSelectedArtifactId}
+        onHighlightArtifact={setHighlightedArtifactId}
         copyDisabled={state === "disabled"}
         onCopy={() => setCopied(true)}
         onRetry={() => setRetried(true)}
@@ -41,7 +57,16 @@ function EvidenceExample({ state }: { readonly state: ShowcaseState }) {
 }
 
 function ApprovalExample({ state }: { readonly state: ShowcaseState }) {
-  const [decision, setDecision] = useState<"pending" | "approved" | "rejected">("pending")
+  const initialDecision: ApprovalDecision =
+    state === "active" || state === "approved"
+      ? "approved"
+      : state === "rejected"
+        ? "rejected"
+        : "pending"
+  const [decision, setDecision] = useState<ApprovalDecision>(initialDecision)
+  const [highlightedAction, setHighlightedAction] = useState<ApprovalAction | undefined>(
+    state === "hover" ? "approve" : state === "focus" ? "reject" : undefined,
+  )
   const [recovered, setRecovered] = useState(false)
   const baseState = surfaceStateFor(state)
   const effectiveState =
@@ -72,12 +97,15 @@ function ApprovalExample({ state }: { readonly state: ShowcaseState }) {
     <div className="showcaseApprovalExample" data-behavior-state={state}>
       <ApprovalEvidence
         state={effectiveState}
+        decision={decision}
+        {...(highlightedAction ? { highlightedAction } : {})}
         steps={steps}
         {...(reason ? { reason } : {})}
         {...(effectiveState === "approved" ? { proofHash: KOREAN_HASH } : {})}
         {...(actionsDisabledReason ? { actionsDisabledReason } : {})}
         onApprove={() => setDecision("approved")}
         {...(state === "approved" ? {} : { onReject: () => setDecision("rejected") })}
+        onHighlightAction={setHighlightedAction}
         onRetry={() => setRecovered(true)}
       />
       {decision !== "pending" ? <span role="status">Decision recorded: {decision}.</span> : null}

@@ -17,6 +17,9 @@ const PREVIEW_NAVIGATION = [
 ] as const satisfies readonly AppNavigationItem[]
 
 function navigationForState(state: ShowcaseState): readonly AppNavigationItem[] {
+  if (state === "hover") {
+    return PREVIEW_NAVIGATION.map((item, index) => ({ ...item, highlighted: index === 0 }))
+  }
   if (state === "active") {
     return PREVIEW_NAVIGATION.map((item, index) => ({ ...item, active: index === 1 }))
   }
@@ -110,7 +113,6 @@ function CommandBarExample({ state }: { readonly state: ShowcaseState }) {
           <button
             type="button"
             aria-pressed={state === "active" || reviewRecorded}
-            data-showcase-focus={state === "focus" ? "true" : undefined}
             disabled={isUnavailable}
             onClick={() => setReviewRecorded(true)}
           >
@@ -140,6 +142,10 @@ function CommandBarExample({ state }: { readonly state: ShowcaseState }) {
 }
 
 function ContextRailExample({ state }: { readonly state: ShowcaseState }) {
+  const [selectedId, setSelectedId] = useState(state === "active" ? "run-023" : "run-024")
+  const [highlightedId, setHighlightedId] = useState(
+    state === "hover" ? "run-023" : state === "focus" ? "run-022" : undefined,
+  )
   const items =
     state === "disabled"
       ? CONTEXT_ITEMS.map((item) => ({
@@ -152,9 +158,11 @@ function ContextRailExample({ state }: { readonly state: ShowcaseState }) {
     <ContextRail
       title="Scenario runs"
       items={items}
-      selectedId={state === "active" ? "run-023" : "run-024"}
+      selectedId={selectedId}
+      {...(highlightedId ? { highlightedId } : {})}
       state={surfaceStateFor(state)}
-      onSelect={() => undefined}
+      onSelect={setSelectedId}
+      onHighlight={setHighlightedId}
       onRetry={() => undefined}
     />
   )

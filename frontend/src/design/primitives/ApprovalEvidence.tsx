@@ -11,28 +11,48 @@ export type ApprovalStep = {
   readonly state: "pending" | "complete" | "rejected"
 }
 
+export type ApprovalDecision = "pending" | "approved" | "rejected"
+export type ApprovalAction = "approve" | "reject"
+
 type ApprovalEvidenceProps = {
   readonly state: SurfaceState
+  readonly decision?: ApprovalDecision
+  readonly highlightedAction?: ApprovalAction
   readonly steps: readonly ApprovalStep[]
   readonly reason?: string
   readonly proofHash?: string
   readonly actionsDisabledReason?: string
   readonly onApprove?: () => void
   readonly onReject?: () => void
+  readonly onHighlightAction?: (action: ApprovalAction | undefined) => void
   readonly onRetry?: () => void
+}
+
+function decisionFor(
+  state: SurfaceState,
+  decision: ApprovalDecision | undefined,
+): ApprovalDecision {
+  if (decision !== undefined) return decision
+  if (state === "approved") return "approved"
+  if (state === "rejected") return "rejected"
+  return "pending"
 }
 
 export function ApprovalEvidence({
   state,
+  decision,
+  highlightedAction,
   steps,
   reason,
   proofHash,
   actionsDisabledReason,
   onApprove,
   onReject,
+  onHighlightAction,
   onRetry,
 }: ApprovalEvidenceProps) {
   const headingId = useId()
+  const resolvedDecision = decisionFor(state, decision)
 
   if (state === "loading") {
     return <Skeleton variant="evidence" label="Loading approval evidence" />
@@ -76,20 +96,39 @@ export function ApprovalEvidence({
       {reason ? <p className="approvalReason">Reason: {reason}</p> : null}
       {proofHash ? <p className="mono">Proof {proofHash}</p> : null}
       {onApprove || onReject ? (
-        <div className="approvalActions">
-          <button
-            type="button"
-            disabled={Boolean(actionsDisabledReason)}
-            title={actionsDisabledReason}
-            onClick={onApprove}
-          >
-            <ShieldCheck aria-hidden="true" />
-            Record approval evidence
-          </button>
-          <button type="button" onClick={onReject}>
-            <ShieldX aria-hidden="true" />
-            Record rejection evidence
-          </button>
+        <div className="approvalActions" data-decision={resolvedDecision}>
+          {onApprove ? (
+            <button
+              type="button"
+              aria-pressed={resolvedDecision === "approved"}
+              data-highlighted={highlightedAction === "approve" || undefined}
+              disabled={Boolean(actionsDisabledReason)}
+              title={actionsDisabledReason}
+              onClick={onApprove}
+              onPointerEnter={() => onHighlightAction?.("approve")}
+              onPointerLeave={() => onHighlightAction?.(undefined)}
+              onFocus={() => onHighlightAction?.("approve")}
+              onBlur={() => onHighlightAction?.(undefined)}
+            >
+              <ShieldCheck aria-hidden="true" />
+              Record approval evidence
+            </button>
+          ) : null}
+          {onReject ? (
+            <button
+              type="button"
+              aria-pressed={resolvedDecision === "rejected"}
+              data-highlighted={highlightedAction === "reject" || undefined}
+              onClick={onReject}
+              onPointerEnter={() => onHighlightAction?.("reject")}
+              onPointerLeave={() => onHighlightAction?.(undefined)}
+              onFocus={() => onHighlightAction?.("reject")}
+              onBlur={() => onHighlightAction?.(undefined)}
+            >
+              <ShieldX aria-hidden="true" />
+              Record rejection evidence
+            </button>
+          ) : null}
         </div>
       ) : null}
       <p className="approvalBoundary">Approval records evidence only. It never executes a patch.</p>

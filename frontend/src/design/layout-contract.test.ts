@@ -5,20 +5,18 @@ import { PrimitiveShowcase } from "../showcase/PrimitiveShowcase"
 import { ThemeProvider } from "./theme/ThemeProvider"
 
 describe("showcase layout contract", () => {
-  it("renders nested showcase regions as shrink-safe DOM layout owners", () => {
+  it("keeps the route and state galleries exposed through semantic regions", () => {
     // Given
     render(createElement(ThemeProvider, null, createElement(PrimitiveShowcase)))
 
     // When
     const main = screen.getByRole("main")
-    const showcase = main.querySelector<HTMLElement>(".showcasePage")
-    const stateGrid = main.querySelector<HTMLElement>(".showcaseStateGrid")
-    const error = main.querySelector<HTMLElement>("[data-primitive=ErrorState] .errorState")
+    const errorGallery = screen.getByRole("region", { name: "ErrorState state gallery" })
 
     // Then
-    expect(showcase).toHaveAttribute("data-layout", "route-stack")
-    expect(stateGrid).toHaveAttribute("data-layout", "state-grid")
-    expect(error).toHaveAttribute("data-layout", "component-aware")
+    expect(main).toContainElement(errorGallery)
+    expect(screen.getByRole("heading", { name: "Evidence-first console primitives" })).toBeVisible()
+    expect(screen.getAllByRole("article").length).toBeGreaterThan(0)
   })
 
   it("keeps topology and timeline fallback regions available in the live DOM", () => {
@@ -32,7 +30,7 @@ describe("showcase layout contract", () => {
     expect(timeline.querySelectorAll('ol[aria-label="Simulation trace"]').length).toBeGreaterThan(0)
   })
 
-  it("marks preview route bodies as full shell-body grid owners", () => {
+  it("renders a recoverable error inside the AppShell preview", () => {
     // Given
     render(createElement(ThemeProvider, null, createElement(PrimitiveShowcase)))
 
@@ -40,9 +38,14 @@ describe("showcase layout contract", () => {
     const shellError = screen
       .getByRole("region", { name: "AppShell state gallery" })
       .querySelector<HTMLElement>('[data-state="error"]')
-    const previewRoute = shellError?.querySelector<HTMLElement>(".showcaseShellRoute")
+    if (!(shellError instanceof HTMLElement)) {
+      throw new TypeError("AppShell error preview is missing")
+    }
 
     // Then
-    expect(previewRoute).toHaveAttribute("data-layout", "preview-route")
+    expect(
+      screen.getByRole("navigation", { name: "AppShell error preview navigation" }),
+    ).toBeVisible()
+    expect(screen.getByRole("alert", { name: "Shell route unavailable" })).toBeVisible()
   })
 })

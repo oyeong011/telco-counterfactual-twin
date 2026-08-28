@@ -12,6 +12,7 @@ import "./styles/shell.css"
 import "./styles/states.css"
 import "./styles/data.css"
 import "./styles/evidence.css"
+import "./styles/interactions.css"
 
 const rootElement = document.getElementById("root")
 if (rootElement === null) {
