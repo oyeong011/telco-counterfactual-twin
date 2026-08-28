@@ -26,7 +26,8 @@ from pydantic import JsonValue, TypeAdapter, ValidationError
 SCHEMA_VERSION: Final = "1.0"
 DEFAULT_ROOT: Final = Path(".")
 DEFAULT_OUTPUT: Final = Path("frontend/public/build-info.json")
-DEFAULT_ASSETS_ROOT: Final = Path("frontend/public")
+DEFAULT_ASSETS_ROOT: Final = Path("frontend/dist")
+DEFAULT_ASSET_MANIFEST: Final = Path(".vite/manifest.json")
 DEFAULT_CONTRACT_ROOT: Final = Path("specs/schemas")
 DEFAULT_LOCK_PATH: Final = Path("frontend/pnpm-lock.yaml")
 DEFAULT_MCP_PATH: Final = Path("artifacts/contracts/mcp.json")
@@ -50,6 +51,7 @@ class BuildPaths:
     root: Path
     output: Path
     assets_root: Path
+    asset_manifest: Path
     contract_root: Path
     lock_path: Path
     mcp_path: Path
@@ -81,6 +83,10 @@ def _sha256_file(path: Path) -> str:
 
 
 def _git(root: Path, args: Sequence[str]) -> str:
+    return _git_bytes(root, args).decode("utf-8", errors="strict").rstrip("\r\n")
+
+
+def _git_bytes(root: Path, args: Sequence[str]) -> bytes:
     result = subprocess.run(
         ["git", *args], cwd=root, capture_output=True, text=False, check=False
     )
@@ -90,7 +96,7 @@ def _git(root: Path, args: Sequence[str]) -> str:
             or "git command failed"
         )
         raise BuildIdentityError("git-failure", detail)
-    return result.stdout.decode("utf-8", errors="strict").rstrip("\r\n")
+    return result.stdout
 
 
 def _git_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
@@ -110,6 +116,19 @@ def _relative(root: Path, path: Path) -> str:
         return path.resolve(strict=False).relative_to(root.resolve()).as_posix()
     except ValueError as error:
         raise BuildIdentityError("path-traversal", path.as_posix()) from error
+
+
+def _repo_cli_path(root: Path, value: Path, field: str) -> Path:
+    if value.is_absolute() or "\x00" in value.as_posix() or ".." in value.parts:
+        raise BuildIdentityError("path-traversal", field)
+    candidate = root / value
+    _ = _relative(root, candidate)
+    current = root
+    for part in value.parts:
+        current /= part
+        if current.is_symlink():
+            raise BuildIdentityError("path-traversal", field)
+    return candidate
 
 
 def _status(root: Path) -> tuple[tuple[str, str], ...]:
@@ -156,6 +175,7 @@ def _require_clean(root: Path, output: Path, *, check: bool) -> None:
 def _files_under(
     root: Path, directory: Path, *, exclude: frozenset[Path]
 ) -> tuple[Path, ...]:
+    _ = _relative(root, directory)
     if not directory.exists():
         return ()
     if directory.is_symlink():
@@ -169,30 +189,6 @@ def _files_under(
         if path.is_file():
             files.append(path)
     return tuple(files)
-
-
-def _runtime_files(paths: BuildPaths) -> tuple[Path, ...]:
-    fixed = (
-        paths.root / "frontend/index.html",
-        paths.root / "frontend/package.json",
-        paths.root / "frontend/pnpm-lock.yaml",
-        paths.root / "frontend/tsconfig.json",
-        paths.root / "frontend/vite.config.ts",
-        paths.root / "frontend/biome.json",
-    )
-    if any(path.is_symlink() for path in fixed):
-        linked = next(path for path in fixed if path.is_symlink())
-        raise BuildIdentityError("path-traversal", _relative(paths.root, linked))
-    source = _files_under(paths.root, paths.root / "frontend/src", exclude=frozenset())
-    public = _files_under(
-        paths.root, paths.assets_root, exclude=frozenset({paths.output})
-    )
-    contracts = _files_under(paths.root, paths.contract_root, exclude=frozenset())
-    files = (*fixed, *source, *public, *contracts)
-    if any(not path.is_file() for path in files):
-        missing = next(path for path in files if not path.is_file())
-        raise BuildIdentityError("missing-input", _relative(paths.root, missing))
-    return tuple(sorted(set(files), key=lambda path: _relative(paths.root, path)))
 
 
 def _records_hash(root: Path, files: tuple[Path, ...]) -> str:

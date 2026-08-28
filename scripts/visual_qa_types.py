@@ -31,6 +31,7 @@ ROUTES: Final = (
 )
 STATES: Final = ("loading", "empty", "error", "stale", "rejected", "approved", "demo")
 VIEWPORTS: Final = ("desktop", "mobile")
+REVIEWER_ROLES: Final = ("visual-fidelity", "accessibility")
 PNG_SIGNATURE: Final = b"\x89PNG\r\n\x1a\n"
 SHA1_PATTERN: Final = re.compile(r"[0-9a-f]{40}\Z")
 SHA256_PATTERN: Final = re.compile(r"[0-9a-f]{64}\Z")
@@ -61,6 +62,7 @@ class Capture:
     path: str
     width: int
     height: int
+    sha256: str
     captured_at: datetime
     source_sha: str
     release_sha: str
@@ -73,13 +75,12 @@ class Capture:
 
 @dataclass(frozen=True, slots=True)
 class Reviewer:
-    """One independent approval bound to the exact source and build."""
+    """One external approval receipt reference."""
 
-    reviewer_id: str
-    approved: bool
-    source_sha: str
-    release_sha: str
-    build_info_sha: str
+    role: str
+    run_id: str
+    receipt_path: str
+    receipt_sha: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,8 +90,19 @@ class Manifest:
     source_sha: str
     release_sha: str
     build_info_sha: str
+    subject_sha: str
     captures: tuple[Capture, ...]
     reviewers: tuple[Reviewer, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class VisualRequirements:
+    """Requested evidence matrix and independent review count."""
+
+    routes: tuple[str, ...]
+    states: tuple[str, ...]
+    viewports: tuple[str, ...]
+    reviewer_count: int
 
 
 @dataclass(frozen=True, slots=True)

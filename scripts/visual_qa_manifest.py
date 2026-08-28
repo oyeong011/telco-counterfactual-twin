@@ -28,7 +28,7 @@ from scripts.visual_qa_types import (
     Manifest,
     Reviewer,
     VisualQaError,
-    _boolean,
+    VisualRequirements,
     _integer,
     _mapping,
     _read_json,
@@ -53,6 +53,7 @@ def _capture(value: JsonValue, index: int) -> Capture:
         "path",
         "width",
         "height",
+        "sha256",
         "captured_at",
         "source_commit_sha",
         "release_commit_sha",
@@ -88,6 +89,7 @@ def _capture(value: JsonValue, index: int) -> Capture:
         path=_string(value, "path", f"captures[{index}]"),
         width=width,
         height=height,
+        sha256=_sha256(_string(value, "sha256", f"captures[{index}]"), "sha256"),
         captured_at=_timestamp(
             _string(value, "captured_at", f"captures[{index}]"),
             f"captures[{index}].captured_at",
@@ -115,30 +117,23 @@ def _reviewer(value: JsonValue, index: int) -> Reviewer:
     if not isinstance(value, dict):
         raise VisualQaError("schema-mismatch", f"reviewers[{index}]")
     required = (
-        "id",
-        "approved",
-        "source_commit_sha",
-        "release_commit_sha",
-        "build_info_sha256",
+        "role",
+        "run_id",
+        "receipt_path",
+        "receipt_sha256",
     )
     _required(value, required, required, f"reviewers[{index}]")
-    reviewer_id = _string(value, "id", f"reviewers[{index}]")
-    if not re.fullmatch(r"[a-z][a-z0-9_-]{1,63}", reviewer_id):
-        raise VisualQaError("reviewer-invalid", reviewer_id)
+    role = _string(value, "role", f"reviewers[{index}]")
+    run_id = _string(value, "run_id", f"reviewers[{index}]")
+    if not re.fullmatch(r"[a-z][a-z0-9-]{7,95}", run_id):
+        raise VisualQaError("reviewer-invalid", run_id)
     return Reviewer(
-        reviewer_id=reviewer_id,
-        approved=_boolean(value, "approved", f"reviewers[{index}]"),
-        source_sha=_sha(
-            _string(value, "source_commit_sha", f"reviewers[{index}]"),
-            "source_commit_sha",
-        ),
-        release_sha=_sha(
-            _string(value, "release_commit_sha", f"reviewers[{index}]"),
-            "release_commit_sha",
-        ),
-        build_info_sha=_sha256(
-            _string(value, "build_info_sha256", f"reviewers[{index}]"),
-            "build_info_sha256",
+        role=role,
+        run_id=run_id,
+        receipt_path=_string(value, "receipt_path", f"reviewers[{index}]"),
+        receipt_sha=_sha256(
+            _string(value, "receipt_sha256", f"reviewers[{index}]"),
+            "receipt_sha256",
         ),
     )
 
@@ -154,6 +149,7 @@ def parse_manifest(path: Path) -> Manifest:
         "source_commit_sha",
         "release_commit_sha",
         "build_info_sha256",
+        "subject_sha256",
         "captures",
         "reviewers",
     )
@@ -174,6 +170,9 @@ def parse_manifest(path: Path) -> Manifest:
         build_info_sha=_sha256(
             _string(value, "build_info_sha256", "manifest"), "build_info_sha256"
         ),
+        subject_sha=_sha256(
+            _string(value, "subject_sha256", "manifest"), "subject_sha256"
+        ),
         captures=tuple(
             _capture(item, index) for index, item in enumerate(captures_value)
         ),
@@ -189,6 +188,21 @@ def _now(value: str | None) -> datetime:
     return _timestamp(value, "now")
 
 
+def _csv_requirement(
+    value: str | None, allowed: tuple[str, ...], field: str
+) -> tuple[str, ...]:
+    if value is None:
+        return allowed
+    parts = tuple(part.strip() for part in value.split(",") if part.strip())
+    if (
+        not parts
+        or len(parts) != len(set(parts))
+        or any(part not in allowed for part in parts)
+    ):
+        raise VisualQaError("requirement-invalid", field)
+    return parts
+
+
 def main(
     manifest: Annotated[
         Path | None, typer.Argument(exists=True, dir_okay=False)
@@ -198,6 +212,10 @@ def main(
     root: Annotated[Path | None, typer.Option("--root")] = None,
     max_age_seconds: Annotated[int, typer.Option("--max-age-seconds", min=1)] = 86400,
     now: Annotated[str | None, typer.Option("--now")] = None,
+    require_all_routes: Annotated[bool, typer.Option("--require-all-routes")] = False,
+    require_states: Annotated[str | None, typer.Option("--require-states")] = None,
+    viewports: Annotated[str | None, typer.Option("--viewports")] = None,
+    reviewers: Annotated[int, typer.Option("--reviewers", min=1, max=2)] = 2,
 ) -> None:
     """Assert the strict Task 9 visual-QA manifest."""
     target = manifest_option or manifest
@@ -206,12 +224,21 @@ def main(
         raise typer.Exit(code=3)
     try:
         parsed = parse_manifest(target)
+        requirements = VisualRequirements(
+            routes=types.ROUTES
+            if require_all_routes
+            else tuple(sorted({capture.route for capture in parsed.captures})),
+            states=_csv_requirement(require_states, types.STATES, "states"),
+            viewports=_csv_requirement(viewports, types.VIEWPORTS, "viewports"),
+            reviewer_count=reviewers,
+        )
         assert_manifest(
             parsed,
             build_info.resolve(),
             (root or target.parent).resolve(),
             now=_now(now),
             max_age=timedelta(seconds=max_age_seconds),
+            requirements=requirements,
         )
     except VisualQaError as error:
         typer.echo(str(error), err=True)

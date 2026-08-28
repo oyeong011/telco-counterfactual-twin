@@ -14,15 +14,21 @@
 from __future__ import annotations
 
 import hashlib
-import struct
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from pydantic import ValidationError
 from telco_twin.domain.build_info import UiBuildInfo
 
-from scripts import visual_qa_types as types
-from scripts.visual_qa_types import Manifest, VisualQaError, _read_json, _scan_untrusted
+from scripts.visual_qa_png import png_dimensions
+from scripts.visual_qa_reviewers import assert_reviewers
+from scripts.visual_qa_types import (
+    Manifest,
+    VisualQaError,
+    VisualRequirements,
+    _read_json,
+    _scan_untrusted,
+)
 
 
 def _safe_capture_path(root: Path, relative: str) -> Path:
@@ -36,29 +42,25 @@ def _safe_capture_path(root: Path, relative: str) -> Path:
     if candidate.suffix.lower() != ".png":
         raise VisualQaError("invalid-capture-path", relative)
     resolved = (root / candidate).resolve(strict=False)
+    current = root
+    for part in candidate.parts:
+        current /= part
+        if current.is_symlink():
+            raise VisualQaError("path-traversal", relative)
     try:
         resolved.relative_to(root.resolve())
     except ValueError as error:
         raise VisualQaError("path-traversal", relative) from error
-    if not resolved.is_file() or resolved.is_symlink():
+    if not resolved.is_file():
         raise VisualQaError("capture-missing", relative)
     return resolved
 
 
-def _png_dimensions(path: Path) -> tuple[int, int]:
-    try:
-        data = path.read_bytes()
-    except OSError as error:
-        raise VisualQaError("capture-missing", path.as_posix()) from error
-    if len(data) < 29 or data[:8] != types.PNG_SIGNATURE or data[12:16] != b"IHDR":
-        raise VisualQaError("invalid-png", path.as_posix())
-    length = struct.unpack(">I", data[8:12])[0]
-    if length < 13 or len(data) < 16 + length:
-        raise VisualQaError("invalid-png", path.as_posix())
-    width, height = struct.unpack(">II", data[16:24])
-    if width < 1 or height < 1:
-        raise VisualQaError("invalid-dimensions", path.as_posix())
-    return width, height
+def _viewport_geometry(viewport: str, width: int, height: int, path: str) -> None:
+    desktop = viewport == "desktop" and width >= 1024 and height >= 600
+    mobile = viewport == "mobile" and 320 <= width <= 767 and height >= 568
+    if not desktop and not mobile:
+        raise VisualQaError("viewport-geometry", path)
 
 
 def _fresh(
@@ -84,6 +86,7 @@ def assert_manifest(
     *,
     now: datetime,
     max_age: timedelta,
+    requirements: VisualRequirements,
 ) -> None:
     """Verify identity, exact coverage, fresh PNGs, and zero blocking diagnostics."""
     build_value = _read_json(build_info_path)
@@ -106,23 +109,11 @@ def assert_manifest(
         or build.release_commit_sha != manifest.release_sha
     ):
         raise VisualQaError("build-info-mismatch", "source-release-build")
-    if (
-        len(manifest.reviewers) != 2
-        or len({reviewer.reviewer_id for reviewer in manifest.reviewers}) != 2
-    ):
-        raise VisualQaError("reviewer-count", str(len(manifest.reviewers)))
-    for reviewer in manifest.reviewers:
-        if not reviewer.approved or (
-            reviewer.source_sha,
-            reviewer.release_sha,
-            reviewer.build_info_sha,
-        ) != (manifest.source_sha, manifest.release_sha, manifest.build_info_sha):
-            raise VisualQaError("reviewer-mismatch", reviewer.reviewer_id)
     expected = {
         (route, state, viewport)
-        for route in types.ROUTES
-        for state in types.STATES
-        for viewport in types.VIEWPORTS
+        for route in requirements.routes
+        for state in requirements.states
+        for viewport in requirements.viewports
     }
     actual = {
         (capture.route, capture.state, capture.viewport)
@@ -151,6 +142,16 @@ def assert_manifest(
         if capture.network_unexpected != 0:
             raise VisualQaError("network-errors", capture.path)
         path = _safe_capture_path(root, capture.path)
-        if _png_dimensions(path) != (capture.width, capture.height):
+        try:
+            actual_hash = hashlib.sha256(path.read_bytes()).hexdigest()
+        except OSError as error:
+            raise VisualQaError("capture-missing", capture.path) from error
+        if actual_hash != capture.sha256:
+            raise VisualQaError("capture-hash-mismatch", capture.path)
+        if png_dimensions(path) != (capture.width, capture.height):
             raise VisualQaError("dimensions-mismatch", capture.path)
+        _viewport_geometry(
+            capture.viewport, capture.width, capture.height, capture.path
+        )
         _fresh(path, capture.captured_at, now, max_age)
+    assert_reviewers(manifest, root, requirements.reviewer_count)

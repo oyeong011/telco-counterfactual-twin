@@ -2,81 +2,138 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
-import shutil
-import subprocess
 import sys
-from pathlib import Path
-from typing import Final
+from typing import TYPE_CHECKING
 
-from pydantic import JsonValue, TypeAdapter
+import pytest
 
-REPO_ROOT: Final = Path(__file__).resolve().parents[3]
-BUILD_SCRIPT: Final = REPO_ROOT / "scripts/generate_frontend_build_info.py"
-JSON_ADAPTER: Final[TypeAdapter[JsonValue]] = TypeAdapter(JsonValue)
+if TYPE_CHECKING:
+    import subprocess
+    from pathlib import Path
 
-
-def _json_object(raw: bytes) -> dict[str, JsonValue]:
-    payload = JSON_ADAPTER.validate_json(raw)
-    assert isinstance(payload, dict)
-    return payload
-
-
-def _run(command: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(command, cwd=cwd, text=True, capture_output=True, check=False)
-
-
-def _copy_repo(tmp_path: Path) -> Path:
-    root = tmp_path / "repo"
-    _ = shutil.copytree(
-        REPO_ROOT,
-        root,
-        ignore=shutil.ignore_patterns(".git", ".venv", "node_modules", "dist", "__pycache__"),
-    )
-    _ = _run(["git", "init", "-q"], root)
-    _ = _run(["git", "config", "user.email", "task9@example.invalid"], root)
-    _ = _run(["git", "config", "user.name", "Task9"], root)
-    assert _run(["git", "add", "."], root).returncode == 0
-    assert _run(["git", "commit", "-qm", "fixture"], root).returncode == 0
-    return root
+from .task9_build_info_fixtures import (
+    BUILD_SCRIPT,
+    canonical_runtime_hash,
+    copy_repo,
+    emitted_asset_hash,
+    json_object,
+    run,
+)
 
 
 def _generate(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return _run(
+    return run(
         [sys.executable, str(BUILD_SCRIPT), "--root", str(root), *args],
         root,
     )
 
 
+def test_build_info_accepts_positional_output_for_checked_artifact(tmp_path: Path) -> None:
+    # Given: a checked-in UI artifact at the canonical relative output path.
+    root = copy_repo(tmp_path)
+    assert _generate(root).returncode == 0
+    output = root / "frontend/public/build-info.json"
+    _ = run(["git", "add", str(output.relative_to(root))], root)
+    assert run(["git", "commit", "-qm", "generated"], root).returncode == 0
+    # When: the acceptance command passes the output positionally with --check.
+    result = run(
+        [
+            sys.executable,
+            str(BUILD_SCRIPT),
+            "frontend/public/build-info.json",
+            "--root",
+            str(root),
+            "--check",
+        ],
+        root,
+    )
+    # Then: the compatibility surface accepts the exact invocation.
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("path_kind", ["absolute", "parent", "symlink"])
+def test_build_info_rejects_repo_bound_path_escape(tmp_path: Path, path_kind: str) -> None:
+    # Given: one path that bypasses a repository-relative input boundary.
+    root = copy_repo(tmp_path)
+    external = tmp_path / "external-lock.yaml"
+    _ = external.write_text("lockfileVersion: 9\n", encoding="utf-8")
+    linked = root / "frontend/linked-lock.yaml"
+    if path_kind == "symlink":
+        linked.symlink_to(root / "frontend/pnpm-lock.yaml")
+    values = {
+        "absolute": str(root / "frontend/pnpm-lock.yaml"),
+        "parent": "../external-lock.yaml",
+        "symlink": "frontend/linked-lock.yaml",
+    }
+    # When: generation is told to hash the hostile lock path.
+    result = _generate(root, "--lock-path", values[path_kind])
+    # Then: absolute, escaping, and symlink inputs all fail closed.
+    assert result.returncode != 0
+    assert "build-info-error:path-traversal:" in result.stderr
+
+
+def test_build_info_binds_override_to_declared_commit_tree(tmp_path: Path) -> None:
+    # Given: a base source commit and a later commit changing a UI runtime file.
+    root = copy_repo(tmp_path)
+    base = run(["git", "rev-parse", "HEAD"], root).stdout.strip()
+    source = root / "frontend/src/main.tsx"
+    _ = source.write_text(source.read_text(encoding="utf-8") + "\n// changed\n", encoding="utf-8")
+    assert run(["git", "add", str(source.relative_to(root))], root).returncode == 0
+    assert run(["git", "commit", "-qm", "ui change"], root).returncode == 0
+    # When: generation for the new tree overrides source identity to the old commit.
+    result = _generate(root, "--source-commit-sha", base)
+    # Then: the declared commit's exact runtime tree must match the current source.
+    assert result.returncode != 0
+    assert "build-info-error:source-commit-mismatch:" in result.stderr
+
+
+def test_build_info_binds_release_override_to_declared_commit_tree(tmp_path: Path) -> None:
+    # Given: a base commit followed by a committed UI runtime change.
+    root = copy_repo(tmp_path)
+    base = run(["git", "rev-parse", "HEAD"], root).stdout.strip()
+    source = root / "frontend/src/main.tsx"
+    _ = source.write_text(
+        source.read_text(encoding="utf-8") + "\n// release drift\n", encoding="utf-8"
+    )
+    assert run(["git", "add", str(source.relative_to(root))], root).returncode == 0
+    assert run(["git", "commit", "-qm", "release ui change"], root).returncode == 0
+    # When: release identity is overridden to the stale base tree.
+    result = _generate(root, "--release-commit-sha", base)
+    # Then: release SHA cannot merely be an arbitrary ancestor.
+    assert result.returncode != 0
+    assert "build-info-error:release-commit-mismatch:" in result.stderr
+
+
 def test_build_info_generation_and_check_bind_clean_source(tmp_path: Path) -> None:
     # Given: a clean Git source tree with the declared frontend and schema inputs.
-    root = _copy_repo(tmp_path)
+    root = copy_repo(tmp_path)
     output = root / "frontend/public/build-info.json"
     # When: generation is followed by a checked-in artifact validation.
     generated = _generate(root)
     assert generated.returncode == 0, generated.stdout + generated.stderr
-    output_hash = hashlib.sha256(output.read_bytes()).hexdigest()
-    _ = _run(["git", "add", str(output.relative_to(root))], root)
-    assert _run(["git", "commit", "-qm", "generated"], root).returncode == 0
+    before_check = output.read_bytes()
+    _ = run(["git", "add", str(output.relative_to(root))], root)
+    assert run(["git", "commit", "-qm", "generated"], root).returncode == 0
     checked = _generate(root, "--check")
     # Then: UI identity is schema-shaped, canonical, and has no service image digest.
     assert checked.returncode == 0, checked.stdout + checked.stderr
-    payload = _json_object(output.read_bytes())
+    payload = json_object(output.read_bytes())
     assert "image_digest" not in payload
-    assert payload.get("asset_manifest_hash")
+    assert payload.get("runtime_tree_hash") == canonical_runtime_hash(root)
+    assert payload.get("asset_manifest_hash") == emitted_asset_hash(root)
     assert payload.get("schema_hashes")
     extensions = payload.get("extensions")
     assert isinstance(extensions, dict)
     values = extensions.get("values")
     assert isinstance(values, dict)
     assert values.get("frontend_lock_hash")
-    assert output_hash == hashlib.sha256(output.read_bytes()).hexdigest()
+    assert output.read_bytes() == before_check
 
 
 def test_build_info_generation_refuses_unrelated_dirty_source(tmp_path: Path) -> None:
     # Given: a source tree with a tracked edit unrelated to the generated output.
-    root = _copy_repo(tmp_path)
+    root = copy_repo(tmp_path)
     output = root / "frontend/public/build-info.json"
     output.unlink()
     _ = (root / "README.md").write_text("dirty\n", encoding="utf-8")
@@ -90,13 +147,13 @@ def test_build_info_generation_refuses_unrelated_dirty_source(tmp_path: Path) ->
 
 def test_build_info_check_refuses_forged_hash_without_mutating_file(tmp_path: Path) -> None:
     # Given: a checked-in generated artifact whose hash field is forged.
-    root = _copy_repo(tmp_path)
+    root = copy_repo(tmp_path)
     assert _generate(root).returncode == 0
     output = root / "frontend/public/build-info.json"
-    _ = _run(["git", "add", str(output.relative_to(root))], root)
-    assert _run(["git", "commit", "-qm", "generated"], root).returncode == 0
+    _ = run(["git", "add", str(output.relative_to(root))], root)
+    assert run(["git", "commit", "-qm", "generated"], root).returncode == 0
     before = output.read_bytes()
-    payload = _json_object(before)
+    payload = json_object(before)
     payload["asset_manifest_hash"] = "0" * 64
     _ = output.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
     # When: --check validates the forged checked-in file.
@@ -113,28 +170,28 @@ def test_build_info_check_refuses_forged_hash_without_mutating_file(tmp_path: Pa
 
 def test_build_info_check_detects_stale_schema_hash(tmp_path: Path) -> None:
     # Given: a clean generated identity committed against one schema tree.
-    root = _copy_repo(tmp_path)
+    root = copy_repo(tmp_path)
     assert _generate(root).returncode == 0
     output = root / "frontend/public/build-info.json"
-    _ = _run(["git", "add", str(output.relative_to(root))], root)
-    assert _run(["git", "commit", "-qm", "generated"], root).returncode == 0
+    _ = run(["git", "add", str(output.relative_to(root))], root)
+    assert run(["git", "commit", "-qm", "generated"], root).returncode == 0
     schema = root / "specs/schemas/event.schema.json"
     _ = schema.write_text(schema.read_text(encoding="utf-8") + "\n", encoding="utf-8")
     # When: checked-in identity is checked after a schema-only change.
     result = _generate(root, "--check")
-    # Then: the recorded contract hash no longer passes.
+    # Then: the declared source commit no longer matches the canonical runtime tree.
     assert result.returncode != 0
-    assert "build-info-error:hash-mismatch:" in result.stderr
+    assert "build-info-error:source-commit-mismatch:" in result.stderr
 
 
 def test_build_info_check_rejects_ui_image_digest(tmp_path: Path) -> None:
     # Given: a checked-in UI artifact forged with the service-only digest field.
-    root = _copy_repo(tmp_path)
+    root = copy_repo(tmp_path)
     assert _generate(root).returncode == 0
     output = root / "frontend/public/build-info.json"
-    _ = _run(["git", "add", str(output.relative_to(root))], root)
-    assert _run(["git", "commit", "-qm", "generated"], root).returncode == 0
-    payload = _json_object(output.read_bytes())
+    _ = run(["git", "add", str(output.relative_to(root))], root)
+    assert run(["git", "commit", "-qm", "generated"], root).returncode == 0
+    payload = json_object(output.read_bytes())
     payload["image_digest"] = "sha256:" + "0" * 64
     _ = output.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
     # When: the UI identity checker reads the forged artifact.
@@ -142,3 +199,50 @@ def test_build_info_check_rejects_ui_image_digest(tmp_path: Path) -> None:
     # Then: service identity cannot cross the UI schema boundary.
     assert result.returncode != 0
     assert "build-info-error:schema-mismatch:" in result.stderr
+
+
+def test_build_info_check_binds_actual_emitted_asset_bytes(tmp_path: Path) -> None:
+    # Given: a committed identity generated from one emitted Vite asset tree.
+    root = copy_repo(tmp_path)
+    assert _generate(root).returncode == 0
+    output = root / "frontend/public/build-info.json"
+    _ = run(["git", "add", str(output.relative_to(root))], root)
+    assert run(["git", "commit", "-qm", "generated"], root).returncode == 0
+    _ = (root / "frontend/dist/assets/main.js").write_text(
+        "console.log('tampered')\n", encoding="utf-8"
+    )
+    # When: the ignored build output no longer matches its recorded hash.
+    result = _generate(root, "--check")
+    # Then: checking observes the actual emitted bytes, not public placeholders.
+    assert result.returncode != 0
+    assert "build-info-error:hash-mismatch:asset_manifest_hash" in result.stderr
+
+
+def test_build_info_failure_preserves_existing_output_atomically(tmp_path: Path) -> None:
+    # Given: an existing output and a missing Vite manifest precondition.
+    root = copy_repo(tmp_path)
+    output = root / "frontend/public/build-info.json"
+    before = output.read_bytes()
+    (root / "frontend/dist/.vite/manifest.json").unlink()
+    # When: generation fails before publication.
+    result = _generate(root)
+    # Then: the previous artifact remains byte-identical.
+    assert result.returncode != 0
+    assert "build-info-error:asset-manifest-missing:" in result.stderr
+    assert output.read_bytes() == before
+
+
+def test_build_info_ignores_files_outside_canonical_runtime_contract(tmp_path: Path) -> None:
+    # Given: two commits differing only in a file excluded by the plan's UI path set.
+    root = copy_repo(tmp_path)
+    before = canonical_runtime_hash(root)
+    index = root / "frontend/index.html"
+    _ = index.write_text(index.read_text(encoding="utf-8") + "\n<!-- shell -->\n", encoding="utf-8")
+    assert run(["git", "add", str(index.relative_to(root))], root).returncode == 0
+    assert run(["git", "commit", "-qm", "shell only"], root).returncode == 0
+    # When: identity is generated from the later commit.
+    result = _generate(root)
+    # Then: runtime hash remains exactly the plan's canonical component set.
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json_object((root / "frontend/public/build-info.json").read_bytes())
+    assert payload.get("runtime_tree_hash") == before

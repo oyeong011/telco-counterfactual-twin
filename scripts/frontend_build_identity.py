@@ -14,6 +14,8 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from pathlib import Path
 from typing import Annotated
 
@@ -28,19 +30,21 @@ from scripts.frontend_build_support import (
     BuildIdentityError,
     BuildPaths,
     _canonical_file_hash,
-    _files_under,
     _git,
     _git_ancestor,
-    _records_hash,
     _reject_duplicate_keys,
-    _relative,
+    _repo_cli_path,
     _require_clean,
-    _runtime_files,
     _schema_hashes,
     _sha256_bytes,
     _sha256_file,
     _sha_argument,
     _timestamp,
+)
+from scripts.frontend_build_tree import (
+    commit_runtime_hash,
+    current_runtime_hash,
+    emitted_asset_hash,
 )
 
 
@@ -48,10 +52,7 @@ def _payload(
     paths: BuildPaths, *, source_sha: str, release_sha: str, built_at: str
 ) -> dict[str, JsonValue]:
     schema_hashes = _schema_hashes(paths)
-    asset_files = _files_under(
-        paths.root, paths.assets_root, exclude=frozenset({paths.output})
-    )
-    asset_hash = _records_hash(paths.root, asset_files)
+    asset_hash = emitted_asset_hash(paths)
     lock_hash = _sha256_file(paths.lock_path)
     contract_hash = _sha256_bytes(rfc8785.dumps(schema_hashes))
     extensions: dict[str, JsonValue] = {
@@ -68,7 +69,7 @@ def _payload(
         "version": "0.1.0",
         "runtime_source_commit_sha": source_sha,
         "release_commit_sha": release_sha,
-        "runtime_tree_hash": _records_hash(paths.root, _runtime_files(paths)),
+        "runtime_tree_hash": current_runtime_hash(paths.root),
         "schema_hashes": schema_hashes,
         "mcp_hash": _canonical_file_hash(paths.mcp_path, support.EMPTY_ARTIFACT_HASH),
         "policy_hash": LOCAL_POLICY_DEFINITION_HASH,
@@ -79,11 +80,6 @@ def _payload(
         "asset_manifest_hash": asset_hash,
         "extensions": extensions,
     }
-
-
-def _absolute(root: Path, value: Path) -> Path:
-    """Make a CLI path absolute without following symlinks."""
-    return (value if value.is_absolute() else root / value).absolute()
 
 
 def _read_payload(path: Path) -> dict[str, JsonValue]:
@@ -115,6 +111,25 @@ def _compare_identity(
             continue
         if actual.get(field) != value:
             raise BuildIdentityError("hash-mismatch", field)
+
+
+def _atomic_write(path: Path, encoded: bytes) -> None:
+    """Publish one file atomically from a same-directory fsynced staging file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    staging: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb", dir=path.parent, prefix=f".{path.name}.", delete=False
+        ) as stream:
+            staging = Path(stream.name)
+            stream.write(encoded)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(staging, path)
+    except OSError as error:
+        if staging is not None:
+            staging.unlink(missing_ok=True)
+        raise BuildIdentityError("output-write", path.as_posix()) from error
 
 
 def generate(
@@ -149,6 +164,11 @@ def generate(
             paths.root, release, head
         ):
             raise BuildIdentityError("source-commit-mismatch", source)
+        runtime_hash = current_runtime_hash(paths.root)
+        if commit_runtime_hash(paths.root, source) != runtime_hash:
+            raise BuildIdentityError("source-commit-mismatch", source)
+        if commit_runtime_hash(paths.root, release) != runtime_hash:
+            raise BuildIdentityError("release-commit-mismatch", release)
         expected = _payload(
             paths, source_sha=source, release_sha=release, built_at=actual_built_at
         )
@@ -165,6 +185,11 @@ def generate(
         paths.root, release, head
     ):
         raise BuildIdentityError("source-commit-mismatch", source)
+    runtime_hash = current_runtime_hash(paths.root)
+    if commit_runtime_hash(paths.root, source) != runtime_hash:
+        raise BuildIdentityError("source-commit-mismatch", source)
+    if commit_runtime_hash(paths.root, release) != runtime_hash:
+        raise BuildIdentityError("release-commit-mismatch", release)
     payload = _payload(
         paths,
         source_sha=source,
@@ -172,23 +197,20 @@ def generate(
         built_at=_timestamp(paths.root, built_at),
     )
     encoded = rfc8785.dumps(payload) + b"\n"
-    try:
-        paths.output.parent.mkdir(parents=True, exist_ok=True)
-        paths.output.write_bytes(encoded)
-    except OSError as error:
-        raise BuildIdentityError("output-write", paths.output.as_posix()) from error
+    _atomic_write(paths.output, encoded)
 
 
 def main(
+    output: Annotated[Path, typer.Argument()] = support.DEFAULT_OUTPUT,
     root: Annotated[
         Path, typer.Option(exists=True, file_okay=False)
     ] = support.DEFAULT_ROOT,
-    output: Annotated[Path, typer.Option()] = support.DEFAULT_OUTPUT,
     check: Annotated[bool, typer.Option("--check")] = False,
     source_commit_sha: Annotated[str | None, typer.Option()] = None,
     release_commit_sha: Annotated[str | None, typer.Option()] = None,
     built_at: Annotated[str | None, typer.Option()] = None,
     assets_root: Annotated[Path, typer.Option()] = support.DEFAULT_ASSETS_ROOT,
+    asset_manifest: Annotated[Path, typer.Option()] = support.DEFAULT_ASSET_MANIFEST,
     contract_root: Annotated[Path, typer.Option()] = support.DEFAULT_CONTRACT_ROOT,
     lock_path: Annotated[Path, typer.Option()] = support.DEFAULT_LOCK_PATH,
     mcp_path: Annotated[Path, typer.Option()] = support.DEFAULT_MCP_PATH,
@@ -196,25 +218,26 @@ def main(
 ) -> None:
     """Generate frontend/public/build-info.json or check it without mutation."""
     resolved_root = root.resolve()
-    paths = BuildPaths(
-        root=resolved_root,
-        output=_absolute(resolved_root, output),
-        assets_root=_absolute(resolved_root, assets_root),
-        contract_root=_absolute(resolved_root, contract_root),
-        lock_path=_absolute(resolved_root, lock_path),
-        mcp_path=_absolute(resolved_root, mcp_path),
-        trusted_roots_path=(
-            None
-            if trusted_roots_path is None
-            else (
-                trusted_roots_path
-                if trusted_roots_path.is_absolute()
-                else resolved_root / trusted_roots_path
-            ).absolute()
-        ),
-    )
     try:
-        _ = _relative(paths.root, paths.output)
+        resolved_assets = _repo_cli_path(resolved_root, assets_root, "assets_root")
+        paths = BuildPaths(
+            root=resolved_root,
+            output=_repo_cli_path(resolved_root, output, "output"),
+            assets_root=resolved_assets,
+            asset_manifest=_repo_cli_path(
+                resolved_assets, asset_manifest, "asset_manifest"
+            ),
+            contract_root=_repo_cli_path(resolved_root, contract_root, "contract_root"),
+            lock_path=_repo_cli_path(resolved_root, lock_path, "lock_path"),
+            mcp_path=_repo_cli_path(resolved_root, mcp_path, "mcp_path"),
+            trusted_roots_path=(
+                None
+                if trusted_roots_path is None
+                else _repo_cli_path(
+                    resolved_root, trusted_roots_path, "trusted_roots_path"
+                )
+            ),
+        )
         generate(
             paths,
             check=check,
