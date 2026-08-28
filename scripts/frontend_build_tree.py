@@ -26,6 +26,7 @@ from scripts.frontend_build_support import BuildIdentityError
 FIXED_RUNTIME_PATHS: Final = (
     "frontend/package.json",
     "frontend/pnpm-lock.yaml",
+    "frontend/pnpm-workspace.yaml",
 )
 ASSET_REFERENCE_FIELDS: Final = ("css", "assets")
 

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -107,16 +106,15 @@ def copy_repo(tmp_path: Path) -> Path:
     return root
 
 
-def materialize_node_modules(root: Path) -> None:
-    """Replace the test-only dependency link with an ignored materialized tree."""
-    target = root / "frontend/node_modules"
-    target.unlink()
-    _ = shutil.copytree(
-        SHARED_NODE_MODULES,
-        target,
-        symlinks=True,
-        copy_function=os.link,
+def copy_history_repo(tmp_path: Path) -> Path:
+    """Clone real branch history without ignored dependencies or build output."""
+    root = tmp_path / "history-repo"
+    result = run(
+        ["git", "clone", "--local", "--no-hardlinks", str(REPO_ROOT), str(root)],
+        tmp_path,
     )
+    assert result.returncode == 0, result.stdout + result.stderr
+    return root
 
 
 def records_hash(root: Path, files: tuple[Path, ...]) -> str:
@@ -137,6 +135,7 @@ def canonical_runtime_hash(root: Path) -> str:
         *(path for path in (root / "frontend/src").rglob("*") if path.is_file()),
         root / "frontend/package.json",
         root / "frontend/pnpm-lock.yaml",
+        root / "frontend/pnpm-workspace.yaml",
         *(path for path in (root / "frontend").glob("tsconfig*.json") if path.is_file()),
         *(path for path in (root / "specs/schemas").rglob("*") if path.is_file()),
     )

@@ -17,13 +17,15 @@ from .task9_build_info_fixtures import (
     TRUST_DESCRIPTOR,
     canonical_json_file_hash,
     canonical_runtime_hash,
+    copy_history_repo,
     copy_repo,
     emitted_asset_hash,
     json_object,
-    materialize_node_modules,
     run,
     write_stale_vite_dist,
 )
+
+PRE_POLICY_SHA = "ca791925169bfdf1959ee9e2d65213d7fdc97395"
 
 
 def _generate(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -110,6 +112,24 @@ def test_build_info_binds_release_override_to_declared_commit_tree(tmp_path: Pat
     # Then: release SHA cannot merely be an arbitrary ancestor.
     assert result.returncode != 0
     assert "build-info-error:release-commit-mismatch:" in result.stderr
+
+
+def test_build_info_rejects_pre_policy_source_and_release_commit(tmp_path: Path) -> None:
+    # Given: real history whose older commit predates the pnpm esbuild allowlist.
+    root = copy_history_repo(tmp_path)
+    installed = run(["pnpm", "--dir", "frontend", "install", "--frozen-lockfile"], root)
+    assert installed.returncode == 0, installed.stdout + installed.stderr
+    # When: both identity fields are forged to the otherwise content-compatible commit.
+    result = _generate(
+        root,
+        "--source-commit-sha",
+        PRE_POLICY_SHA,
+        "--release-commit-sha",
+        PRE_POLICY_SHA,
+    )
+    # Then: the canonical runtime tree rejects the pre-policy commit.
+    assert result.returncode != 0
+    assert "build-info-error:source-commit-mismatch:" in result.stderr
 
 
 def test_build_info_generation_and_check_bind_clean_source(tmp_path: Path) -> None:
@@ -243,9 +263,12 @@ def test_build_info_vite_failure_preserves_existing_output_atomically(tmp_path: 
 def test_standard_frontend_build_copies_identity_and_emits_manifest(tmp_path: Path) -> None:
     # Given: a generated public identity from an ephemeral source build.
     root = copy_repo(tmp_path)
+    (root / "frontend/node_modules").unlink()
+    installed = run(["pnpm", "--dir", "frontend", "install", "--frozen-lockfile"], root)
+    assert installed.returncode == 0, installed.stdout + installed.stderr
+    assert "Ignored build scripts" not in installed.stdout + installed.stderr
     assert _generate(root).returncode == 0
     public = root / "frontend/public/build-info.json"
-    materialize_node_modules(root)
     # When: the standard frontend build script runs afterward.
     result = run(["pnpm", "--dir", "frontend", "build"], root)
     # Then: production output carries byte-identical identity and a Vite manifest.

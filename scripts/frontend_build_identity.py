@@ -113,6 +113,15 @@ def _compare_identity(
             raise BuildIdentityError("hash-mismatch", field)
 
 
+def _commit_tree_matches(root: Path, commit: str, runtime_hash: str) -> bool:
+    try:
+        return commit_runtime_hash(root, commit) == runtime_hash
+    except BuildIdentityError as error:
+        if error.code == "missing-input":
+            return False
+        raise
+
+
 def _atomic_write(path: Path, encoded: bytes) -> None:
     """Publish one file atomically from a same-directory fsynced staging file."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -166,9 +175,9 @@ def generate(
         ):
             raise BuildIdentityError("source-commit-mismatch", source)
         runtime_hash = current_runtime_hash(paths.root)
-        if commit_runtime_hash(paths.root, source) != runtime_hash:
+        if not _commit_tree_matches(paths.root, source, runtime_hash):
             raise BuildIdentityError("source-commit-mismatch", source)
-        if commit_runtime_hash(paths.root, release) != runtime_hash:
+        if not _commit_tree_matches(paths.root, release, runtime_hash):
             raise BuildIdentityError("release-commit-mismatch", release)
         asset_hash = ephemeral_vite_asset_hash(paths.root, actual_bytes)
         expected = _payload(
@@ -194,9 +203,9 @@ def generate(
     ):
         raise BuildIdentityError("source-commit-mismatch", source)
     runtime_hash = current_runtime_hash(paths.root)
-    if commit_runtime_hash(paths.root, source) != runtime_hash:
+    if not _commit_tree_matches(paths.root, source, runtime_hash):
         raise BuildIdentityError("source-commit-mismatch", source)
-    if commit_runtime_hash(paths.root, release) != runtime_hash:
+    if not _commit_tree_matches(paths.root, release, runtime_hash):
         raise BuildIdentityError("release-commit-mismatch", release)
     asset_hash = ephemeral_vite_asset_hash(paths.root, None)
     payload = _payload(
