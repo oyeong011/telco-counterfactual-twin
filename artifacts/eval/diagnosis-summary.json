@@ -1,0 +1,242 @@
+{
+  "schema_version": "1.0",
+  "extensions": null,
+  "provenance": {
+    "schema_version": "1.0",
+    "extensions": null,
+    "source_commit_sha": "6673c3fc7034f729264fe895e62ef10387fd83ce",
+    "source_tree_sha": "b7a217e1e0b6bbcc8aa6ce2634b44c7677a15d9c",
+    "source_committed_at": "2026-08-28T09:46:46Z",
+    "runtime_tree_hash": "a317793178179ded9e9d1956d6a6635cf3e5f17314926b5abb51884168f17668",
+    "expected_output_files": [
+      "artifacts/eval/counterfactual.json",
+      "artifacts/eval/diagnosis-summary.json",
+      "artifacts/eval/diagnosis.jsonl",
+      "artifacts/eval/replay-hashes.json",
+      "artifacts/eval/safety-gate.json"
+    ],
+    "inputs": [
+      {
+        "schema_version": "1.0",
+        "extensions": null,
+        "path": "backend/fixtures/eval/cases-v1.jsonl",
+        "sha256": "96c51570101591d75d78cb0cfcd08a12e0300a42cc8f62998f38c81b5fdd9940"
+      },
+      {
+        "schema_version": "1.0",
+        "extensions": null,
+        "path": "backend/fixtures/eval/splits-v1.json",
+        "sha256": "1a4be2cdfa02cabf27c228fcacc0b305207d309808aab572bc24898141d73ca2"
+      },
+      {
+        "schema_version": "1.0",
+        "extensions": null,
+        "path": "backend/fixtures/eval/safety-v1.jsonl",
+        "sha256": "907867883a9464f89d9691ae9563916e0ede75be1b9b26fcc9f60753120e7197"
+      },
+      {
+        "schema_version": "1.0",
+        "extensions": null,
+        "path": "backend/fixtures/eval/model-manifest-v1.json",
+        "sha256": "08d356fc404d17b6eecac05ca15d0c3c367be481b496869bbd28a86354545fe5"
+      }
+    ],
+    "generator_invocation": [
+      "python",
+      "scripts/run_benchmark.py",
+      "--split",
+      "heldout",
+      "--safety-set",
+      "backend/fixtures/eval/safety-v1.jsonl",
+      "--seed",
+      "20270827",
+      "--out",
+      "artifacts/eval"
+    ],
+    "seed": 20270827,
+    "split": "heldout"
+  },
+  "rules_metrics": {
+    "split": "heldout",
+    "evaluated_count": 36,
+    "per_class": [
+      {
+        "label": "radio-congestion",
+        "support": 6,
+        "true_positive": 6,
+        "false_positive": 0,
+        "false_negative": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      {
+        "label": "backhaul-degradation",
+        "support": 6,
+        "true_positive": 6,
+        "false_positive": 0,
+        "false_negative": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      {
+        "label": "upf-saturation",
+        "support": 6,
+        "true_positive": 6,
+        "false_positive": 0,
+        "false_negative": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      {
+        "label": "neighbor-handover-misconfiguration",
+        "support": 6,
+        "true_positive": 6,
+        "false_positive": 0,
+        "false_negative": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      {
+        "label": "slice-scheduler-misallocation",
+        "support": 6,
+        "true_positive": 6,
+        "false_positive": 0,
+        "false_negative": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      {
+        "label": "alarm-prompt-injection",
+        "support": 6,
+        "true_positive": 6,
+        "false_positive": 0,
+        "false_negative": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      }
+    ],
+    "macro_f1": 1.0
+  },
+  "twin_metrics": {
+    "split": "heldout",
+    "evaluated_count": 36,
+    "per_class": [
+      {
+        "label": "radio-congestion",
+        "support": 6,
+        "true_positive": 6,
+        "false_positive": 0,
+        "false_negative": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      {
+        "label": "backhaul-degradation",
+        "support": 6,
+        "true_positive": 6,
+        "false_positive": 0,
+        "false_negative": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      {
+        "label": "upf-saturation",
+        "support": 6,
+        "true_positive": 6,
+        "false_positive": 0,
+        "false_negative": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      {
+        "label": "neighbor-handover-misconfiguration",
+        "support": 6,
+        "true_positive": 6,
+        "false_positive": 0,
+        "false_negative": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      {
+        "label": "slice-scheduler-misallocation",
+        "support": 6,
+        "true_positive": 6,
+        "false_positive": 0,
+        "false_negative": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      {
+        "label": "alarm-prompt-injection",
+        "support": 6,
+        "true_positive": 6,
+        "false_positive": 0,
+        "false_negative": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      }
+    ],
+    "macro_f1": 1.0
+  },
+  "recorded_model": {
+    "schema_version": "1.0",
+    "extensions": null,
+    "status": "not_run",
+    "reason": "exact-model-snapshot-unavailable",
+    "comparison_allowed": false,
+    "predictions": [],
+    "generation": null
+  },
+  "recorded_model_metrics": null,
+  "development_cases_used": 0,
+  "heldout_case_ids": [
+    "diag-heldout-radio-congestion-01",
+    "diag-heldout-radio-congestion-02",
+    "diag-heldout-radio-congestion-03",
+    "diag-heldout-radio-congestion-04",
+    "diag-heldout-radio-congestion-05",
+    "diag-heldout-radio-congestion-06",
+    "diag-heldout-backhaul-degradation-01",
+    "diag-heldout-backhaul-degradation-02",
+    "diag-heldout-backhaul-degradation-03",
+    "diag-heldout-backhaul-degradation-04",
+    "diag-heldout-backhaul-degradation-05",
+    "diag-heldout-backhaul-degradation-06",
+    "diag-heldout-upf-saturation-01",
+    "diag-heldout-upf-saturation-02",
+    "diag-heldout-upf-saturation-03",
+    "diag-heldout-upf-saturation-04",
+    "diag-heldout-upf-saturation-05",
+    "diag-heldout-upf-saturation-06",
+    "diag-heldout-neighbor-handover-misconfiguration-01",
+    "diag-heldout-neighbor-handover-misconfiguration-02",
+    "diag-heldout-neighbor-handover-misconfiguration-03",
+    "diag-heldout-neighbor-handover-misconfiguration-04",
+    "diag-heldout-neighbor-handover-misconfiguration-05",
+    "diag-heldout-neighbor-handover-misconfiguration-06",
+    "diag-heldout-slice-scheduler-misallocation-01",
+    "diag-heldout-slice-scheduler-misallocation-02",
+    "diag-heldout-slice-scheduler-misallocation-03",
+    "diag-heldout-slice-scheduler-misallocation-04",
+    "diag-heldout-slice-scheduler-misallocation-05",
+    "diag-heldout-slice-scheduler-misallocation-06",
+    "diag-heldout-alarm-prompt-injection-01",
+    "diag-heldout-alarm-prompt-injection-02",
+    "diag-heldout-alarm-prompt-injection-03",
+    "diag-heldout-alarm-prompt-injection-04",
+    "diag-heldout-alarm-prompt-injection-05",
+    "diag-heldout-alarm-prompt-injection-06"
+  ]
+}

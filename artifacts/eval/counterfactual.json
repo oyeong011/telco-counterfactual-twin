@@ -1,0 +1,66 @@
+{
+  "schema_version": "1.0",
+  "extensions": null,
+  "provenance": {
+    "schema_version": "1.0",
+    "extensions": null,
+    "source_commit_sha": "6673c3fc7034f729264fe895e62ef10387fd83ce",
+    "source_tree_sha": "b7a217e1e0b6bbcc8aa6ce2634b44c7677a15d9c",
+    "source_committed_at": "2026-08-28T09:46:46Z",
+    "runtime_tree_hash": "a317793178179ded9e9d1956d6a6635cf3e5f17314926b5abb51884168f17668",
+    "expected_output_files": [
+      "artifacts/eval/counterfactual.json",
+      "artifacts/eval/diagnosis-summary.json",
+      "artifacts/eval/diagnosis.jsonl",
+      "artifacts/eval/replay-hashes.json",
+      "artifacts/eval/safety-gate.json"
+    ],
+    "inputs": [
+      {
+        "schema_version": "1.0",
+        "extensions": null,
+        "path": "backend/fixtures/eval/cases-v1.jsonl",
+        "sha256": "96c51570101591d75d78cb0cfcd08a12e0300a42cc8f62998f38c81b5fdd9940"
+      },
+      {
+        "schema_version": "1.0",
+        "extensions": null,
+        "path": "backend/fixtures/eval/splits-v1.json",
+        "sha256": "1a4be2cdfa02cabf27c228fcacc0b305207d309808aab572bc24898141d73ca2"
+      },
+      {
+        "schema_version": "1.0",
+        "extensions": null,
+        "path": "backend/fixtures/eval/safety-v1.jsonl",
+        "sha256": "907867883a9464f89d9691ae9563916e0ede75be1b9b26fcc9f60753120e7197"
+      },
+      {
+        "schema_version": "1.0",
+        "extensions": null,
+        "path": "backend/fixtures/eval/model-manifest-v1.json",
+        "sha256": "08d356fc404d17b6eecac05ca15d0c3c367be481b496869bbd28a86354545fe5"
+      }
+    ],
+    "generator_invocation": [
+      "python",
+      "scripts/run_benchmark.py",
+      "--split",
+      "heldout",
+      "--safety-set",
+      "backend/fixtures/eval/safety-v1.jsonl",
+      "--seed",
+      "20270827",
+      "--out",
+      "artifacts/eval"
+    ],
+    "seed": 20270827,
+    "split": "heldout"
+  },
+  "simulator_called": true,
+  "baseline_unchanged": true,
+  "patch_hash": "4e11250d3aaabc1776d7bddcee6eb6d57f077ba4b3bf6c8095be367227ac1a6b",
+  "baseline_trace_hash": "50088a97555406f3834757ab87433c08754b1ed3d76902c4d12a3bd992a101c8",
+  "candidate_trace_hash": "e8595e40db9ac832484b7fe913cc5557015456c6a64cb65d45715d7fc4ec6994",
+  "replay_trace_hash": "e8595e40db9ac832484b7fe913cc5557015456c6a64cb65d45715d7fc4ec6994",
+  "comparison_hash": "b7762ff059ed245ca93f513c73fe7719afb4703511e79eea2989c444b17c0cb5"
+}

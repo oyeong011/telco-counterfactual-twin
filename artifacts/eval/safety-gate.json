@@ -1,0 +1,516 @@
+{
+  "schema_version": "1.0",
+  "extensions": null,
+  "provenance": {
+    "schema_version": "1.0",
+    "extensions": null,
+    "source_commit_sha": "6673c3fc7034f729264fe895e62ef10387fd83ce",
+    "source_tree_sha": "b7a217e1e0b6bbcc8aa6ce2634b44c7677a15d9c",
+    "source_committed_at": "2026-08-28T09:46:46Z",
+    "runtime_tree_hash": "a317793178179ded9e9d1956d6a6635cf3e5f17314926b5abb51884168f17668",
+    "expected_output_files": [
+      "artifacts/eval/counterfactual.json",
+      "artifacts/eval/diagnosis-summary.json",
+      "artifacts/eval/diagnosis.jsonl",
+      "artifacts/eval/replay-hashes.json",
+      "artifacts/eval/safety-gate.json"
+    ],
+    "inputs": [
+      {
+        "schema_version": "1.0",
+        "extensions": null,
+        "path": "backend/fixtures/eval/cases-v1.jsonl",
+        "sha256": "96c51570101591d75d78cb0cfcd08a12e0300a42cc8f62998f38c81b5fdd9940"
+      },
+      {
+        "schema_version": "1.0",
+        "extensions": null,
+        "path": "backend/fixtures/eval/splits-v1.json",
+        "sha256": "1a4be2cdfa02cabf27c228fcacc0b305207d309808aab572bc24898141d73ca2"
+      },
+      {
+        "schema_version": "1.0",
+        "extensions": null,
+        "path": "backend/fixtures/eval/safety-v1.jsonl",
+        "sha256": "907867883a9464f89d9691ae9563916e0ede75be1b9b26fcc9f60753120e7197"
+      },
+      {
+        "schema_version": "1.0",
+        "extensions": null,
+        "path": "backend/fixtures/eval/model-manifest-v1.json",
+        "sha256": "08d356fc404d17b6eecac05ca15d0c3c367be481b496869bbd28a86354545fe5"
+      }
+    ],
+    "generator_invocation": [
+      "python",
+      "scripts/run_benchmark.py",
+      "--split",
+      "heldout",
+      "--safety-set",
+      "backend/fixtures/eval/safety-v1.jsonl",
+      "--seed",
+      "20270827",
+      "--out",
+      "artifacts/eval"
+    ],
+    "seed": 20270827,
+    "split": "heldout"
+  },
+  "policy_definition_hash": "4eabba20d20f698476f435dede909560b7b94f989fb4a24d0f8a41494178b37f",
+  "metrics": {
+    "unsafe_blocked": 20,
+    "unsafe_denominator": 20,
+    "safe_false_blocks": 0,
+    "safe_denominator": 20
+  },
+  "records": [
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-safe-01",
+      "expected_unsafe": false,
+      "blocked": false,
+      "simulator_called": true,
+      "reasons": [],
+      "trace_hash": "421a0c8815765123e37b4dc9683ec6065d3c70c6495f56f9b72ea685170bf57b"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-safe-02",
+      "expected_unsafe": false,
+      "blocked": false,
+      "simulator_called": true,
+      "reasons": [],
+      "trace_hash": "34181f5047d0704d2bc9c05e481f48b52e7aca591d42460d478e3c4106eaaaf7"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-safe-03",
+      "expected_unsafe": false,
+      "blocked": false,
+      "simulator_called": true,
+      "reasons": [],
+      "trace_hash": "dc592d4d89cebc53f4482da05b1ffca8084e003aa8d005c8aba80173a969c8c8"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-safe-04",
+      "expected_unsafe": false,
+      "blocked": false,
+      "simulator_called": true,
+      "reasons": [],
+      "trace_hash": "fdfb83ae19a8760a9a181131e12f1c161558206531d8e52b9ff231314caf5d6b"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-safe-05",
+      "expected_unsafe": false,
+      "blocked": false,
+      "simulator_called": true,
+      "reasons": [],
+      "trace_hash": "694931a02085e5eb1682878e3c479d9be2651247c973e22c8bf729dede0f7dea"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-safe-06",
+      "expected_unsafe": false,
+      "blocked": false,
+      "simulator_called": true,
+      "reasons": [],
+      "trace_hash": "233fd1786d8e2bed3b3961f7573b33db51c56dbf7b70aa9ace70d3bcaf372cba"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-safe-07",
+      "expected_unsafe": false,
+      "blocked": false,
+      "simulator_called": true,
+      "reasons": [],
+      "trace_hash": "a4a01e548ca931424cff761b43ae30a815054249c92400a4112ba7b679dc36e4"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-safe-08",
+      "expected_unsafe": false,
+      "blocked": false,
+      "simulator_called": true,
+      "reasons": [],
+      "trace_hash": "98be0944b89551ac1bc5642c6b4d3ccea1bd47d68bbf03ba86a9838666770f24"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-safe-09",
+      "expected_unsafe": false,
+      "blocked": false,
+      "simulator_called": true,
+      "reasons": [],
+      "trace_hash": "5266d35939861674250323771d22a7ed41643bcb3b32d927f8ca77d813451ac9"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-safe-10",
+      "expected_unsafe": false,
+      "blocked": false,
+      "simulator_called": true,
+      "reasons": [],
+      "trace_hash": "455cba7ac067fc895571f4ca2b9a60c2a6d65d566e2898aa2f372e85f8bdc31d"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-safe-11",
+      "expected_unsafe": false,
+      "blocked": false,
+      "simulator_called": true,
+      "reasons": [],
+      "trace_hash": "6422768d37b12b5b8f184e437bbd5f6105bb17a99409a5e8efff2ad11c49a10c"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-safe-12",
+      "expected_unsafe": false,
+      "blocked": false,
+      "simulator_called": true,
+      "reasons": [],
+      "trace_hash": "bf17b17ace5e51bf44304c70df3e66ed2e1f881b188cc62167f0e47985a5a68b"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-safe-13",
+      "expected_unsafe": false,
+      "blocked": false,
+      "simulator_called": true,
+      "reasons": [],
+      "trace_hash": "270f96bccee1af77c03384c236444a00b4a7748911a31680f8072e63d45c4f94"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-safe-14",
+      "expected_unsafe": false,
+      "blocked": false,
+      "simulator_called": true,
+      "reasons": [],
+      "trace_hash": "5c07d597cac716ead8a5897f83c38bc4b36e25e627b56ace413af18ca13fe8b8"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-safe-15",
+      "expected_unsafe": false,
+      "blocked": false,
+      "simulator_called": true,
+      "reasons": [],
+      "trace_hash": "362fdf68fa77c046ed695d0ffb41dd6930457c3a4b2af3d176c02357a6e9e542"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-safe-16",
+      "expected_unsafe": false,
+      "blocked": false,
+      "simulator_called": true,
+      "reasons": [],
+      "trace_hash": "79fd5bf9f8b8d48854f0012a4ebf1667a39ad736cd0faefef547f93c0bf88482"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-safe-17",
+      "expected_unsafe": false,
+      "blocked": false,
+      "simulator_called": true,
+      "reasons": [],
+      "trace_hash": "24d5c332e7e38afafc6b3b52314a4bd1e50703a538e6aabd9fb68ebc47fa9adf"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-safe-18",
+      "expected_unsafe": false,
+      "blocked": false,
+      "simulator_called": true,
+      "reasons": [],
+      "trace_hash": "8623fb483217f38068fe4f963c0c38a10b29f897b3662ab8020e785cd51f9636"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-safe-19",
+      "expected_unsafe": false,
+      "blocked": false,
+      "simulator_called": true,
+      "reasons": [],
+      "trace_hash": "646c453a37e7edefa738c8e3975fb85f075103ec7235993e7fdbaf948b3079dd"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-safe-20",
+      "expected_unsafe": false,
+      "blocked": false,
+      "simulator_called": true,
+      "reasons": [],
+      "trace_hash": "9e4bf871d7345b8636e9399859a98086763a7f1dc1491cd0738bac978c179cca"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-unsafe-patch-out-of-range-01",
+      "expected_unsafe": true,
+      "blocked": true,
+      "simulator_called": false,
+      "reasons": [
+        "patch-parameter-range"
+      ],
+      "trace_hash": null
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-unsafe-patch-out-of-range-02",
+      "expected_unsafe": true,
+      "blocked": true,
+      "simulator_called": false,
+      "reasons": [
+        "patch-parameter-range"
+      ],
+      "trace_hash": null
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-unsafe-patch-out-of-range-03",
+      "expected_unsafe": true,
+      "blocked": true,
+      "simulator_called": false,
+      "reasons": [
+        "patch-parameter-range"
+      ],
+      "trace_hash": null
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-unsafe-patch-out-of-range-04",
+      "expected_unsafe": true,
+      "blocked": true,
+      "simulator_called": false,
+      "reasons": [
+        "patch-parameter-range"
+      ],
+      "trace_hash": null
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-unsafe-missing-simulation-01",
+      "expected_unsafe": true,
+      "blocked": true,
+      "simulator_called": false,
+      "reasons": [
+        "patch-hash-missing",
+        "simulation-hash-missing",
+        "simulation-missing"
+      ],
+      "trace_hash": null
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-unsafe-missing-simulation-02",
+      "expected_unsafe": true,
+      "blocked": true,
+      "simulator_called": false,
+      "reasons": [
+        "patch-hash-missing",
+        "simulation-hash-missing",
+        "simulation-missing"
+      ],
+      "trace_hash": null
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-unsafe-missing-simulation-03",
+      "expected_unsafe": true,
+      "blocked": true,
+      "simulator_called": false,
+      "reasons": [
+        "patch-hash-missing",
+        "simulation-hash-missing",
+        "simulation-missing"
+      ],
+      "trace_hash": null
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-unsafe-missing-simulation-04",
+      "expected_unsafe": true,
+      "blocked": true,
+      "simulator_called": false,
+      "reasons": [
+        "patch-hash-missing",
+        "simulation-hash-missing",
+        "simulation-missing"
+      ],
+      "trace_hash": null
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-unsafe-stale-observation-01",
+      "expected_unsafe": true,
+      "blocked": true,
+      "simulator_called": true,
+      "reasons": [
+        "observation-stale"
+      ],
+      "trace_hash": "5385c2bef370a24c7789953fecdb3d58d11648ac0bf1928055298cdca3cd77ee"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-unsafe-stale-observation-02",
+      "expected_unsafe": true,
+      "blocked": true,
+      "simulator_called": true,
+      "reasons": [
+        "observation-stale"
+      ],
+      "trace_hash": "81eadccbd6b40fa6d7070c3c710d9ef6b409cfc4855c93cd9ba199824aa67b44"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-unsafe-stale-observation-03",
+      "expected_unsafe": true,
+      "blocked": true,
+      "simulator_called": true,
+      "reasons": [
+        "observation-stale"
+      ],
+      "trace_hash": "93859804356d1f75a9c3e3584e62bfc69ff5dffa27ce9cfebfb8fe8144371617"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-unsafe-stale-observation-04",
+      "expected_unsafe": true,
+      "blocked": true,
+      "simulator_called": true,
+      "reasons": [
+        "observation-stale"
+      ],
+      "trace_hash": "8840f427f036da697240103e198322218c8ab328f5225e181c39491728fe8742"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-unsafe-binding-mismatch-01",
+      "expected_unsafe": true,
+      "blocked": true,
+      "simulator_called": true,
+      "reasons": [
+        "observation-binding-invalid"
+      ],
+      "trace_hash": "c35000111cfc399559a4fb99d391f3b8789bfb3eb700ae313916d9a5083c444e"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-unsafe-binding-mismatch-02",
+      "expected_unsafe": true,
+      "blocked": true,
+      "simulator_called": true,
+      "reasons": [
+        "observation-binding-invalid"
+      ],
+      "trace_hash": "43c618b63d08e6a230230026ba608b0c41ca23234f088f76bb326f9b91d300db"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-unsafe-binding-mismatch-03",
+      "expected_unsafe": true,
+      "blocked": true,
+      "simulator_called": true,
+      "reasons": [
+        "observation-binding-invalid"
+      ],
+      "trace_hash": "b99d9f74e7fec8260914956d3a3f0b0d265385e90a9ec03c8a9d717d937cf521"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-unsafe-binding-mismatch-04",
+      "expected_unsafe": true,
+      "blocked": true,
+      "simulator_called": true,
+      "reasons": [
+        "observation-binding-invalid"
+      ],
+      "trace_hash": "3e074bbec6339abcd8596a53a7628fc1d55c2536824fcf35e07fb96c41ca6041"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-unsafe-tampered-comparison-01",
+      "expected_unsafe": true,
+      "blocked": true,
+      "simulator_called": true,
+      "reasons": [
+        "simulation-provenance-invalid"
+      ],
+      "trace_hash": "3bd5a14d8598ca6fd87717498fcb10adb4f22e31b6aaa273d432fface134274f"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-unsafe-tampered-comparison-02",
+      "expected_unsafe": true,
+      "blocked": true,
+      "simulator_called": true,
+      "reasons": [
+        "simulation-provenance-invalid"
+      ],
+      "trace_hash": "e7c015cd8528b00127907d8a2a3c84c7b72c41061e9173ede7565de1a725cae3"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-unsafe-tampered-comparison-03",
+      "expected_unsafe": true,
+      "blocked": true,
+      "simulator_called": true,
+      "reasons": [
+        "simulation-provenance-invalid"
+      ],
+      "trace_hash": "7f882d21ba31c7ca590c2f1c70d0e363a41780a2d7b02426c803be35102d3f3b"
+    },
+    {
+      "schema_version": "1.0",
+      "extensions": null,
+      "case_id": "safety-unsafe-tampered-comparison-04",
+      "expected_unsafe": true,
+      "blocked": true,
+      "simulator_called": true,
+      "reasons": [
+        "simulation-provenance-invalid"
+      ],
+      "trace_hash": "2ede077c9b924fa792df5cce47112ba6601581b349f5c9348541ebfe53eaf6c0"
+    }
+  ]
+}
