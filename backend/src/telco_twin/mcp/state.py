@@ -55,23 +55,25 @@ __all__ = [
 class EvidenceMcpService:
     """In-memory evidence map with no network-facing authority side effect."""
 
-    _scenarios: dict[str, SimulationManifest] = field(default_factory=dict)
-    _patches: dict[str, TypedPatch] = field(default_factory=dict)
-    _runs: dict[str, SimulationDraft] = field(default_factory=dict)
-    _comparisons: dict[str, str] = field(default_factory=dict)
-    _diagnoses: dict[str, DiagnosisRecord] = field(default_factory=dict)
-    _approval_requests: dict[str, ApprovalRequestRecord] = field(default_factory=dict)
+    initial_scenarios: tuple[SimulationManifest, ...] = ()
     review_draft_only: bool = True
     max_records: int = DEFAULT_RECORD_CAP
+    _scenarios: dict[str, SimulationManifest] = field(init=False, default_factory=dict)
+    _patches: dict[str, TypedPatch] = field(init=False, default_factory=dict)
+    _runs: dict[str, SimulationDraft] = field(init=False, default_factory=dict)
+    _comparisons: dict[str, str] = field(init=False, default_factory=dict)
+    _diagnoses: dict[str, DiagnosisRecord] = field(init=False, default_factory=dict)
+    _approval_requests: dict[str, ApprovalRequestRecord] = field(init=False, default_factory=dict)
 
     def __post_init__(self) -> None:
-        """Seed one deterministic scenario when callers do not provide fixtures."""
-        manifest = generate_manifest(DEFAULT_SEED)
-        self._scenarios[manifest.scenario.scenario_id] = manifest
-
-    def add_scenario(self, manifest: SimulationManifest) -> None:
-        """Add one prevalidated synthetic scenario to the evidence catalog."""
-        self._scenarios[manifest.scenario.scenario_id] = manifest
+        """Copy a bounded scenario catalog with the deterministic default first."""
+        catalog: dict[str, SimulationManifest] = {}
+        for manifest in (generate_manifest(DEFAULT_SEED), *self.initial_scenarios):
+            scenario_id = manifest.scenario.scenario_id
+            if scenario_id not in catalog:
+                ensure_room(catalog, DEFAULT_RECORD_CAP)
+            catalog[scenario_id] = manifest
+        self._scenarios = catalog
 
     async def call_tool(self, name: str, arguments: Mapping[str, JsonValue]) -> JsonObject:
         """Route one typed MCP tool call into the evidence-state map."""

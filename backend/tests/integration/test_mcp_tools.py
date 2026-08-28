@@ -70,9 +70,24 @@ def test_request_approval_rejects_missing_simulation_and_injection() -> None:
     anyio.run(scenario)
 
 
+def test_constructor_scenario_fixtures_deduplicate_the_production_default() -> None:
+    async def scenario() -> None:
+        default = generate_manifest(53)
+        service = EvidenceMcpService(initial_scenarios=(default,))
+
+        listed = await service.call_tool("list_scenarios", {})
+
+        assert "scenarios" in listed
+        assert len(listed["scenarios"]) == 1
+        assert listed["scenarios"][0]["scenario_id"] == default.scenario.scenario_id
+
+    anyio.run(scenario)
+
+
 def test_diagnosis_and_approval_effects_are_backed_by_bounded_records() -> None:
     async def scenario() -> None:
-        service = EvidenceMcpService(max_records=1)
+        other = generate_manifest(54)
+        service = EvidenceMcpService(initial_scenarios=(other,), max_records=1)
         listed = await service.call_tool("list_scenarios", {})
         assert "scenarios" in listed
         scenario_id = listed["scenarios"][0]["scenario_id"]
@@ -109,8 +124,6 @@ def test_diagnosis_and_approval_effects_are_backed_by_bounded_records() -> None:
         assert service.diagnosis_records()[0].diagnosis_id == diagnosis["diagnosis_id"]
         assert approval["effect"] == "approval_request_recorded"
         assert service.approval_request_records()[0].comparison_id == comparison["comparison_id"]
-        other = generate_manifest(54)
-        service.add_scenario(other)
         with pytest.raises(McpToolError) as caught:
             _ = await service.call_tool(
                 "diagnose_scenario",
@@ -123,7 +136,8 @@ def test_diagnosis_and_approval_effects_are_backed_by_bounded_records() -> None:
 
 def test_tool_state_rejects_schema_and_missing_state_edges() -> None:
     async def scenario() -> None:
-        service = EvidenceMcpService()
+        other = generate_manifest(54)
+        service = EvidenceMcpService(initial_scenarios=(other,))
         listed = await service.call_tool("list_scenarios", {})
         assert "scenarios" in listed
         scenario_id = listed["scenarios"][0]["scenario_id"]
@@ -144,8 +158,6 @@ def test_tool_state_rejects_schema_and_missing_state_edges() -> None:
             {"simulation_id": simulation["simulation_id"]},
         )
         assert "comparison_id" in comparison
-        other = generate_manifest(54)
-        service.add_scenario(other)
         other_proposal = await service.call_tool(
             "propose_patch",
             {
