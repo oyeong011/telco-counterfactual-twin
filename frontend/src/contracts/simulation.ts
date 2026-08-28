@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { canonicalSha256 } from "./canonical-json"
 import {
   ContractIdSchema,
   PolicyReasonSchema,
@@ -105,6 +106,20 @@ export const PolicyEvaluationSchema = strictObject({
   }
   if (!value.eligible && value.reasons.length === 0) {
     context.addIssue({ code: "custom", message: "ineligible policy result requires a reason" })
+  }
+  const {
+    patch_hash: patchHash,
+    policy_hash: policyHash,
+    simulation_hash: simulationHash,
+    ...body
+  } = value
+  const hashBody = {
+    ...body,
+    ...(patchHash === null ? {} : { patch_hash: patchHash }),
+    ...(simulationHash === null ? {} : { simulation_hash: simulationHash }),
+  }
+  if (canonicalSha256(hashBody) !== policyHash) {
+    context.addIssue({ code: "custom", message: "local policy result hash mismatch" })
   }
 })
 export type PolicyEvaluation = z.infer<typeof PolicyEvaluationSchema>

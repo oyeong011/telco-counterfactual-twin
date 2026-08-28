@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it } from "vitest"
 import {
   ContractIdSchema,
   PolicyEvaluationSchema,
@@ -36,6 +36,8 @@ const response = (body: unknown, status = 200, headers: Record<string, string> =
     status,
     headers: { "content-type": "application/json", "x-request-id": "request-001", ...headers },
   })
+
+afterEach(() => window.history.replaceState({}, "", "/"))
 
 describe("HTTP API client", () => {
   it("uses backend-aligned semantic key and date guards at API boundaries", () => {
@@ -78,7 +80,6 @@ describe("HTTP API client", () => {
     const request = requests[0]
     expect(request).toBeDefined()
     if (request) expect(new URL(request.url).pathname).toBe("/api/scenarios")
-    window.history.pushState({}, "", "/")
   })
 
   it("bootstraps synthetic-only and lets the browser provide Origin naturally", async () => {

@@ -1,11 +1,13 @@
-import { canonicalJson } from "../contracts/canonical-json"
-import type {
-  ApprovalDecisionResponse,
-  ApprovalRequestResponse,
-  ComparisonResponse,
-  EvidenceResponse,
-  PatchResponse,
-  TypedPatch,
+import { canonicalJson, canonicalSha256 } from "../contracts/canonical-json"
+import {
+  type ApprovalDecisionResponse,
+  type ApprovalRequestResponse,
+  type ComparisonResponse,
+  ContractIdSchema,
+  type EvidenceResponse,
+  type PatchResponse,
+  Sha256HexSchema,
+  type TypedPatch,
 } from "../contracts/generated"
 import type {
   ApprovalPendingState,
@@ -43,6 +45,15 @@ export function comparisonBindsToState(
   )
 }
 
+function comparisonHash(response: ComparisonResponse): string {
+  const result = response.comparison.result
+  const normalizedResult =
+    result.extensions === null
+      ? Object.fromEntries(Object.entries(result).filter(([key]) => key !== "extensions"))
+      : result
+  return canonicalSha256({ ...response.comparison, result: normalizedResult })
+}
+
 export function approvalRequestBindsToState(
   state: ComparisonState,
   response: ApprovalRequestResponse,
@@ -57,6 +68,7 @@ export function approvalRequestBindsToState(
     policy.patch_hash === state.patch.patch_hash &&
     policy.simulation_hash !== null &&
     request.simulation_hash === policy.simulation_hash &&
+    request.simulation_hash === comparisonHash(state.comparison) &&
     request.policy_hash === policy.policy_hash &&
     request.requested_at === state.session.session_certificate.issued_at &&
     request.expires_at === state.session.session_certificate.expires_at &&
@@ -80,6 +92,7 @@ export function approvalDecisionBindsToState(
     proof.simulation_hash === request.simulation_hash &&
     proof.policy_hash === request.policy_hash &&
     proof.nonce === request.nonce &&
+    proof.certificate_hash === canonicalSha256(state.session.session_certificate) &&
     proof.approved_at === request.requested_at &&
     proof.expires_at === request.expires_at
   )
@@ -90,40 +103,58 @@ function payloadString(event: EvidenceResponse["events"][number], key: string): 
   return typeof value === "string" ? value : null
 }
 
+function decisionEventType(
+  state: DecisionState["decision"]["state"],
+): "approval-approved" | "approval-rejected" | null {
+  switch (state) {
+    case "approved":
+      return "approval-approved"
+    case "rejected":
+      return "approval-rejected"
+    case "pending":
+      return null
+  }
+}
+
 function eventChainBindsToState(state: DecisionState, response: EvidenceResponse): boolean {
+  const decisionEvent = decisionEventType(state.decision.state)
+  if (decisionEvent === null) return false
+  const expected = [
+    { eventType: "scenario-created", resourceId: state.scenario.scenario.scenario_id },
+    { eventType: "scenario-diagnosed", resourceId: null },
+    { eventType: "patch-proposed", resourceId: state.patch.patch.patch_id },
+    { eventType: "simulation-completed", resourceId: state.simulation.simulation_id },
+    { eventType: "comparison-created", resourceId: state.comparison.comparison_id },
+    { eventType: "approval-requested", resourceId: state.approval.approval_request.request_id },
+    { eventType: decisionEvent, resourceId: state.decision.approval_proof.proof_id },
+  ] as const
+  if (response.events.length !== expected.length) return false
   const eventIds = new Set<string>()
-  const observedTypes = new Set<string>()
-  const expectedResources = new Map<string, string>([
-    ["scenario-created", state.scenario.scenario.scenario_id],
-    ["patch-proposed", state.patch.patch.patch_id],
-    ["simulation-completed", state.simulation.simulation_id],
-    ["comparison-created", state.comparison.comparison_id],
-    ["approval-requested", state.approval.approval_request.request_id],
-    [
-      state.decision.state === "approved" ? "approval-approved" : "approval-rejected",
-      state.decision.approval_proof.proof_id,
-    ],
-  ])
   let previousSequence = -1
-  for (const event of response.events) {
+  for (const [index, event] of response.events.entries()) {
+    const expectedEvent = expected[index]
+    if (expectedEvent === undefined) return false
+    const resourceId = payloadString(event, "resource_id")
     if (
+      event.event_type !== expectedEvent.eventType ||
       event.scenario_id !== state.scenario.scenario.scenario_id ||
       payloadString(event, "run_id") !== state.run.runId ||
+      payloadString(event, "status") !== "recorded" ||
+      !Sha256HexSchema.safeParse(payloadString(event, "request_hash")).success ||
       eventIds.has(event.event_id) ||
       event.sequence_id <= previousSequence
     )
       return false
-    eventIds.add(event.event_id)
-    observedTypes.add(event.event_type)
-    const expectedResource = expectedResources.get(event.event_type)
-    if (expectedResource !== undefined && payloadString(event, "resource_id") !== expectedResource)
+    if (
+      expectedEvent.resourceId === null
+        ? !ContractIdSchema.safeParse(resourceId).success
+        : resourceId !== expectedEvent.resourceId
+    )
       return false
+    eventIds.add(event.event_id)
     previousSequence = event.sequence_id
   }
-  return (
-    observedTypes.has("scenario-diagnosed") &&
-    [...expectedResources.keys()].every((eventType) => observedTypes.has(eventType))
-  )
+  return true
 }
 
 export function evidenceBindsToState(state: DecisionState, response: EvidenceResponse): boolean {
@@ -140,8 +171,8 @@ export function evidenceBindsToState(state: DecisionState, response: EvidenceRes
     card.simulation_hash === request.simulation_hash &&
     card.policy_hash === request.policy_hash &&
     card.seed === state.scenario.scenario.seed &&
-    card.approval_proof_hash !== null &&
     proof !== null &&
+    card.approval_proof_hash === canonicalSha256(proof) &&
     canonicalJson(proof) === canonicalJson(decision) &&
     eventChainBindsToState(state, response)
   )

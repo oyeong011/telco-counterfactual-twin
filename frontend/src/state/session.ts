@@ -170,6 +170,8 @@ export class SessionStorageAdapter {
   }
 
   resetRunDrafts(sessionId = this.sessionId): void {
+    if (this.sessionId !== undefined && sessionId !== undefined && this.sessionId !== sessionId)
+      return
     this.storage.removeItem(RUN_DRAFTS_STORAGE_KEY)
     if (sessionId !== undefined) this.storage.removeItem(scopedDraftsKey(sessionId))
     this.lastCorruption = null

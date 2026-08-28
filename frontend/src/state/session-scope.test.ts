@@ -85,4 +85,22 @@ describe("session-scoped workflow storage", () => {
     expect(drafts).toEqual([])
     expect(backing.getItem(RUN_DRAFTS_STORAGE_KEY)).toBeNull()
   })
+
+  it("does not let session A reset session B drafts", () => {
+    // Given: two scoped adapters and one run owned by session B.
+    const backing = new FakeStorage()
+    const adapterA = createSessionStorageAdapter(backing, session.session_id)
+    const adapterB = createSessionStorageAdapter(backing, sessionB.session_id)
+    adapterB.saveRunDraft({
+      sessionId: sessionB.session_id,
+      runId: ContractIdSchema.parse("run-002"),
+      scenarioId: ContractIdSchema.parse("scenario-002"),
+    })
+
+    // When: adapter A names B as the reset target.
+    adapterA.resetRunDrafts(sessionB.session_id)
+
+    // Then: B's run remains accessible only to B.
+    expect(adapterB.listRunDrafts().map((draft) => draft.runId)).toEqual(["run-002"])
+  })
 })

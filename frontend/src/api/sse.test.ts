@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it } from "vitest"
 import { type ApiFailure, ContractIdSchema } from "../contracts/generated"
 import { DemoTokenSchema } from "./client"
 import { type SseFrame, streamRunEvents } from "./sse"
@@ -40,6 +40,8 @@ async function collect(
   for await (const frame of stream) frames.push(frame)
   return frames
 }
+
+afterEach(() => window.history.replaceState({}, "", "/"))
 
 describe("fetch-based finite SSE replay", () => {
   it("parses split frames and ignores heartbeat comments", async () => {
@@ -107,7 +109,6 @@ describe("fetch-based finite SSE replay", () => {
 
     // Then: routing never makes the API page-relative under /runs/.
     expect(request && new URL(request.url).pathname).toBe("/api/runs/run-001/events")
-    window.history.pushState({}, "", "/")
   })
 
   it.each([

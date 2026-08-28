@@ -16,6 +16,7 @@ import {
 
 const HASH = "a".repeat(64)
 const SHA = "b".repeat(40)
+const POLICY_HASH = "f670bd90d43b6f6d648ec72a367d7ea51e503d3b497e2cb54a6b0c6851440a4d"
 
 const scenarioResponse = {
   scenario: {
@@ -40,7 +41,7 @@ const approvalRequestResponse = {
     session_id: "session-001",
     patch_hash: HASH,
     simulation_hash: HASH,
-    policy_hash: HASH,
+    policy_hash: POLICY_HASH,
     nonce: "A".repeat(22),
     requested_at: "2026-08-28T00:00:00Z",
     expires_at: "2026-08-28T00:01:00Z",
@@ -54,7 +55,7 @@ const approvalRequestResponse = {
     simulation_hash: HASH,
     quality_hash: HASH,
     policy_definition_hash: HASH,
-    policy_hash: HASH,
+    policy_hash: POLICY_HASH,
   },
   run_id: "run-001",
   evidence_id: "evidence-001",

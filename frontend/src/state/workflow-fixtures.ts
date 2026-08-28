@@ -18,12 +18,12 @@ export const HASHES = {
   baselineManifest: "6".repeat(64),
   candidateManifest: "7".repeat(64),
   constraintSet: "8".repeat(64),
-  simulation: "9".repeat(64),
+  simulation: "aac0582bfebc773af393d0a6acf3f3c3b1d50d34f87ec9fc2274b6d8b98374f6",
   quality: "a".repeat(64),
   policyDefinition: "b".repeat(64),
-  policy: "c".repeat(64),
-  certificate: "d".repeat(64),
-  approvalProof: "4f8d9bd70bd33e928429697276a63a434e139683682e1ff70ae5ae697fad1759",
+  policy: "04c32a734d8cd8cc28829d6772b29a992da121aa9499922c9c1181195297bdeb",
+  certificate: "fcb7e214e47ed5268ceaa6717987ce4bcddb12b832b143cda9f25821c6008230",
+  approvalProof: "d6a59699d36b291e887a1f08f8c36a9009008689603bc18f64a4cb441f612382",
   constraint: "f".repeat(64),
 } as const
 export const HASH = HASHES.patch
@@ -136,6 +136,7 @@ export const comparison = ComparisonResponseSchema.parse({
       metric_deltas: [{ metric_name: "throughput", baseline: 100, candidate: 120, unit: "mbps" }],
       constraints: [{ constraint_code: "safe", passed: true, evidence_hash: HASHES.constraint }],
       approval_eligible: true,
+      extensions: null,
     },
     evidence_hashes: {
       patch_hash: HASHES.patch,

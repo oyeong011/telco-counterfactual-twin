@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { canonicalSha256Without } from "./canonical-json"
 import {
   ApprovalDecisionSchema,
   ApprovalEvidenceStateSchema,
@@ -165,5 +166,7 @@ export const RootDescriptorSchema = strictObject({
 }).superRefine((value, context) => {
   if (Date.parse(value.not_after) <= Date.parse(value.not_before))
     context.addIssue({ code: "custom", message: "root validity window is empty" })
+  if (canonicalSha256Without(value, "descriptor_hash") !== value.descriptor_hash)
+    context.addIssue({ code: "custom", message: "root descriptor hash mismatch" })
 })
 export type RootDescriptor = z.infer<typeof RootDescriptorSchema>
