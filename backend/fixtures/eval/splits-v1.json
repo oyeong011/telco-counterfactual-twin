@@ -1,0 +1,369 @@
+{
+  "development": [
+    {
+      "case_id": "diag-development-radio-congestion-01",
+      "fault_family": "radio-congestion",
+      "observation_hash": "b113b7595436a9e88bd650681f8cd706de75f4256d2ae2ae8596ed09fbb8f1ae"
+    },
+    {
+      "case_id": "diag-development-radio-congestion-02",
+      "fault_family": "radio-congestion",
+      "observation_hash": "c319572ad73ef339291126251df121f01a93dad8a4887ba57c61b944dab775af"
+    },
+    {
+      "case_id": "diag-development-radio-congestion-03",
+      "fault_family": "radio-congestion",
+      "observation_hash": "fd30db7e6c448fdaff8d64aed5272262838f7febb21d8652646977a9063c2206"
+    },
+    {
+      "case_id": "diag-development-radio-congestion-04",
+      "fault_family": "radio-congestion",
+      "observation_hash": "9cf9a53647fe2fdf22f519e6734d5319c9ef9a80d8033f5cb789ef0d9e5981a3"
+    },
+    {
+      "case_id": "diag-development-radio-congestion-05",
+      "fault_family": "radio-congestion",
+      "observation_hash": "ff5703626efa8be663ea0164849a8ce95bc02b0eb52ce3895ef6b191236c8cf6"
+    },
+    {
+      "case_id": "diag-development-radio-congestion-06",
+      "fault_family": "radio-congestion",
+      "observation_hash": "2fe56ac6504f2bc318d547593c9114a708795aaa0bfcd6935e5ad255bb8a5bdd"
+    },
+    {
+      "case_id": "diag-development-backhaul-degradation-01",
+      "fault_family": "backhaul-degradation",
+      "observation_hash": "c81f69bfa8f97f1449274d5f89917239a7d2a33a0f4cdbd84a7f434622b22267"
+    },
+    {
+      "case_id": "diag-development-backhaul-degradation-02",
+      "fault_family": "backhaul-degradation",
+      "observation_hash": "eb6c8c5a0c3b3f7966f032dbd6471e0fa9140798b18399186ba6d66816ef480b"
+    },
+    {
+      "case_id": "diag-development-backhaul-degradation-03",
+      "fault_family": "backhaul-degradation",
+      "observation_hash": "559a7b695380874b37182403abf7a9b0ae997e65f7d7bf3afb4ea0d906a3191d"
+    },
+    {
+      "case_id": "diag-development-backhaul-degradation-04",
+      "fault_family": "backhaul-degradation",
+      "observation_hash": "9ad4cd235aa0f9ad3f686b2f841447a68ff1054f2a6f7fafa8e1f9bbee022d1c"
+    },
+    {
+      "case_id": "diag-development-backhaul-degradation-05",
+      "fault_family": "backhaul-degradation",
+      "observation_hash": "019879a853d087379452557e6df2278d7cee79d65a54dfac58bcdbbd58da1c82"
+    },
+    {
+      "case_id": "diag-development-backhaul-degradation-06",
+      "fault_family": "backhaul-degradation",
+      "observation_hash": "d541fc4ffe640e6c424272b2268b8d74ce298fd58fb499c2588b89aae3418cda"
+    },
+    {
+      "case_id": "diag-development-upf-saturation-01",
+      "fault_family": "upf-saturation",
+      "observation_hash": "d0f72883fd8372bceb68f7fd030cc11b00e78aa82710353cd1627fdb97bdb1a9"
+    },
+    {
+      "case_id": "diag-development-upf-saturation-02",
+      "fault_family": "upf-saturation",
+      "observation_hash": "ae2ede66dafbcd4bbaf003ba9dd517c63c218f418342b500ba296a3e4b720b25"
+    },
+    {
+      "case_id": "diag-development-upf-saturation-03",
+      "fault_family": "upf-saturation",
+      "observation_hash": "e20d638169ce4a81bd59e8d547541c6ada3dc4faf3f5912f20eb9a069c686396"
+    },
+    {
+      "case_id": "diag-development-upf-saturation-04",
+      "fault_family": "upf-saturation",
+      "observation_hash": "035046ee242cf4e4192e2de185b4a3cbe82ca537805fe671ea41efa5839e5d78"
+    },
+    {
+      "case_id": "diag-development-upf-saturation-05",
+      "fault_family": "upf-saturation",
+      "observation_hash": "705cc2bc2ec9a24c2fc26d0c7d26bb19f486d93d4a5f605842cec879ba0c9b96"
+    },
+    {
+      "case_id": "diag-development-upf-saturation-06",
+      "fault_family": "upf-saturation",
+      "observation_hash": "20081c85a53159e5124bc984a7114bfecae6bedd75d5ab994b509e69e8fcb0f3"
+    },
+    {
+      "case_id": "diag-development-neighbor-handover-misconfiguration-01",
+      "fault_family": "neighbor-handover-misconfiguration",
+      "observation_hash": "a7f825e66f1498b24652197179635cb344c8331473b929cd1bd13942639f9270"
+    },
+    {
+      "case_id": "diag-development-neighbor-handover-misconfiguration-02",
+      "fault_family": "neighbor-handover-misconfiguration",
+      "observation_hash": "7304c7985226e201a2506208e6ecf905d29c041bb6220ce4c86da5a94832dabb"
+    },
+    {
+      "case_id": "diag-development-neighbor-handover-misconfiguration-03",
+      "fault_family": "neighbor-handover-misconfiguration",
+      "observation_hash": "d55c54878c32f9cf0a0ef2a252a39d34f689fb81a1017526523dc5f98a02bdab"
+    },
+    {
+      "case_id": "diag-development-neighbor-handover-misconfiguration-04",
+      "fault_family": "neighbor-handover-misconfiguration",
+      "observation_hash": "d4cbb9126d765608a2b9bf0b7c195f4b6b7cabf5e75f0bbbba97c268581a74b0"
+    },
+    {
+      "case_id": "diag-development-neighbor-handover-misconfiguration-05",
+      "fault_family": "neighbor-handover-misconfiguration",
+      "observation_hash": "bca549063fbacb333f7a3e1b3dd4254d1c77ac752102cb3ef61ce2ebafa8695f"
+    },
+    {
+      "case_id": "diag-development-neighbor-handover-misconfiguration-06",
+      "fault_family": "neighbor-handover-misconfiguration",
+      "observation_hash": "2111255892765c00fcab7927ab91f0614691078c098771f75629b7c0c874fc61"
+    },
+    {
+      "case_id": "diag-development-slice-scheduler-misallocation-01",
+      "fault_family": "slice-scheduler-misallocation",
+      "observation_hash": "184b10c76b5943b738d5adb72216830ffaa46153efc6fe6c5d4cf57f95599b7d"
+    },
+    {
+      "case_id": "diag-development-slice-scheduler-misallocation-02",
+      "fault_family": "slice-scheduler-misallocation",
+      "observation_hash": "8188e624258cb2ff480b209b63330b0dfc3fb542ed72c859517fd95cceb70ace"
+    },
+    {
+      "case_id": "diag-development-slice-scheduler-misallocation-03",
+      "fault_family": "slice-scheduler-misallocation",
+      "observation_hash": "dddd53115bfb2a7a1f9306391e7e4baeb3f8cac4cff4f1f88fdc93b304f763ed"
+    },
+    {
+      "case_id": "diag-development-slice-scheduler-misallocation-04",
+      "fault_family": "slice-scheduler-misallocation",
+      "observation_hash": "8e929e8c289593ab20088b4cff4cf257eaf45ed6cd305d82f4f82c62d0054804"
+    },
+    {
+      "case_id": "diag-development-slice-scheduler-misallocation-05",
+      "fault_family": "slice-scheduler-misallocation",
+      "observation_hash": "e38555fd188e62f8c22ea9570033bbef6f046b5901b3ee50e75acce559c8a623"
+    },
+    {
+      "case_id": "diag-development-slice-scheduler-misallocation-06",
+      "fault_family": "slice-scheduler-misallocation",
+      "observation_hash": "ed952335b3fe960629d4a07a564817efab88a4676800476bc168198de1e09604"
+    },
+    {
+      "case_id": "diag-development-alarm-prompt-injection-01",
+      "fault_family": "alarm-prompt-injection",
+      "observation_hash": "2eaea15870f901e7542dc318747fe7f0f6043ff5cea6ec050912b027995bede4"
+    },
+    {
+      "case_id": "diag-development-alarm-prompt-injection-02",
+      "fault_family": "alarm-prompt-injection",
+      "observation_hash": "31215ecf2df1923f9848deace8e812a679ef190d6d215db2e7dd6cbbd0f35929"
+    },
+    {
+      "case_id": "diag-development-alarm-prompt-injection-03",
+      "fault_family": "alarm-prompt-injection",
+      "observation_hash": "531e0f33d787ebbca414b92e77248567a3a10e15a2009fe192c58545e7c03508"
+    },
+    {
+      "case_id": "diag-development-alarm-prompt-injection-04",
+      "fault_family": "alarm-prompt-injection",
+      "observation_hash": "e2af984b2b60631f9aa36126b50afdebf2992e719ff2a91b7f83c9d14a3a7717"
+    },
+    {
+      "case_id": "diag-development-alarm-prompt-injection-05",
+      "fault_family": "alarm-prompt-injection",
+      "observation_hash": "67e54d10bd1f2059b65a6a9aeb6fa965bf0bf3672818bd5fad22081736576d90"
+    },
+    {
+      "case_id": "diag-development-alarm-prompt-injection-06",
+      "fault_family": "alarm-prompt-injection",
+      "observation_hash": "6c7799923e9a8d8f7651d708b79f00b02e615778a661cb0a8b9097d66675ee1d"
+    }
+  ],
+  "development_usage": "baseline-design-only",
+  "heldout": [
+    {
+      "case_id": "diag-heldout-radio-congestion-01",
+      "fault_family": "radio-congestion",
+      "observation_hash": "be8075808220dd45eea08a678ad3f377d6c17623d5de021b1f10ba44f93bd98e"
+    },
+    {
+      "case_id": "diag-heldout-radio-congestion-02",
+      "fault_family": "radio-congestion",
+      "observation_hash": "a874d801428e7c974e8db3d733add92d96787309fee7de5433fbcfee0d4084aa"
+    },
+    {
+      "case_id": "diag-heldout-radio-congestion-03",
+      "fault_family": "radio-congestion",
+      "observation_hash": "484ef88cddec90535ec6a36fa2a8e0030254aa24539bc6674dde37fcefcd2ed9"
+    },
+    {
+      "case_id": "diag-heldout-radio-congestion-04",
+      "fault_family": "radio-congestion",
+      "observation_hash": "ba1b1cc2c22a050da8aceff28b2a3329d63b1c63c04f8f10f24de2042526a1a3"
+    },
+    {
+      "case_id": "diag-heldout-radio-congestion-05",
+      "fault_family": "radio-congestion",
+      "observation_hash": "db7c17df04c2ebf865748f1a1485b785d2b41eda0a65df57288a4eca50123c13"
+    },
+    {
+      "case_id": "diag-heldout-radio-congestion-06",
+      "fault_family": "radio-congestion",
+      "observation_hash": "d7b83f4b89d6e1540c11a8a4029a209c6056344e0ab94bc6b72ad88c33b07d5f"
+    },
+    {
+      "case_id": "diag-heldout-backhaul-degradation-01",
+      "fault_family": "backhaul-degradation",
+      "observation_hash": "6ffcfef303529f61e576846bc46a3d6cbc317451e121ecf9bf9f474d0ce728ad"
+    },
+    {
+      "case_id": "diag-heldout-backhaul-degradation-02",
+      "fault_family": "backhaul-degradation",
+      "observation_hash": "f306e0e328dd6b7293e6749d9e4fcb6cafec2c1ca9d36abb6e4115d1730a6e2e"
+    },
+    {
+      "case_id": "diag-heldout-backhaul-degradation-03",
+      "fault_family": "backhaul-degradation",
+      "observation_hash": "7c5d4100ccb8fb2a0ab648db4a68d9f922b869e2c2f52754b53053576ed064d7"
+    },
+    {
+      "case_id": "diag-heldout-backhaul-degradation-04",
+      "fault_family": "backhaul-degradation",
+      "observation_hash": "f59af334889b4b0d9d83e593de062c2aadd87f9dea6428dd940c9a5a0f0ce443"
+    },
+    {
+      "case_id": "diag-heldout-backhaul-degradation-05",
+      "fault_family": "backhaul-degradation",
+      "observation_hash": "88150ddd967e8b494c1377d4a606e7be85c260cd6cd2caae43110c59082dddc5"
+    },
+    {
+      "case_id": "diag-heldout-backhaul-degradation-06",
+      "fault_family": "backhaul-degradation",
+      "observation_hash": "bb50c2639372dd800ea125740fac5263013b72f421193970c5a4ffaa92da739c"
+    },
+    {
+      "case_id": "diag-heldout-upf-saturation-01",
+      "fault_family": "upf-saturation",
+      "observation_hash": "05a801666264f91cd78abc18938d093daaeea60ff8ccf022b52c8398487bfb23"
+    },
+    {
+      "case_id": "diag-heldout-upf-saturation-02",
+      "fault_family": "upf-saturation",
+      "observation_hash": "debb795113974ebf592fba8c58b68e4b9dc3c5552e2a90af02dd79fe4560525f"
+    },
+    {
+      "case_id": "diag-heldout-upf-saturation-03",
+      "fault_family": "upf-saturation",
+      "observation_hash": "257001f47b0c7d5dbd1c676fe79185965e566032c1ee4cdfff88271d5b39c0bf"
+    },
+    {
+      "case_id": "diag-heldout-upf-saturation-04",
+      "fault_family": "upf-saturation",
+      "observation_hash": "205e0afdb1cb126c4707811563c5f7b6bbcb35185542973597de85974bfb8e65"
+    },
+    {
+      "case_id": "diag-heldout-upf-saturation-05",
+      "fault_family": "upf-saturation",
+      "observation_hash": "af86aeb0d6674770cb4875501a5f71310d58bf5e7f33d8edbdda7fd1351449aa"
+    },
+    {
+      "case_id": "diag-heldout-upf-saturation-06",
+      "fault_family": "upf-saturation",
+      "observation_hash": "00cba5eb8b6e654d6c7f20410f8961fb0fd4b3c91a09e5c68f0a933d0578033c"
+    },
+    {
+      "case_id": "diag-heldout-neighbor-handover-misconfiguration-01",
+      "fault_family": "neighbor-handover-misconfiguration",
+      "observation_hash": "fb6f434d475605d54a8bf9db78495833e20328ef584c044a6775ee1f2008d969"
+    },
+    {
+      "case_id": "diag-heldout-neighbor-handover-misconfiguration-02",
+      "fault_family": "neighbor-handover-misconfiguration",
+      "observation_hash": "85d61977896f5f1ae7000406bc6cee183284dd28e436b11a75acbf95b1e26e14"
+    },
+    {
+      "case_id": "diag-heldout-neighbor-handover-misconfiguration-03",
+      "fault_family": "neighbor-handover-misconfiguration",
+      "observation_hash": "037f405d6564dbbc358a43624043a0f441e51f7c1e0bb66d57c23889645c791e"
+    },
+    {
+      "case_id": "diag-heldout-neighbor-handover-misconfiguration-04",
+      "fault_family": "neighbor-handover-misconfiguration",
+      "observation_hash": "4b833e8ec489f528acd4fb6a15f86768a7a13f875dec2a7adf175b8ee4d22ff2"
+    },
+    {
+      "case_id": "diag-heldout-neighbor-handover-misconfiguration-05",
+      "fault_family": "neighbor-handover-misconfiguration",
+      "observation_hash": "6540cba75abf23c9d5e7331bcb9b8120b8978fde462bca33feb7704a2cca9d2f"
+    },
+    {
+      "case_id": "diag-heldout-neighbor-handover-misconfiguration-06",
+      "fault_family": "neighbor-handover-misconfiguration",
+      "observation_hash": "4e2f0a5143f44acb718b20d5aa9667a211b1246e1d7078473c59a5aff9235033"
+    },
+    {
+      "case_id": "diag-heldout-slice-scheduler-misallocation-01",
+      "fault_family": "slice-scheduler-misallocation",
+      "observation_hash": "3c64707cf2b392c6cb6f84f124859bb24fee5e96e607ba3c799183906243c318"
+    },
+    {
+      "case_id": "diag-heldout-slice-scheduler-misallocation-02",
+      "fault_family": "slice-scheduler-misallocation",
+      "observation_hash": "83e3845e71f8d7305f0d4049955985b022bb58a4d3bffa36d4ddd809d8e68870"
+    },
+    {
+      "case_id": "diag-heldout-slice-scheduler-misallocation-03",
+      "fault_family": "slice-scheduler-misallocation",
+      "observation_hash": "e143c0aab320ebd94914aa4b32f2a14ddaa00188892c79caf188b28e2a12fcf4"
+    },
+    {
+      "case_id": "diag-heldout-slice-scheduler-misallocation-04",
+      "fault_family": "slice-scheduler-misallocation",
+      "observation_hash": "43bdc329bbde43de20cd38147fb191f1a9ad67620a3ede06c94f009d898c916b"
+    },
+    {
+      "case_id": "diag-heldout-slice-scheduler-misallocation-05",
+      "fault_family": "slice-scheduler-misallocation",
+      "observation_hash": "8aa7f76e49ba14e78220f0812ed25207665207f0b6da8e11203d6b140bd4f6cd"
+    },
+    {
+      "case_id": "diag-heldout-slice-scheduler-misallocation-06",
+      "fault_family": "slice-scheduler-misallocation",
+      "observation_hash": "0c257778c9d66cb4f7aa714bcea4f7dc8e286416daa47d2f84c2c17a03c8641c"
+    },
+    {
+      "case_id": "diag-heldout-alarm-prompt-injection-01",
+      "fault_family": "alarm-prompt-injection",
+      "observation_hash": "663121c00467b722d23cfca614912e8599eedc088e61ac32b6325178fb95ce58"
+    },
+    {
+      "case_id": "diag-heldout-alarm-prompt-injection-02",
+      "fault_family": "alarm-prompt-injection",
+      "observation_hash": "e8d3c8110af5e4454540701ec49adbf70dc4f5fe257eef29b24f7c6e1a21d8d2"
+    },
+    {
+      "case_id": "diag-heldout-alarm-prompt-injection-03",
+      "fault_family": "alarm-prompt-injection",
+      "observation_hash": "8983cc3c3e1e0ab9eb321b37cdc982058f2ed1486ab72d2217b846f5b8ec76e9"
+    },
+    {
+      "case_id": "diag-heldout-alarm-prompt-injection-04",
+      "fault_family": "alarm-prompt-injection",
+      "observation_hash": "54b59643a45e9deef959a14fb9e0264707fe737ab50dd32398344ad7a226a8d5"
+    },
+    {
+      "case_id": "diag-heldout-alarm-prompt-injection-05",
+      "fault_family": "alarm-prompt-injection",
+      "observation_hash": "2793b6358e94d315fb4127ce761acffe78f5bc92d8edfb198c50f67b2279d0c0"
+    },
+    {
+      "case_id": "diag-heldout-alarm-prompt-injection-06",
+      "fault_family": "alarm-prompt-injection",
+      "observation_hash": "3addc72c6e6e0db495d2c88e9b88d8a0a90cd80bdea9fa43f475604bbf160889"
+    }
+  ],
+  "heldout_usage": "final-score-only",
+  "schema_version": "1.0"
+}
