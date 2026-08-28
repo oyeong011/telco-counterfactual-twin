@@ -13,8 +13,8 @@ export type AppNavigationItem = {
 
 type AppShellProps = {
   readonly navigation: readonly AppNavigationItem[]
-  readonly preview?: boolean
-  readonly previewLabel?: string
+  readonly navigationLabel?: string
+  readonly contentId?: string
   readonly commandBar?: ReactNode
   readonly navigationContent?: ReactNode
   readonly contextRail?: ReactNode
@@ -30,8 +30,8 @@ function navigationTabIndex(item: AppNavigationItem, hasFocusTarget: boolean): n
 
 export function AppShell({
   navigation,
-  preview = false,
-  previewLabel,
+  navigationLabel = "Primary",
+  contentId = "main-content",
   commandBar,
   navigationContent,
   contextRail,
@@ -39,27 +39,13 @@ export function AppShell({
   children,
 }: AppShellProps) {
   const hasFocusTarget = navigation.some((item) => item.focus)
-  const routeBody = preview ? (
-    <div className="routeBody showcaseShellRoute" data-layout="preview-route">
-      {children}
-    </div>
-  ) : (
-    <main className="routeBody" id="main-content" tabIndex={-1}>
-      {children}
-    </main>
-  )
 
   return (
-    <div className="appShell" data-preview={preview ? "true" : undefined}>
-      {preview ? null : (
-        <a className="skipLink" href="#main-content">
-          Skip to main content
-        </a>
-      )}
-      <nav
-        className="primaryNav"
-        aria-label={preview ? (previewLabel ?? "Preview navigation") : "Primary"}
-      >
+    <div className="appShell">
+      <a className="skipLink" href={`#${contentId}`}>
+        Skip to main content
+      </a>
+      <nav className="primaryNav" aria-label={navigationLabel}>
         <ul className="primaryNavList">
           {navigationContent ??
             navigation.map((item) => {
@@ -89,7 +75,9 @@ export function AppShell({
             {contextRail}
           </aside>
         ) : null}
-        {routeBody}
+        <main className="routeBody" id={contentId} tabIndex={-1}>
+          {children}
+        </main>
         {evidenceRail ? (
           <aside className="evidenceRail" aria-label="Evidence rail">
             {evidenceRail}

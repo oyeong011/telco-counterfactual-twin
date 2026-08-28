@@ -82,20 +82,22 @@ function shellBody(state: ShowcaseState) {
 
 function AppShellExample({ state }: { readonly state: ShowcaseState }) {
   return (
-    <AppShell
-      preview
-      previewLabel={`AppShell ${state} preview navigation`}
-      navigation={navigationForState(state)}
-      commandBar={
-        <CommandBar
-          title="Shell preview"
-          status={{ tone: stateTone(state), label: state }}
-          announcement={`AppShell ${state} state`}
-        />
-      }
-    >
-      {shellBody(state)}
-    </AppShell>
+    <div className="showcaseShellPreview">
+      <AppShell
+        navigationLabel={`AppShell ${state} preview navigation`}
+        contentId={`showcase-shell-${state}`}
+        navigation={navigationForState(state)}
+        commandBar={
+          <CommandBar
+            title="Shell preview"
+            status={{ tone: stateTone(state), label: state }}
+            announcement={`AppShell ${state} state`}
+          />
+        }
+      >
+        {shellBody(state)}
+      </AppShell>
+    </div>
   )
 }
 

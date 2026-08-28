@@ -103,10 +103,6 @@
   overflow: hidden;
 }
 
-.showcaseShellRoute {
-  grid-column: 1 / -1;
-}
-
 .contextRail,
 .evidenceRail {
   min-block-size: 0;

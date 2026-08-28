@@ -10,10 +10,11 @@ describe("showcase layout contract", () => {
     render(createElement(ThemeProvider, null, createElement(PrimitiveShowcase)))
 
     // When
-    const main = screen.getByRole("main")
+    const main = document.getElementById("main-content")
     const errorGallery = screen.getByRole("region", { name: "ErrorState state gallery" })
 
     // Then
+    expect(main).toBeInstanceOf(HTMLElement)
     expect(main).toContainElement(errorGallery)
     expect(screen.getByRole("heading", { name: "Evidence-first console primitives" })).toBeVisible()
     expect(screen.getAllByRole("article").length).toBeGreaterThan(0)
