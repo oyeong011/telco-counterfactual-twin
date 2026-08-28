@@ -11,6 +11,7 @@ import { ShowcaseData } from "./ShowcaseData"
 import { ShowcaseEvidence } from "./ShowcaseEvidence"
 import { ShowcaseStates } from "./ShowcaseStates"
 import { CONTEXT_ITEMS, EVIDENCE_FIELDS, SHOWCASE_NAVIGATION } from "./showcaseFixtures"
+import "../styles/showcase.css"
 
 export function PrimitiveShowcase() {
   const theme = useTheme()

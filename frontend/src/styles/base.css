@@ -136,6 +136,32 @@ pre,
   text-align: center;
 }
 
+.foundationRoot {
+  display: grid;
+  min-block-size: 100dvb;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  text-align: center;
+}
+
+.foundationRoot > svg {
+  inline-size: var(--space-8);
+  block-size: var(--space-8);
+  color: var(--accent-primary);
+}
+
+.foundationRoot h1,
+.foundationRoot p {
+  margin: 0;
+}
+
+.foundationRoot p {
+  max-inline-size: 50ch;
+  color: var(--text-secondary);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
