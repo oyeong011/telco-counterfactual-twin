@@ -72,6 +72,7 @@ def _fresh(
         now - captured_at > max_age
         or now - modified > max_age
         or captured_at - now > timedelta(minutes=1)
+        or modified - now > timedelta(minutes=1)
     ):
         raise VisualQaError("stale-capture", path.as_posix())
 
@@ -127,7 +128,12 @@ def assert_manifest(
         (capture.route, capture.state, capture.viewport)
         for capture in manifest.captures
     }
-    if actual != expected or len(actual) != len(manifest.captures):
+    capture_paths = tuple(capture.path for capture in manifest.captures)
+    if (
+        actual != expected
+        or len(actual) != len(manifest.captures)
+        or len(set(capture_paths)) != len(capture_paths)
+    ):
         raise VisualQaError(
             "coverage-mismatch", f"expected={len(expected)} actual={len(actual)}"
         )

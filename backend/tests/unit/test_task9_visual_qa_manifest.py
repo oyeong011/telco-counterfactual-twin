@@ -21,7 +21,17 @@ VISUAL_SCRIPT: Final = REPO_ROOT / "scripts/assert_visual_qa_manifest.py"
 ROUTES: Final = ("ScenarioWorkbench", "RunDetail", "EvidenceBoard", "BenchmarkLab", "About")
 STATES: Final = ("loading", "empty", "error", "stale", "rejected", "approved", "demo")
 VIEWPORTS: Final = ("desktop", "mobile")
-Mutation = Literal["state", "reviewer", "path", "absolute", "console", "axe", "network", "secret"]
+Mutation = Literal[
+    "state",
+    "reviewer",
+    "path",
+    "absolute",
+    "console",
+    "axe",
+    "network",
+    "secret",
+    "fixture",
+]
 
 
 class CapturePayload(TypedDict, total=False):
@@ -190,6 +200,7 @@ def test_visual_manifest_accepts_required_routes_states_and_viewports(tmp_path: 
         ("axe", "axe-violations"),
         ("network", "network-errors"),
         ("secret", "secret-data"),
+        ("fixture", "fixture-route"),
     ],
 )
 def test_visual_manifest_rejects_hostile_variants(
@@ -216,6 +227,8 @@ def test_visual_manifest_rejects_hostile_variants(
             manifest["captures"][0]["network"] = {"unexpected": 1}
         case "secret":
             manifest["captures"][0]["note"] = "Bearer secret-value"
+        case "fixture":
+            manifest["captures"][0]["path"] = "captures/production-fixture.png"
         case unreachable:
             assert_never(unreachable)
     manifest_path.write_text(json.dumps(manifest, sort_keys=True) + "\n", encoding="utf-8")

@@ -190,19 +190,26 @@ def _now(value: str | None) -> datetime:
 
 
 def main(
-    manifest: Annotated[Path, typer.Argument(exists=True, dir_okay=False)],
+    manifest: Annotated[
+        Path | None, typer.Argument(exists=True, dir_okay=False)
+    ] = None,
+    manifest_option: Annotated[Path | None, typer.Option("--manifest")] = None,
     build_info: Annotated[Path, typer.Option("--build-info")] = DEFAULT_BUILD_INFO,
     root: Annotated[Path | None, typer.Option("--root")] = None,
     max_age_seconds: Annotated[int, typer.Option("--max-age-seconds", min=1)] = 86400,
     now: Annotated[str | None, typer.Option("--now")] = None,
 ) -> None:
     """Assert the strict Task 9 visual-QA manifest."""
+    target = manifest_option or manifest
+    if target is None:
+        typer.echo("visual-qa-error:manifest-missing:manifest", err=True)
+        raise typer.Exit(code=3)
     try:
-        parsed = parse_manifest(manifest)
+        parsed = parse_manifest(target)
         assert_manifest(
             parsed,
             build_info.resolve(),
-            (root or manifest.parent).resolve(),
+            (root or target.parent).resolve(),
             now=_now(now),
             max_age=timedelta(seconds=max_age_seconds),
         )
