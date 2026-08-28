@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -17,11 +18,7 @@ BUILD_SCRIPT: Final = REPO_ROOT / "scripts/generate_frontend_build_info.py"
 JSON_ADAPTER: Final[TypeAdapter[JsonValue]] = TypeAdapter(JsonValue)
 ASSET_MANIFEST: Final = Path(".vite/manifest.json")
 TRUST_DESCRIPTOR: Final = Path("specs/schemas/visual-qa-reviewers-trust")
-SHARED_NODE_MODULES: Final = (
-    REPO_ROOT.parent / "task9-console/frontend/node_modules"
-    if (REPO_ROOT.parent / "task9-console/frontend/node_modules/.bin/vite").is_file()
-    else REPO_ROOT / "frontend/node_modules"
-)
+SHARED_NODE_MODULES: Final = REPO_ROOT / "frontend/node_modules"
 
 
 def json_object(raw: bytes) -> dict[str, JsonValue]:
@@ -108,6 +105,18 @@ def copy_repo(tmp_path: Path) -> Path:
     assert run(["git", "commit", "-qm", "fixture"], root).returncode == 0
     (root / "frontend/node_modules").symlink_to(SHARED_NODE_MODULES, target_is_directory=True)
     return root
+
+
+def materialize_node_modules(root: Path) -> None:
+    """Replace the test-only dependency link with an ignored materialized tree."""
+    target = root / "frontend/node_modules"
+    target.unlink()
+    _ = shutil.copytree(
+        SHARED_NODE_MODULES,
+        target,
+        symlinks=True,
+        copy_function=os.link,
+    )
 
 
 def records_hash(root: Path, files: tuple[Path, ...]) -> str:

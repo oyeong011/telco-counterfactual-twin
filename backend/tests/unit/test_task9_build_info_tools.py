@@ -20,6 +20,7 @@ from .task9_build_info_fixtures import (
     copy_repo,
     emitted_asset_hash,
     json_object,
+    materialize_node_modules,
     run,
     write_stale_vite_dist,
 )
@@ -244,6 +245,7 @@ def test_standard_frontend_build_copies_identity_and_emits_manifest(tmp_path: Pa
     root = copy_repo(tmp_path)
     assert _generate(root).returncode == 0
     public = root / "frontend/public/build-info.json"
+    materialize_node_modules(root)
     # When: the standard frontend build script runs afterward.
     result = run(["pnpm", "--dir", "frontend", "build"], root)
     # Then: production output carries byte-identical identity and a Vite manifest.
