@@ -77,13 +77,15 @@ def test_build_info_generation_and_check_bind_clean_source(tmp_path: Path) -> No
 def test_build_info_generation_refuses_unrelated_dirty_source(tmp_path: Path) -> None:
     # Given: a source tree with a tracked edit unrelated to the generated output.
     root = _copy_repo(tmp_path)
+    output = root / "frontend/public/build-info.json"
+    output.unlink()
     _ = (root / "README.md").write_text("dirty\n", encoding="utf-8")
     # When: identity generation is attempted.
     result = _generate(root)
     # Then: the stable dirty-worktree error is nonzero and no artifact is written.
     assert result.returncode != 0
     assert "build-info-error:dirty-worktree:" in result.stderr
-    assert not (root / "frontend/public/build-info.json").exists()
+    assert not output.exists()
 
 
 def test_build_info_check_refuses_forged_hash_without_mutating_file(tmp_path: Path) -> None:
