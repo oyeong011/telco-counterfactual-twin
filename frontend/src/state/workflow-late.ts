@@ -1,3 +1,9 @@
+import {
+  approvalDecisionBindsToState,
+  approvalRequestBindsToState,
+  comparisonBindsToState,
+  evidenceBindsToState,
+} from "./workflow-bindings"
 import { storeApproval, storeComparison, storeSimulation } from "./workflow-storage"
 import type {
   WorkflowAction,
@@ -45,11 +51,7 @@ export function comparisonCreated(
   storage: WorkflowStorage,
 ): WorkflowTransition {
   if (state.phase !== "simulation") return illegal(state, action)
-  if (
-    action.response.run_id !== state.run.runId ||
-    action.response.comparison.result.simulation_id !== state.simulation.simulation_id
-  )
-    return illegal(state, action)
+  if (!comparisonBindsToState(state, action.response)) return illegal(state, action)
   return {
     ok: true,
     state: {
@@ -71,12 +73,8 @@ export function approvalRequested(
   storage: WorkflowStorage,
 ): WorkflowTransition {
   if (state.phase !== "comparison") return illegal(state, action)
-  if (
-    action.response.run_id !== state.run.runId ||
-    action.response.approval_request.session_id !== state.session.session_id
-  )
+  if (!action.response.policy.eligible || !approvalRequestBindsToState(state, action.response))
     return illegal(state, action)
-  if (!action.response.policy.eligible) return illegal(state, action)
   return {
     ok: true,
     state: {
@@ -124,13 +122,7 @@ export function approvalDecided(
   action: Extract<WorkflowAction, { readonly type: "approval_decided" }>,
 ): WorkflowTransition {
   if (state.phase !== "approval-pending") return illegal(state, action)
-  if (action.response.state === "pending") return illegal(state, action)
-  if (
-    action.response.approval_proof.approval_request_id !==
-      state.approval.approval_request.request_id ||
-    action.response.approval_proof.session_id !== state.session.session_id
-  )
-    return illegal(state, action)
+  if (!approvalDecisionBindsToState(state, action.response)) return illegal(state, action)
   return {
     ok: true,
     state: {
@@ -153,11 +145,7 @@ export function evidenceLoaded(
   action: Extract<WorkflowAction, { readonly type: "evidence_loaded" }>,
 ): WorkflowTransition {
   if (state.phase !== "decision") return illegal(state, action)
-  if (
-    action.response.run_id !== state.run.runId ||
-    action.response.evidence_card.session_id !== state.session.session_id
-  )
-    return illegal(state, action)
+  if (!evidenceBindsToState(state, action.response)) return illegal(state, action)
   return {
     ok: true,
     state: {

@@ -71,7 +71,7 @@ export type WorkflowAction =
   | {
       readonly type: "patch_proposed"
       readonly response: PatchResponse
-      readonly submittedPatch?: TypedPatch
+      readonly submittedPatch: TypedPatch
     }
   | { readonly type: "simulation_completed"; readonly response: SimulationResponse }
   | { readonly type: "comparison_created"; readonly response: ComparisonResponse }
@@ -93,15 +93,26 @@ export type WorkflowTransition =
 
 export type WorkflowStorage = SessionStorageAdapter
 
-export type TopologyGraphNode = { readonly id: ContractId }
-export type TopologyGraphEdge = {
+export type LifecycleResourceGraphNode = {
+  readonly id: ContractId
+  readonly eventId: ContractId
+  readonly eventType: string
+  readonly sequenceId: number
+}
+export type LifecycleResourceGraphEdge = {
   readonly id: ContractId
   readonly sourceId: ContractId
   readonly targetId: ContractId
+  readonly relation: "observed-next"
 }
-export type TopologyGraph = {
-  readonly nodes: readonly TopologyGraphNode[]
-  readonly edges: readonly TopologyGraphEdge[]
+export type LifecycleResourceGraph = {
+  readonly kind: "lifecycle-resource-graph"
+  readonly topology: {
+    readonly kind: "unavailable"
+    readonly reason: "no-http-topology-read-contract"
+  }
+  readonly nodes: readonly LifecycleResourceGraphNode[]
+  readonly edges: readonly LifecycleResourceGraphEdge[]
 }
 
 export type WorkflowStore = {

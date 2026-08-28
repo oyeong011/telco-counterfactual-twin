@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import { ProblemDetailsSchema } from "../contracts/generated"
 import { classifySessionProblem, parseProblemResponse, type SessionProblemClass } from "./errors"
 
 const problem = (status: number, code: string) => ({
@@ -50,5 +51,29 @@ describe("API problem handling", () => {
 
     // When / Then: parsing rejects the malformed boundary value.
     await expect(parseProblemResponse(response)).rejects.toThrow()
+  })
+
+  it.each([
+    [401, "jwt_approver_invalid"],
+    [401, "approval_auth_required"],
+    [503, "approval_root_invalid"],
+    [503, "policy_provenance_unavailable"],
+    [503, "client_transport_error"],
+  ])("does not misclassify non-session %s %s failures", (status, code) => {
+    // Given: a valid problem from an approval, policy, or transport boundary.
+    const parsed = ProblemDetailsSchema.parse({
+      type: `https://telco-twin.invalid/problems/${code}`,
+      title: code,
+      status,
+      code,
+      detail: "safe detail",
+      request_id: "request-001",
+    })
+
+    // When: the problem is parsed and session-classified.
+    const result = classifySessionProblem(parsed)
+
+    // Then: no active demo session gate is raised for unrelated failures.
+    expect(result).toBe("none")
   })
 })

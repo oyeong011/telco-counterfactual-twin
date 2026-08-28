@@ -1,85 +1,14 @@
 import { z } from "zod"
+import { SAFE_KEY_PATTERN, semanticallySafeKey } from "./key-policy"
+
+export { SAFE_KEY_PATTERN } from "./key-policy"
 
 export const ID_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/
-export const SAFE_KEY_PATTERN =
-  /^(?!(?:email|gpsi|imei|imsi|msisdn|phone|subscriber[-_]?id|supi|apply[-_]?to[-_]?network|command|execute|execution|push[-_]?config|revoke|revocation|shell|url)$)[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$/
 export const UTC_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/
 export const SHA256_PATTERN = /^[0-9a-f]{64}$/
 export const GIT_SHA_PATTERN = /^[0-9a-f]{40}$/
 export const SEMVER_PATTERN = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/
 export const BASE64URL_PATTERN = /^[A-Za-z0-9_-]+$/
-const SAFE_EXACT_KEYS = new Set([
-  "commandment_count",
-  "config_history",
-  "curiosity_score",
-  "duration_ms",
-  "executioner_state",
-  "flourish_count",
-  "jurisdiction_code",
-  "maturity_score",
-  "purity_index",
-  "security_level",
-  "shellfish_count",
-  "tokenization_mode",
-  "ue_cohort_id",
-])
-
-function semanticallySafeKey(value: string): boolean {
-  if (SAFE_EXACT_KEYS.has(value)) return true
-  const normalized = value.replace(/[-_]/g, "")
-  const parts = value.split(/[-_]/)
-  const has = (values: readonly string[]) => parts.some((part) => values.includes(part))
-  const directPii = [
-    "customer",
-    "email",
-    "gpsi",
-    "imei",
-    "imsi",
-    "msisdn",
-    "phone",
-    "subscriber",
-    "supi",
-  ].some((stem) => normalized.includes(stem))
-  const directAuthority = [
-    "command",
-    "execute",
-    "execution",
-    "revoke",
-    "revocation",
-    "shell",
-    "url",
-    "uri",
-  ].some((stem) => normalized.includes(stem))
-  const directSecret = ["credential", "passwd", "password", "secret", "token"].some((stem) =>
-    normalized.includes(stem),
-  )
-  const apiSecret =
-    parts.includes("api") && has(["key", "secret", "token"]) && !normalized.includes("rapid")
-  const pii =
-    has(["customer", "subscriber"]) && has(["id", "identifier", "identifiers", "identity"])
-  const authority =
-    (has(["push"]) && has(["config", "network", "payload"])) ||
-    (has(["apply"]) && has(["config", "network", "payload"])) ||
-    (has(["shell"]) && has(["command"])) ||
-    (has(["arbitrary"]) && has(["uri", "url"])) ||
-    (has(["execute", "execution"]) &&
-      has(["action", "command", "network", "operation", "payload", "plan", "request"])) ||
-    (has(["command"]) && has(["action", "network", "operation", "payload", "plan", "request"])) ||
-    (has(["revoke", "revocation"]) && has(["id", "identifier", "reason", "status", "token"]))
-  const secret = has(["credential", "passwd", "password", "secret", "token"])
-  const accessSecret = has(["access"]) && has(["key", "secret", "token"])
-  return !(
-    directPii ||
-    directAuthority ||
-    directSecret ||
-    apiSecret ||
-    pii ||
-    authority ||
-    secret ||
-    accessSecret
-  )
-}
-
 export const SchemaVersionSchema = z.literal("1.0")
 export type SchemaVersion = z.infer<typeof SchemaVersionSchema>
 
@@ -96,6 +25,7 @@ export const UtcTimestampSchema = z
   .string()
   .regex(UTC_PATTERN)
   .refine((value) => {
+    if (value.startsWith("0000-")) return false
     const parsed = Date.parse(value)
     return !Number.isNaN(parsed) && new Date(parsed).toISOString() === `${value.slice(0, -1)}.000Z`
   })

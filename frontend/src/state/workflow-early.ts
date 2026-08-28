@@ -1,3 +1,4 @@
+import { patchInputMatches } from "./workflow-bindings"
 import { storePatch, storeScenario } from "./workflow-storage"
 import type {
   WorkflowAction,
@@ -30,7 +31,11 @@ export function bootstrapSucceeded(
   if (state.phase !== "bootstrapping") return illegal(state, action)
   return {
     ok: true,
-    state: { phase: "session-active", session: action.session, drafts: storage.listRunDrafts() },
+    state: {
+      phase: "session-active",
+      session: action.session,
+      drafts: storage.listRunDrafts(action.session.session_id),
+    },
   }
 }
 
@@ -45,7 +50,7 @@ export function scenarioCreated(
     state: {
       phase: "scenario",
       session: state.session,
-      run: storeScenario(storage, action.response),
+      run: storeScenario(storage, action.response, state.session.session_id),
       scenario: action.response,
     },
   }
@@ -81,7 +86,9 @@ export function patchProposed(
   if (state.phase !== "diagnosis") return illegal(state, action)
   if (
     action.response.patch.scenario_id !== state.run.scenarioId ||
-    action.response.run_id !== state.run.runId
+    action.response.run_id !== state.run.runId ||
+    action.response.patch.base_topology_hash !== state.scenario.topology_hash ||
+    !patchInputMatches(action.submittedPatch, action.response)
   )
     return illegal(state, action)
   return {

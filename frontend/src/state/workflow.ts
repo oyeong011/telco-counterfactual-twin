@@ -1,4 +1,3 @@
-import { ContractIdSchema } from "../contracts/generated"
 import { createSessionStorageAdapter, type SessionStorageAdapter } from "./session"
 import {
   bootstrapStarted,
@@ -24,7 +23,7 @@ import type {
   WorkflowTransition,
 } from "./workflow-types"
 
-export { deriveTopologyGraph } from "./workflow-graph"
+export { deriveLifecycleResourceGraph } from "./workflow-graph"
 export type {
   ActiveState,
   ApprovalBlockedState,
@@ -33,12 +32,12 @@ export type {
   DecisionState,
   DiagnosisState,
   EvidenceState,
+  LifecycleResourceGraph,
+  LifecycleResourceGraphEdge,
+  LifecycleResourceGraphNode,
   PatchState,
   ScenarioState,
   SimulationState,
-  TopologyGraph,
-  TopologyGraphEdge,
-  TopologyGraphNode,
   WorkflowAction,
   WorkflowState,
   WorkflowStore,
@@ -100,8 +99,4 @@ export function createWorkflowStore(
     },
     storage,
   }
-}
-
-export function parseWorkflowId(value: string) {
-  return ContractIdSchema.parse(value)
 }

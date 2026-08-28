@@ -10,10 +10,14 @@ import {
 import { type DemoToken, DemoTokenSchema } from "./auth"
 import {
   ContractParseError,
+  contractFailure,
   failureFromProblem,
+  networkFailure,
   parseProblemResponse,
-  transportFailure,
+  requestAbortedFailure,
+  timeoutFailure,
 } from "./errors"
+import { apiPath, resolveApiBaseUrl } from "./url"
 
 export type SseFrame = {
   readonly id: ContractId
@@ -31,6 +35,7 @@ export type SseStreamOptions = {
 }
 
 export const SSE_TIMEOUT_MS = 10_000
+const SSE_MAX_FRAME_BYTES = 64 * 1024
 
 export class SseProtocolError extends Error {
   override readonly name = "SseProtocolError"
@@ -40,13 +45,16 @@ type MutableFrame = {
   id?: string
   event?: string
   data: string[]
+  size: number
 }
 
 function emptyFrame(): MutableFrame {
-  return { data: [] }
+  return { data: [], size: 0 }
 }
 
 function parseField(line: string, frame: MutableFrame): void {
+  frame.size += new TextEncoder().encode(line).byteLength + 1
+  if (frame.size > SSE_MAX_FRAME_BYTES) throw new SseProtocolError("SSE frame exceeds size limit")
   if (line.startsWith(":")) return
   const separator = line.indexOf(":")
   const field = separator < 0 ? line : line.slice(0, separator)
@@ -104,6 +112,8 @@ async function* readSseBody(body: ReadableStream<Uint8Array>): AsyncGenerator<Ss
       buffer += decoder.decode(chunk.value, { stream: true })
       const lines = buffer.split(/\r?\n/)
       buffer = lines.pop() ?? ""
+      if (buffer.length > SSE_MAX_FRAME_BYTES)
+        throw new SseProtocolError("SSE frame exceeds size limit")
       for (const line of lines) {
         if (line === "") {
           const completed = completeFrame(frame)
@@ -123,41 +133,104 @@ async function* readSseBody(body: ReadableStream<Uint8Array>): AsyncGenerator<Ss
   }
 }
 
+type StreamControl = {
+  readonly signal: AbortSignal
+  readonly timedOut: () => boolean
+  readonly callerAborted: () => boolean
+  readonly abort: () => void
+  readonly dispose: () => void
+}
+
+function createStreamControl(callerSignal: AbortSignal | undefined): StreamControl {
+  const controller = new AbortController()
+  let didTimeout = false
+  let didCallerAbort = false
+  const timeoutId = setTimeout(() => {
+    didTimeout = true
+    controller.abort()
+  }, SSE_TIMEOUT_MS)
+  const abortFromCaller = (): void => {
+    didCallerAbort = true
+    controller.abort()
+  }
+  if (callerSignal) {
+    if (callerSignal.aborted) abortFromCaller()
+    else callerSignal.addEventListener("abort", abortFromCaller, { once: true })
+  }
+  return {
+    signal: controller.signal,
+    timedOut: () => didTimeout,
+    callerAborted: () => didCallerAbort,
+    abort: () => controller.abort(),
+    dispose: () => {
+      clearTimeout(timeoutId)
+      callerSignal?.removeEventListener("abort", abortFromCaller)
+    },
+  }
+}
+
+function streamFailure(error: unknown, control: StreamControl): ApiFailure {
+  const errorName =
+    error instanceof DOMException ? error.name : error instanceof Error ? error.name : ""
+  if (control.callerAborted()) return requestAbortedFailure()
+  if (control.timedOut() || errorName === "TimeoutError") return timeoutFailure()
+  if (error instanceof TypeError || errorName === "NetworkError" || errorName === "AbortError")
+    return networkFailure()
+  return contractFailure()
+}
+
 export async function* streamRunEvents(
   options: SseStreamOptions,
 ): AsyncGenerator<SseFrame | ApiFailure> {
-  const { VITE_API_BASE_URL } = import.meta.env
-  const baseUrl = options.baseUrl ?? VITE_API_BASE_URL ?? ""
-  const url = `${baseUrl.replace(/\/$/, "")}/api/runs/${options.runId}/events`
+  const baseUrl = resolveApiBaseUrl(options.baseUrl)
+  const url = apiPath(baseUrl, `api/runs/${options.runId}/events`)
   const headers = new Headers({
     Accept: "text/event-stream",
     "X-Demo-Session-Token": DemoTokenSchema.parse(options.sessionToken),
   })
   if (options.lastEventId) headers.set("Last-Event-ID", options.lastEventId)
+  const control = createStreamControl(options.signal)
   let response: Response
   try {
-    const signal = options.signal ?? AbortSignal.timeout(SSE_TIMEOUT_MS)
-    const requestInit: RequestInit = { method: "GET", headers, signal }
+    const requestInit: RequestInit = { method: "GET", headers, signal: control.signal }
     response = await (options.fetch ?? fetch)(url, requestInit)
   } catch (error) {
-    if (error instanceof TypeError) {
-      yield transportFailure()
-      return
-    }
-    throw error
-  }
-  if (!response.ok) {
-    yield failureFromProblem(await parseProblemResponse(response))
+    if (error instanceof Error || error instanceof DOMException) yield streamFailure(error, control)
+    else yield contractFailure()
+    control.dispose()
     return
   }
-  if (!response.body) throw new SseProtocolError("SSE response has no readable body")
-  yield* readSseBody(response.body)
-}
-
-export async function collectSseFrames(
-  stream: AsyncIterable<SseFrame | ApiFailure>,
-): Promise<readonly (SseFrame | ApiFailure)[]> {
-  const frames: (SseFrame | ApiFailure)[] = []
-  for await (const frame of stream) frames.push(frame)
-  return frames
+  if (!response.ok) {
+    try {
+      yield failureFromProblem(await parseProblemResponse(response))
+    } catch (error) {
+      control.abort()
+      if (error instanceof Error || error instanceof DOMException)
+        yield streamFailure(error, control)
+      else yield contractFailure()
+    } finally {
+      control.dispose()
+    }
+    return
+  }
+  const contentType = response.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase()
+  if (contentType !== "text/event-stream") {
+    yield contractFailure()
+    control.dispose()
+    return
+  }
+  if (!response.body) {
+    yield contractFailure()
+    control.dispose()
+    return
+  }
+  try {
+    yield* readSseBody(response.body)
+  } catch (error) {
+    control.abort()
+    if (error instanceof Error || error instanceof DOMException) yield streamFailure(error, control)
+    else yield contractFailure()
+  } finally {
+    control.dispose()
+  }
 }

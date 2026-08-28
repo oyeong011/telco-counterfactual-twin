@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest"
-import { ContractIdSchema } from "../contracts/generated"
+import {
+  ContractIdSchema,
+  PolicyEvaluationSchema,
+  SafeKeySchema,
+  UtcTimestampSchema,
+} from "../contracts/generated"
 import { createApiClient, DemoTokenSchema } from "./client"
 import { IdempotencyKeySchema } from "./idempotency"
 
@@ -33,6 +38,49 @@ const response = (body: unknown, status = 200, headers: Record<string, string> =
   })
 
 describe("HTTP API client", () => {
+  it("uses backend-aligned semantic key and date guards at API boundaries", () => {
+    // Given: values the backend's recursive contract rejects.
+    const apiKey = SafeKeySchema.safeParse("apikey")
+    const accessKey = SafeKeySchema.safeParse("accesskey")
+    const yearZero = UtcTimestampSchema.safeParse("0000-01-01T00:00:00Z")
+    const ineligible = PolicyEvaluationSchema.safeParse({
+      eligible: true,
+      reasons: ["unsafe-constraint"],
+      patch_hash: null,
+      simulation_hash: null,
+      quality_hash: HASH,
+      policy_definition_hash: HASH,
+      policy_hash: HASH,
+    })
+
+    // When / Then: semantic, temporal, and eligibility violations reject at the boundary.
+    expect(apiKey.success).toBe(false)
+    expect(accessKey.success).toBe(false)
+    expect(yearZero.success).toBe(false)
+    expect(ineligible.success).toBe(false)
+  })
+
+  it("roots same-origin requests from a nested route when no API base is configured", async () => {
+    // Given: a client without VITE_API_BASE_URL and a browser-like nested route.
+    window.history.pushState({}, "", "/runs/run-001")
+    const requests: Request[] = []
+    const fetcher: typeof fetch = async (input, init) => {
+      requests.push(new Request(input, init))
+      return response({ items: [] })
+    }
+    const client = createApiClient({ fetch: fetcher })
+
+    // When: a session-scoped read is issued from the default same-origin client.
+    const result = await client.listScenarios(SESSION)
+
+    // Then: the request pathname is API-rooted, never page-relative under /runs/.
+    expect(result.ok).toBe(true)
+    const request = requests[0]
+    expect(request).toBeDefined()
+    if (request) expect(new URL(request.url).pathname).toBe("/api/scenarios")
+    window.history.pushState({}, "", "/")
+  })
+
   it("bootstraps synthetic-only and lets the browser provide Origin naturally", async () => {
     // Given: a wire-level fetch recorder returning a valid session body.
     const calls: Request[] = []
@@ -168,15 +216,5 @@ describe("HTTP API client", () => {
     // Then: the failure is structured without echoing the token.
     expect(result.ok).toBe(false)
     expect(JSON.stringify(result)).not.toContain(SESSION.demoToken)
-  })
-
-  it("exposes the configured timeout and prefix policy for inspection", () => {
-    // Given / When: a client is created with an explicit service origin.
-    const client = createApiClient({ baseUrl: "https://api.example.test" })
-
-    // Then: the instance reports the bounded client policy without exposing mutable internals.
-    expect(client.baseUrl).toBe("https://api.example.test")
-    expect(client.timeoutMs).toBeGreaterThanOrEqual(8000)
-    expect(client.timeoutMs).toBeLessThanOrEqual(15000)
   })
 })

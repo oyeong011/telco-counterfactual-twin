@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest"
 import {
   ApprovalRequestResponseSchema,
+  Base64SignatureSchema,
   DemoSessionRequestSchema,
+  Ed25519JwkSchema,
   EventSchema,
+  NonceSchema,
   ProblemDetailsSchema,
   ScenarioResponseSchema,
   ServiceBuildInfoSchema,
@@ -196,5 +199,22 @@ describe("external contract parsers", () => {
     // When / Then: both boundary violations are rejected.
     expect(unsafe.success).toBe(false)
     expect(impossibleDate.success).toBe(false)
+  })
+
+  it("rejects non-canonical base64url key material at the contract boundary", () => {
+    // Given: correctly sized strings with altered trailing base64 bits.
+    const nonce = `A${"A".repeat(20)}B`
+    const signature = `A${"A".repeat(84)}B`
+    const jwk = { kty: "OKP", crv: "Ed25519", x: `A${"A".repeat(41)}B` }
+
+    // When: approval key material crosses the parser.
+    const parsedNonce = NonceSchema.safeParse(nonce)
+    const parsedSignature = Base64SignatureSchema.safeParse(signature)
+    const parsedJwk = Ed25519JwkSchema.safeParse(jwk)
+
+    // Then: length alone cannot bypass the backend's canonical byte-length rule.
+    expect(parsedNonce.success).toBe(false)
+    expect(parsedSignature.success).toBe(false)
+    expect(parsedJwk.success).toBe(false)
   })
 })

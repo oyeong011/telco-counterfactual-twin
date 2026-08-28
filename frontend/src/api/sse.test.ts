@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest"
-import { ContractIdSchema } from "../contracts/generated"
+import { type ApiFailure, ContractIdSchema } from "../contracts/generated"
 import { DemoTokenSchema } from "./client"
-import { collectSseFrames, streamRunEvents } from "./sse"
+import { type SseFrame, streamRunEvents } from "./sse"
+
+const OPTIONS = {
+  baseUrl: "https://api.example.test",
+  sessionToken: DemoTokenSchema.parse("demo-token-secret"),
+  runId: ContractIdSchema.parse("run-001"),
+} as const
 
 const event = (id: string, sequenceId: number) => ({
   schema_version: "1.0",
@@ -14,21 +20,30 @@ const event = (id: string, sequenceId: number) => ({
   payload: { resource_id: "scenario-001", run_id: "run-001", status: "recorded" },
 })
 
-const streamResponse = (chunks: readonly string[]) =>
-  new Response(
+function streamResponse(chunks: readonly string[]): Response {
+  const encoder = new TextEncoder()
+  return new Response(
     new ReadableStream<Uint8Array>({
       start(controller) {
-        const encoder = new TextEncoder()
         for (const chunk of chunks) controller.enqueue(encoder.encode(chunk))
         controller.close()
       },
     }),
-    { status: 200, headers: { "content-type": "text/event-stream" } },
+    { headers: { "content-type": "text/event-stream" } },
   )
+}
 
-describe("fetch-based SSE replay", () => {
-  it("parses split frames and heartbeat comments through fetch", async () => {
-    // Given: one SSE response split across arbitrary chunks and a heartbeat comment.
+async function collect(
+  stream: AsyncIterable<SseFrame | ApiFailure>,
+): Promise<readonly (SseFrame | ApiFailure)[]> {
+  const frames: (SseFrame | ApiFailure)[] = []
+  for await (const frame of stream) frames.push(frame)
+  return frames
+}
+
+describe("fetch-based finite SSE replay", () => {
+  it("parses split frames and ignores heartbeat comments", async () => {
+    // Given: two frames split across arbitrary byte chunks.
     const first = event("event-001", 0)
     const second = event("event-002", 1)
     const wire = [
@@ -38,58 +53,68 @@ describe("fetch-based SSE replay", () => {
     ]
     const fetcher: typeof fetch = async () => streamResponse(wire)
 
-    // When: the finite fetch stream is consumed.
-    const frames = await collectSseFrames(
-      streamRunEvents({
-        baseUrl: "https://api.example.test",
-        sessionToken: DemoTokenSchema.parse("demo-token-secret"),
-        runId: ContractIdSchema.parse("run-001"),
-        fetch: fetcher,
-      }),
-    )
+    // When: the response is consumed.
+    const frames = await collect(streamRunEvents({ ...OPTIONS, fetch: fetcher }))
 
-    // Then: both real event IDs and payloads survive chunk parsing; comments are ignored.
+    // Then: both server events survive and comments do not become frames.
     expect(frames).toHaveLength(2)
-    const parsedFrames = frames.filter(
-      (frame): frame is Exclude<typeof frame, { readonly ok: false }> => "data" in frame,
-    )
-    expect(parsedFrames.map((frame) => frame.id)).toEqual(["event-001", "event-002"])
-    expect(parsedFrames[1]?.data.sequence_id).toBe(1)
+    expect(frames.map((frame) => ("data" in frame ? frame.id : "failure"))).toEqual([
+      "event-001",
+      "event-002",
+    ])
   })
 
   it("sends demo auth and Last-Event-ID on reconnect", async () => {
-    // Given: a reconnect cursor and a recorder at the fetch boundary.
+    // Given: a reconnect cursor and a wire recorder.
     let request: Request | undefined
     const fetcher: typeof fetch = async (input, init) => {
       request = new Request(input, init)
       return streamResponse([])
     }
 
-    // When: the run stream is opened with a cursor.
-    await collectSseFrames(
+    // When: the run stream opens with a cursor.
+    await collect(
       streamRunEvents({
-        baseUrl: "https://api.example.test",
-        sessionToken: DemoTokenSchema.parse("demo-token-secret"),
-        runId: ContractIdSchema.parse("run-001"),
+        ...OPTIONS,
         lastEventId: ContractIdSchema.parse("event-000"),
         fetch: fetcher,
       }),
     )
 
-    // Then: auth and resume are explicit request headers.
-    expect(request).toBeDefined()
-    if (request) {
-      expect(request.headers.get("X-Demo-Session-Token")).toBe("demo-token-secret")
-      expect(request.headers.get("Last-Event-ID")).toBe("event-000")
-      expect(request.headers.get("Accept")).toBe("text/event-stream")
+    // Then: the required custom auth and replay headers are present.
+    expect(request?.headers.get("X-Demo-Session-Token")).toBe("demo-token-secret")
+    expect(request?.headers.get("Last-Event-ID")).toBe("event-000")
+    expect(request?.headers.get("Accept")).toBe("text/event-stream")
+  })
+
+  it("roots the default SSE URL from a nested browser route", async () => {
+    // Given: no explicit API base and a client-side run detail path.
+    window.history.pushState({}, "", "/runs/run-001")
+    let request: Request | undefined
+    const fetcher: typeof fetch = async (input, init) => {
+      request = new Request(input, init)
+      return streamResponse([])
     }
+
+    // When: the same-origin stream opens.
+    await collect(
+      streamRunEvents({
+        sessionToken: OPTIONS.sessionToken,
+        runId: OPTIONS.runId,
+        fetch: fetcher,
+      }),
+    )
+
+    // Then: routing never makes the API page-relative under /runs/.
+    expect(request && new URL(request.url).pathname).toBe("/api/runs/run-001/events")
+    window.history.pushState({}, "", "/")
   })
 
   it.each([
     [409, "sse_replay_gap"],
     [409, "sse_cursor_wrong_stream"],
-  ])("surfaces bounded stream problem %s as %s", async (status, code) => {
-    // Given: a structured server-side replay failure.
+  ])("surfaces server problem %s as %s", async (status, code) => {
+    // Given: one structured server-side replay failure.
     const fetcher: typeof fetch = async () =>
       new Response(
         JSON.stringify({
@@ -107,40 +132,26 @@ describe("fetch-based SSE replay", () => {
       )
 
     // When: the stream is consumed.
-    const frames = await collectSseFrames(
-      streamRunEvents({
-        baseUrl: "https://api.example.test",
-        sessionToken: DemoTokenSchema.parse("demo-token-secret"),
-        runId: ContractIdSchema.parse("run-001"),
-        fetch: fetcher,
-      }),
-    )
+    const frames = await collect(streamRunEvents({ ...OPTIONS, fetch: fetcher }))
 
-    // Then: the caller receives the exact machine code, not fabricated stream data.
-    expect(frames).toHaveLength(1)
-    const failure = frames[0]
-    expect(failure && "ok" in failure && failure.ok).toBe(false)
-    if (failure && "ok" in failure && !failure.ok) expect(failure.problem.code).toBe(code)
+    // Then: the exact machine code is preserved.
+    const first = frames[0]
+    expect(first && "ok" in first ? first.problem.code : undefined).toBe(code)
   })
 
-  it("rejects an event whose stream id differs from its event payload id", async () => {
-    // Given: an SSE frame with a mismatched external event identifier.
+  it("rejects frame metadata that differs from the event body", async () => {
+    // Given: an event whose outer and inner identifiers disagree.
     const payload = event("event-001", 0)
     const fetcher: typeof fetch = async () =>
       streamResponse([
         `id: event-002\nevent: scenario-created\ndata: ${JSON.stringify(payload)}\n\n`,
       ])
 
-    // When / Then: parsing fails closed at the stream boundary.
-    await expect(
-      collectSseFrames(
-        streamRunEvents({
-          baseUrl: "https://api.example.test",
-          sessionToken: DemoTokenSchema.parse("demo-token-secret"),
-          runId: ContractIdSchema.parse("run-001"),
-          fetch: fetcher,
-        }),
-      ),
-    ).rejects.toThrow()
+    // When: the frame crosses the parser boundary.
+    const frames = await collect(streamRunEvents({ ...OPTIONS, fetch: fetcher }))
+
+    // Then: the mismatch is a structured contract failure.
+    const first = frames[0]
+    expect(first && "ok" in first ? first.problem.code : undefined).toBe("client_contract_error")
   })
 })

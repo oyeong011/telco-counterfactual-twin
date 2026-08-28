@@ -1,13 +1,5 @@
 import { z } from "zod"
-import {
-  ApprovalProofSchema,
-  ApprovalRequestSchema,
-  ScenarioCreateRequestSchema,
-  ScenarioListResponseSchema,
-  ScenarioResponseSchema,
-  SessionKeyCertificateSchema,
-  SimulationReadResponseSchema,
-} from "./domain"
+import { SessionKeyCertificateSchema } from "./domain"
 import {
   ContractIdSchema,
   DigestScopeSchema,
@@ -158,6 +150,9 @@ export const PROBLEM_CODES = [
   "route_not_found",
   "method_not_allowed",
   "client_transport_error",
+  "client_timeout_error",
+  "client_network_error",
+  "client_request_aborted",
   "client_contract_error",
 ] as const
 export const ProblemCodeSchema = z.enum(PROBLEM_CODES)
@@ -192,17 +187,3 @@ export type ApiFailure = {
 }
 
 export type ApiResult<T> = ApiSuccess<T> | ApiFailure
-
-export const ResponseContractSchemas = {
-  scenario: ScenarioResponseSchema,
-  scenarios: ScenarioListResponseSchema,
-  simulation: SimulationReadResponseSchema,
-  approvalRequest: ApprovalRequestSchema,
-  approvalProof: ApprovalProofSchema,
-  benchmark: BenchmarkResponseSchema,
-} as const
-
-export const RequestContractSchemas = {
-  scenario: ScenarioCreateRequestSchema,
-  benchmark: BenchmarkRequestSchema,
-} as const

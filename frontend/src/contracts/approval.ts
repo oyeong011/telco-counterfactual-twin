@@ -2,6 +2,7 @@ import { z } from "zod"
 import {
   ApprovalDecisionSchema,
   ApprovalEvidenceStateSchema,
+  BASE64URL_PATTERN,
   ContractIdSchema,
   EnvironmentSchema,
   SchemaVersionSchema,
@@ -11,16 +12,39 @@ import {
 import { PolicyEvaluationSchema } from "./simulation"
 
 const strictObject = <T extends z.ZodRawShape>(shape: T) => z.object(shape).strict()
+function decodeBase64Url(value: string): Uint8Array | null {
+  if (BASE64URL_PATTERN.test(value) === false) return null
+  try {
+    const padded = value.replace(/-/g, "+").replace(/_/g, "/")
+    const binary = atob(padded + "=".repeat((4 - (padded.length % 4)) % 4))
+    const decoded = Uint8Array.from(binary, (character) => character.charCodeAt(0))
+    const canonical = btoa(String.fromCharCode(...decoded))
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "")
+    return canonical === value ? decoded : null
+  } catch (error) {
+    if (error instanceof DOMException || error instanceof TypeError) return null
+    throw error
+  }
+}
+
+function hasDecodedLength(value: string, bytes: number): boolean {
+  return decodeBase64Url(value)?.byteLength === bytes
+}
+
 export const NonceSchema = z
   .string()
   .length(22)
   .regex(/^[A-Za-z0-9_-]{22}$/)
+  .refine((value) => hasDecodedLength(value, 16))
   .brand<"Nonce128">()
 export type Nonce = z.infer<typeof NonceSchema>
 export const Base64SignatureSchema = z
   .string()
   .length(86)
   .regex(/^[A-Za-z0-9_-]{86}$/)
+  .refine((value) => hasDecodedLength(value, 64))
   .brand<"Ed25519Signature">()
 export type Base64Signature = z.infer<typeof Base64SignatureSchema>
 
@@ -30,7 +54,8 @@ export const Ed25519JwkSchema = strictObject({
   x: z
     .string()
     .length(43)
-    .regex(/^[A-Za-z0-9_-]{43}$/),
+    .regex(/^[A-Za-z0-9_-]{43}$/)
+    .refine((value) => hasDecodedLength(value, 32)),
 })
 export type Ed25519Jwk = z.infer<typeof Ed25519JwkSchema>
 

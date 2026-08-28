@@ -11,8 +11,10 @@ import type { ActiveState } from "./workflow-types"
 export function storeScenario(
   storage: SessionStorageAdapter,
   response: ScenarioResponse,
+  sessionId: ActiveState["session"]["session_id"],
 ): RunDraftIndex {
   const draft: RunDraftIndex = {
+    sessionId,
     runId: response.run_id,
     scenarioId: response.scenario.scenario_id,
   }
@@ -24,12 +26,13 @@ export function storePatch(
   storage: SessionStorageAdapter,
   state: ActiveState,
   response: PatchResponse,
-  submittedPatch: PatchResponse["patch"] | undefined,
+  submittedPatch: PatchResponse["patch"],
 ): RunDraftIndex {
   const draft: RunDraftIndex = {
     ...state.run,
+    sessionId: state.session.session_id,
     patchId: response.patch.patch_id,
-    patchBody: submittedPatch ?? response.patch,
+    patchBody: submittedPatch,
   }
   storage.saveRunDraft(draft)
   return draft

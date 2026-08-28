@@ -26,7 +26,10 @@ import {
 import { JwtTokenSchema, type SessionAuth } from "./auth"
 import { API_GET_RETRY_LIMIT, API_TIMEOUT_MS, createApiTransport } from "./client-transport"
 import type { ApiClient, ApiClientOptions } from "./client-types"
+import { contractFailure } from "./errors"
+import { evidenceProofHashMatches } from "./evidence-integrity"
 import { type SseFrame, streamRunEvents } from "./sse"
+import { resolveApiBaseUrl } from "./url"
 
 export {
   type DemoToken,
@@ -39,13 +42,8 @@ export {
 export { API_GET_RETRY_LIMIT, API_TIMEOUT_MS } from "./client-transport"
 export type { ApiClient, ApiClientOptions } from "./client-types"
 
-function resolveBaseUrl(explicit: string | undefined): string {
-  const { VITE_API_BASE_URL } = import.meta.env
-  return explicit ?? VITE_API_BASE_URL ?? ""
-}
-
 export function createApiClient(options: ApiClientOptions = {}): ApiClient {
-  const baseUrl = resolveBaseUrl(options.baseUrl)
+  const baseUrl = resolveApiBaseUrl(options.baseUrl)
   const http = ky.create({
     prefix: baseUrl,
     timeout: API_TIMEOUT_MS,
@@ -72,6 +70,15 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
       ...(options.fetch ? { fetch: options.fetch } : {}),
     }
     return streamRunEvents(streamOptions)
+  }
+  const getRunEvidence: ApiClient["getRunEvidence"] = async (session, runId) => {
+    const result = await request("get", `api/runs/${runId}/evidence`, EvidenceResponseSchema, {
+      session,
+    })
+    if (!result.ok) return result
+    return (await evidenceProofHashMatches(result.data))
+      ? result
+      : contractFailure(result.meta.requestId)
   }
 
   return {
@@ -185,8 +192,7 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
         { jwt: JwtTokenSchema.parse(jwt), key: withKey(key) },
         emptyBody(),
       ),
-    getRunEvidence: (session, runId) =>
-      request("get", `api/runs/${runId}/evidence`, EvidenceResponseSchema, { session }),
+    getRunEvidence,
     runBenchmark: (session, key, input) =>
       request(
         "post",

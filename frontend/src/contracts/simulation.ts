@@ -96,5 +96,15 @@ export const PolicyEvaluationSchema = strictObject({
   quality_hash: Sha256HexSchema,
   policy_definition_hash: Sha256HexSchema,
   policy_hash: Sha256HexSchema,
+}).superRefine((value, context) => {
+  if (
+    value.eligible &&
+    (value.reasons.length > 0 || value.patch_hash === null || value.simulation_hash === null)
+  ) {
+    context.addIssue({ code: "custom", message: "eligible policy result lacks exact evidence" })
+  }
+  if (!value.eligible && value.reasons.length === 0) {
+    context.addIssue({ code: "custom", message: "ineligible policy result requires a reason" })
+  }
 })
 export type PolicyEvaluation = z.infer<typeof PolicyEvaluationSchema>

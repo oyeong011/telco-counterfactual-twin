@@ -6,7 +6,12 @@ import {
   TypedPatchSchema,
   UtcTimestampSchema,
 } from "../contracts/generated"
-import { createSessionStorageAdapter, createSessionStore, type SessionStorageLike } from "./session"
+import {
+  createSessionStorageAdapter,
+  createSessionStore,
+  RUN_DRAFTS_STORAGE_KEY,
+  type SessionStorageLike,
+} from "./session"
 
 class MemoryStorage implements SessionStorageLike {
   private readonly values = new Map<string, string>()
@@ -62,7 +67,7 @@ describe("session boundary", () => {
   it("restores only non-secret run drafts from the tab-scoped adapter", () => {
     // Given: a sessionStorage-shaped adapter with serialized run metadata.
     const backing = new MemoryStorage()
-    const storage = createSessionStorageAdapter(backing)
+    const storage = createSessionStorageAdapter(backing, session.session_id)
     const patchBody = TypedPatchSchema.parse({
       schema_version: "1.0",
       patch_id: "patch-001",
@@ -80,6 +85,7 @@ describe("session boundary", () => {
       proposed_at: UtcTimestampSchema.parse("2026-08-28T00:00:00Z"),
     })
     storage.saveRunDraft({
+      sessionId: session.session_id,
       runId: ContractIdSchema.parse("run-001"),
       scenarioId: ContractIdSchema.parse("scenario-001"),
       patchId: ContractIdSchema.parse("patch-001"),
@@ -87,11 +93,13 @@ describe("session boundary", () => {
     })
 
     // When: a fresh adapter reads the tab-scoped run index.
-    const restored = createSessionStorageAdapter(backing).listRunDrafts()
+    const restored = createSessionStorageAdapter(backing, session.session_id).listRunDrafts()
 
     // Then: the draft is recoverable and no bearer value was serialized.
     expect(restored[0]?.runId).toBe("run-001")
-    expect(backing.getItem("telco-twin:run-drafts")).not.toContain("demo-token-secret")
+    expect(backing.getItem(`${RUN_DRAFTS_STORAGE_KEY}:${session.session_id}`)).not.toContain(
+      "demo-token-secret",
+    )
   })
 
   it("does not require or touch localStorage", () => {
@@ -105,5 +113,39 @@ describe("session boundary", () => {
     // Then: it is an explicit absence and the adapter has no localStorage dependency.
     expect(result).toBeNull()
     expect(backing.getItem("telco-twin:local-storage")).toBeNull()
+  })
+
+  it("recovers from corrupt tab storage by clearing the unreadable value", () => {
+    // Given: a malformed stored value at the tab-scoped draft key.
+    const backing = new MemoryStorage()
+    backing.setItem(RUN_DRAFTS_STORAGE_KEY, "{not-json")
+    const storage = createSessionStorageAdapter(backing, session.session_id)
+
+    // When: the adapter is initialized and asked for this session's history.
+    const restored = storage.listRunDrafts()
+
+    // Then: corruption fails closed without bricking future reads.
+    expect(restored).toEqual([])
+    expect(backing.getItem(RUN_DRAFTS_STORAGE_KEY)).toBeNull()
+  })
+
+  it("clears a corrupt session-scoped run index and reports it once", () => {
+    // Given: invalid JSON at the exact session-owned storage key.
+    const backing = new MemoryStorage()
+    const scopedKey = `${RUN_DRAFTS_STORAGE_KEY}:${session.session_id}`
+    backing.setItem(scopedKey, "{not-json")
+    const storage = createSessionStorageAdapter(backing, session.session_id)
+
+    // When: this session reads its run index twice.
+    const first = storage.listRunDrafts()
+    const corruption = storage.takeLastCorruption()
+    const second = storage.listRunDrafts()
+
+    // Then: the bad value is removed, recovery is actionable once, and reads remain usable.
+    expect(first).toEqual([])
+    expect(corruption?.name).toBe("StorageContractError")
+    expect(backing.getItem(scopedKey)).toBeNull()
+    expect(second).toEqual([])
+    expect(storage.takeLastCorruption()).toBeNull()
   })
 })
