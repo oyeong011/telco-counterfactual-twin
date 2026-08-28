@@ -1,0 +1,145 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  min-block-size: 100%;
+  background: var(--surface-root);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+}
+
+body {
+  min-block-size: 100%;
+  margin: 0;
+  background: var(--surface-root);
+  color: var(--text-primary);
+  font-size: var(--text-body);
+  line-height: var(--line-body);
+}
+
+button,
+input,
+select,
+textarea {
+  color: inherit;
+  font: inherit;
+}
+
+button,
+a,
+select,
+input {
+  min-block-size: var(--target-min);
+}
+
+button {
+  border: var(--border-width) solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+  cursor: pointer;
+}
+
+button:hover:not(:disabled),
+a:hover {
+  color: var(--accent-primary-hover);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(var(--border-width));
+}
+
+button:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+:focus-visible {
+  outline: var(--focus-width) solid var(--accent-primary);
+  outline-offset: var(--focus-offset);
+}
+
+a {
+  color: var(--accent-info);
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-block-start: 0;
+}
+
+h1 {
+  font-size: var(--text-h1);
+  font-weight: var(--weight-heading);
+  line-height: var(--line-tight);
+}
+
+h2 {
+  font-size: var(--text-h2);
+  font-weight: var(--weight-strong);
+  line-height: 1.25;
+}
+
+h3 {
+  font-size: var(--text-h3);
+  font-weight: var(--weight-strong);
+  line-height: 1.35;
+}
+
+code,
+pre,
+.mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-code);
+  font-variant-numeric: tabular-nums;
+}
+
+.visuallyHidden {
+  position: absolute;
+  inline-size: var(--border-width);
+  block-size: var(--border-width);
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.panel {
+  min-inline-size: 0;
+  border: var(--border-width) solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  background: var(--surface-panel);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-block-end: var(--border-width) solid var(--border-subtle);
+}
+
+.panelHeader h2,
+.panelHeader h3 {
+  margin: 0;
+}
+
+.emptyMessage {
+  padding: var(--space-6);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto;
+  }
+}

@@ -1,0 +1,168 @@
+.statusChip {
+  display: inline-flex;
+  min-block-size: calc(var(--target-min) - var(--space-2));
+  align-items: center;
+  gap: var(--space-1);
+  padding-inline: var(--space-2);
+  border: var(--border-width) solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: var(--state-neutral);
+  color: var(--text-primary);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  line-height: 1.35;
+}
+
+.statusChip[data-tone="info"],
+.statusChip[data-tone="demo"] {
+  border-color: var(--accent-info);
+  background: var(--state-info);
+  color: var(--accent-info);
+}
+
+.statusChip[data-tone="proof"],
+.statusChip[data-tone="approved"] {
+  border-color: var(--accent-proof);
+  background: var(--state-proof);
+  color: var(--accent-proof);
+}
+
+.statusChip[data-tone="warning"],
+.statusChip[data-tone="stale"],
+.statusChip[data-tone="loading"] {
+  border-color: var(--accent-warning);
+  background: var(--state-warning);
+  color: var(--accent-warning);
+}
+
+.statusChip[data-tone="danger"],
+.statusChip[data-tone="rejected"] {
+  border-color: var(--accent-danger);
+  background: var(--state-danger);
+  color: var(--accent-danger);
+}
+
+.statusChipIcon {
+  inline-size: var(--space-4);
+  block-size: var(--space-4);
+  flex: none;
+}
+
+.statusChipMeta {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.statusChipInteractive {
+  min-block-size: var(--target-min);
+}
+
+.statusChipInteractive[aria-pressed="true"] {
+  background: var(--selection-surface);
+}
+
+.errorState {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  overflow-wrap: anywhere;
+  border: var(--border-width) solid var(--accent-danger);
+  border-radius: var(--radius-panel);
+  background: var(--state-danger);
+}
+
+.errorState h3,
+.errorState p {
+  margin-block-end: var(--space-2);
+}
+
+.errorState button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-inline: var(--space-3);
+}
+
+.errorState button svg,
+.errorStateIcon {
+  inline-size: var(--space-5);
+  block-size: var(--space-5);
+}
+
+.errorStateIcon,
+.errorCode {
+  color: var(--accent-danger);
+}
+
+.errorCode {
+  font-family: var(--font-mono);
+}
+
+.skeleton {
+  position: relative;
+  min-block-size: var(--space-10);
+}
+
+.skeleton > span {
+  position: absolute;
+  inline-size: var(--border-width);
+  block-size: var(--border-width);
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.skeletonVisual {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-inset);
+}
+
+.skeleton[data-variant="topology"] .skeletonVisual,
+.skeleton[data-variant="chart"] .skeletonVisual {
+  min-block-size: var(--chart-min-height);
+  align-content: center;
+}
+
+.skeletonBlock {
+  display: block;
+  min-block-size: var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--border-subtle);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .skeletonBlock {
+    animation: skeletonPulse var(--motion-progress) ease-in-out infinite alternate;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeletonBlock {
+    animation-iteration-count: 1;
+  }
+}
+
+@keyframes skeletonPulse {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 767px) {
+  .errorState {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .errorState button {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+}

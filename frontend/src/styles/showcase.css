@@ -1,0 +1,168 @@
+.foundationRoot {
+  display: grid;
+  min-block-size: 100dvb;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  text-align: center;
+}
+
+.foundationRoot > svg {
+  inline-size: var(--space-8);
+  block-size: var(--space-8);
+  color: var(--accent-primary);
+}
+
+.foundationRoot h1,
+.foundationRoot p {
+  margin: 0;
+}
+
+.foundationRoot p {
+  max-inline-size: 50ch;
+  color: var(--text-secondary);
+}
+
+.showcasePage,
+.showcaseStack {
+  display: grid;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  gap: var(--space-4);
+}
+
+.showcasePage {
+  padding-block-end: var(--space-10);
+}
+
+.showcasePage > *,
+.showcaseStack > * {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+.showcaseIntro {
+  display: grid;
+  gap: var(--space-6);
+  padding: var(--space-5);
+  border: var(--border-width) solid var(--border-strong);
+  border-radius: var(--radius-panel);
+  background: var(--surface-raised);
+}
+
+.showcaseIntro h1 {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-display);
+}
+
+.showcaseIntro p,
+.showcaseSectionHeading p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.showcaseIntro p {
+  max-inline-size: var(--measure-content);
+}
+
+.showcaseSectionHeading {
+  display: grid;
+  max-inline-size: 65ch;
+  gap: var(--space-2);
+}
+
+.showcaseSectionHeading h2 {
+  margin: 0;
+}
+
+.showcaseGrid,
+.showcaseStateGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
+  gap: var(--space-3);
+}
+
+.showcaseGridWide {
+  grid-template-columns: repeat(auto-fit, minmax(min(28rem, 100%), 1fr));
+}
+
+.showcaseStateCell {
+  display: grid;
+  min-inline-size: 0;
+  align-content: start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-panel);
+}
+
+.showcaseStateLabel {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+}
+
+.showcaseStateCell[data-preview="hover"] .statusChipInteractive {
+  border-color: var(--accent-primary-hover);
+  background: var(--selection-surface);
+  color: var(--accent-primary-hover);
+}
+
+.showcaseStateCell[data-preview="active"] .statusChipInteractive {
+  background: var(--selection-surface);
+  transform: translateY(var(--border-width));
+}
+
+.showcaseStateCell[data-preview="focus"] .statusChipInteractive {
+  outline: var(--focus-width) solid var(--accent-primary);
+  outline-offset: var(--focus-offset);
+}
+
+.themeControl,
+.commandBarActions button {
+  display: inline-flex;
+  min-block-size: var(--target-min);
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.themeControl {
+  padding-inline-start: var(--space-2);
+  color: var(--text-secondary);
+}
+
+.themeControl svg,
+.commandBarActions svg {
+  inline-size: var(--space-4);
+  block-size: var(--space-4);
+}
+
+.themeControl select {
+  min-block-size: var(--target-min);
+  padding-inline: var(--space-3);
+  border: var(--border-width) solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+}
+
+.commandBarActions button {
+  padding-inline: var(--space-3);
+}
+
+@media (max-width: 767px) {
+  .showcaseIntro {
+    padding: var(--space-4);
+  }
+
+  .showcaseIntro h1 {
+    font-size: var(--text-h1);
+  }
+
+  .themeControl {
+    inline-size: 100%;
+    justify-content: space-between;
+    padding-inline-start: 0;
+  }
+}

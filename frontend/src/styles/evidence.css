@@ -1,0 +1,225 @@
+.eventTimeline,
+.patchLines,
+.approvalSteps {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.timelinePanel {
+  container-type: inline-size;
+}
+
+.eventTimeline li {
+  display: grid;
+  grid-template-columns: minmax(8rem, auto) minmax(12rem, 1fr) minmax(8rem, auto) auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-block-size: var(--target-min);
+  padding: var(--space-2) var(--space-3);
+  border-block-end: var(--border-width) solid var(--border-subtle);
+}
+
+.eventTimeline li:hover,
+.eventTimeline li[data-state="stale"] {
+  background: var(--state-warning);
+}
+
+.eventTimeline li[data-state="rejected"] {
+  background: var(--state-danger);
+}
+
+.eventTimeline time,
+.timelineEvent {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.eventTimeline svg {
+  inline-size: var(--space-4);
+  block-size: var(--space-4);
+}
+
+.eventTimeline li[data-severity="warning"] .timelineEvent {
+  color: var(--accent-warning);
+}
+
+.eventTimeline li[data-severity="critical"] .timelineEvent {
+  color: var(--accent-danger);
+}
+
+.patchHeader h2,
+.evidencePanel h2,
+.approvalEvidence h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.patchHeader p {
+  margin: var(--space-1) 0 0;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.patchHeader svg,
+.evidencePanel h2 svg,
+.approvalEvidence h2 svg {
+  inline-size: var(--space-5);
+  block-size: var(--space-5);
+}
+
+.patchLines {
+  max-block-size: 20rem;
+  overflow: auto;
+  background: var(--surface-inset);
+  counter-reset: patch-lines;
+}
+
+.patchLines li {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  min-block-size: var(--space-8);
+  align-items: center;
+  border-block-end: var(--border-width) solid var(--border-subtle);
+}
+
+.patchLines li[data-kind="addition"] {
+  background: var(--state-proof);
+}
+
+.patchLines li[data-kind="removal"] {
+  background: var(--state-danger);
+}
+
+.patchLineNumber {
+  align-self: stretch;
+  padding: var(--space-2);
+  border-inline-end: var(--border-width) solid var(--border-subtle);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.patchLines code {
+  padding: var(--space-2);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.patchFooter,
+.approvalActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.patchFooter button,
+.approvalActions button,
+.evidenceAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding-inline: var(--space-3);
+}
+
+.patchFooter svg,
+.approvalActions svg,
+.evidenceAction svg {
+  inline-size: var(--space-4);
+  block-size: var(--space-4);
+}
+
+.evidencePanel {
+  min-inline-size: 0;
+  border: var(--border-width) solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  background: var(--surface-panel);
+}
+
+.evidenceFields {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  margin: 0;
+}
+
+.evidenceFields div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.evidenceFields dt {
+  color: var(--text-secondary);
+  font-size: var(--text-caption);
+}
+
+.evidenceFields dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.evidenceAction {
+  inline-size: calc(100% - var(--space-6));
+  margin: 0 var(--space-3) var(--space-3);
+}
+
+.approvalSteps {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+
+.approvalSteps li {
+  display: flex;
+  min-block-size: var(--target-min);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-inline: var(--space-2);
+  border-block-end: var(--border-width) solid var(--border-subtle);
+}
+
+.approvalReason,
+.approvalBoundary,
+.approvalEvidence > .mono {
+  margin: 0;
+  padding: var(--space-3);
+  overflow-wrap: anywhere;
+}
+
+.approvalReason {
+  color: var(--accent-danger);
+}
+
+.approvalBoundary {
+  border-block-start: var(--border-width) solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+@media (max-width: 767px) {
+  .eventTimeline li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .patchFooter,
+  .approvalActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .patchFooter button,
+  .approvalActions button {
+    inline-size: 100%;
+  }
+}
+
+@container (max-width: 34rem) {
+  .eventTimeline li {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+}
