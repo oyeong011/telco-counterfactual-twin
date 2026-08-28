@@ -1,4 +1,5 @@
 import { CircleAlert, Clock3, Info, type LucideIcon, TriangleAlert } from "lucide-react"
+import { useId } from "react"
 import { ErrorState } from "./ErrorState"
 import type { SurfaceState } from "./primitiveTypes"
 import { Skeleton } from "./Skeleton"
@@ -27,6 +28,8 @@ const SEVERITY_ICONS = {
 } satisfies Record<TimelineEvent["severity"], LucideIcon>
 
 export function EventTimeline({ title, events, state = "default", onRetry }: EventTimelineProps) {
+  const headingId = useId()
+
   if (state === "loading") {
     return <Skeleton variant="timeline" label={`Loading ${title}`} />
   }
@@ -42,9 +45,9 @@ export function EventTimeline({ title, events, state = "default", onRetry }: Eve
   }
 
   return (
-    <section className="panel timelinePanel" aria-labelledby="timeline-title">
+    <section className="panel timelinePanel" aria-labelledby={headingId}>
       <div className="panelHeader">
-        <h2 id="timeline-title">{title}</h2>
+        <h2 id={headingId}>{title}</h2>
         {state === "demo" ? <StatusChip tone="demo" label="Simulated events" /> : null}
       </div>
       {state === "empty" || events.length === 0 ? (

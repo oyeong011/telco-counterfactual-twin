@@ -18,7 +18,7 @@
 
 .showcaseIntro {
   display: grid;
-  gap: var(--space-6);
+  gap: var(--space-5);
   padding: var(--space-5);
   border: var(--border-width) solid var(--border-strong);
   border-radius: var(--radius-panel);
@@ -42,12 +42,27 @@
 
 .showcaseSectionHeading {
   display: grid;
-  max-inline-size: 65ch;
+  max-inline-size: var(--measure-content);
   gap: var(--space-2);
 }
 
 .showcaseSectionHeading h2 {
   margin: 0;
+}
+
+.showcasePrimitive {
+  display: grid;
+  min-inline-size: 0;
+  gap: var(--space-4);
+  padding-block-start: var(--space-4);
+  scroll-margin-block-start: var(--space-4);
+}
+
+.showcaseSectionHeading .showcasePrimitiveKicker {
+  color: var(--accent-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  text-transform: uppercase;
 }
 
 .showcaseGrid,
@@ -61,68 +76,137 @@
   grid-template-columns: repeat(auto-fit, minmax(min(28rem, 100%), 1fr));
 }
 
-.showcaseStateCell {
+.showcaseStateCard {
   display: grid;
   min-inline-size: 0;
   align-content: start;
-  gap: var(--space-2);
+  gap: var(--space-3);
   padding: var(--space-3);
   border: var(--border-width) solid var(--border-subtle);
   border-radius: var(--radius-control);
   background: var(--surface-panel);
 }
 
-.showcaseStateLabel {
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: var(--text-caption);
+.showcaseStateCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
 }
 
-.showcaseStateCell[data-preview="hover"] .statusChipInteractive {
+.showcaseStateLabel,
+.showcaseStateIndex {
+  font-family: var(--font-mono);
+}
+
+.showcaseStateLabel {
+  color: var(--text-secondary);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+}
+
+.showcaseStateIndex {
+  color: var(--text-muted);
+  font-size: var(--text-micro);
+}
+
+.showcaseStatePreview {
+  display: grid;
+  min-inline-size: 0;
+  align-content: start;
+}
+
+.showcaseStatePreview > * {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+.showcaseStatePreview[data-preview="hover"] .statusChipInteractive,
+.showcaseStatePreview[data-preview="hover"] button:not(:disabled) {
   border-color: var(--accent-primary-hover);
   background: var(--selection-surface);
   color: var(--accent-primary-hover);
 }
 
-.showcaseStateCell[data-preview="active"] .statusChipInteractive {
+.showcaseStatePreview[data-preview="active"] .statusChipInteractive,
+.showcaseStatePreview[data-preview="active"] button:not(:disabled) {
   background: var(--selection-surface);
   transform: translateY(var(--border-width));
 }
 
-.showcaseStateCell[data-preview="focus"] .statusChipInteractive {
+.showcaseStatePreview[data-preview="focus"] .statusChipInteractive,
+.showcaseStatePreview[data-preview="focus"] button {
   outline: var(--focus-width) solid var(--accent-primary);
   outline-offset: var(--focus-offset);
 }
 
-.themeControl,
-.commandBarActions button {
-  display: inline-flex;
-  min-block-size: var(--target-min);
-  align-items: center;
+.showcaseStatePreview[data-preview="disabled"] button,
+.showcaseStatePreview[data-preview="disabled"] a {
+  color: var(--text-muted);
+}
+
+.showcaseStatePreview .panel,
+.showcaseStatePreview .evidencePanel,
+.showcaseStatePreview .errorState,
+.showcaseStatePreview .timelinePanel,
+.showcaseStatePreview .metricDelta,
+.showcaseStatePreview .topologyPanel,
+.showcaseStatePreview .patchDiff {
+  inline-size: 100%;
+}
+
+.showcaseAnchorNav {
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
 }
 
-.themeControl {
-  padding-inline-start: var(--space-2);
-  color: var(--text-secondary);
-}
-
-.themeControl svg,
-.commandBarActions svg {
-  inline-size: var(--space-4);
-  block-size: var(--space-4);
-}
-
-.themeControl select {
+.showcaseIntro .showcaseAnchorNav a {
+  display: inline-flex;
   min-block-size: var(--target-min);
+  align-items: center;
   padding-inline: var(--space-3);
   border: var(--border-width) solid var(--border-strong);
   border-radius: var(--radius-control);
-  background: var(--surface-raised);
+  background: var(--surface-panel);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  text-decoration: none;
 }
 
-.commandBarActions button {
-  padding-inline: var(--space-3);
+.showcasePreviewCopy {
+  margin: 0;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+}
+
+.showcaseSkeletonSet {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.showcaseCjkEvidence {
+  display: grid;
+  min-inline-size: 0;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: var(--border-width) solid var(--border-strong);
+  border-radius: var(--radius-panel);
+  background: var(--surface-inset);
+}
+
+.showcaseCjkEvidence h2,
+.showcaseCjkEvidence p {
+  margin: var(--space-2) 0 0;
+}
+
+.showcaseCjkEvidence p {
+  max-inline-size: var(--measure-content);
+}
+
+.showcaseCjkEvidence code {
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 767px) {
@@ -134,9 +218,11 @@
     font-size: var(--text-h1);
   }
 
-  .themeControl {
-    inline-size: 100%;
-    justify-content: space-between;
-    padding-inline-start: 0;
+  .showcasePrimitive {
+    padding-block-start: var(--space-2);
+  }
+
+  .showcaseStateGrid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

@@ -24,4 +24,16 @@ describe("document entry contract", () => {
     // Then
     expect(productionEntryImportsPreviewStyles).toBe(false)
   })
+
+  it("allows disabling both React development overlays with the Vite flag", () => {
+    // Given
+    const devToolsGate =
+      /import\.meta\.env\.DEV\s*&&\s*import\.meta\.env\.VITE_DISABLE_REACT_DEVTOOLS\s*!==\s*["']1["']/s
+
+    // When
+    const hasFlaggedDevToolsGate = devToolsGate.test(mainSource)
+
+    // Then
+    expect(hasFlaggedDevToolsGate).toBe(true)
+  })
 })

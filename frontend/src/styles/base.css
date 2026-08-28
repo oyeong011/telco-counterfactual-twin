@@ -100,6 +100,8 @@ pre,
 
 .visuallyHidden {
   position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
   inline-size: var(--border-width);
   block-size: var(--border-width);
   padding: 0;

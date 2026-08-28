@@ -26,10 +26,15 @@ const render = (application: ReactNode) => {
   )
 }
 
-if (import.meta.env.DEV) {
+const reactDevToolsEnabled =
+  import.meta.env.DEV && import.meta.env.VITE_DISABLE_REACT_DEVTOOLS !== "1"
+
+if (reactDevToolsEnabled) {
   void import("react-grab")
   void import("react-scan")
+}
 
+if (import.meta.env.DEV) {
   if (window.location.pathname === "/__showcase") {
     void import("./showcase/PrimitiveShowcase").then(({ PrimitiveShowcase }) => {
       render(<PrimitiveShowcase />)

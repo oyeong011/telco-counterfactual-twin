@@ -140,6 +140,69 @@
   background: var(--surface-panel);
 }
 
+.evidenceSheetTrigger {
+  min-block-size: var(--target-min);
+  align-items: center;
+  gap: var(--space-2);
+  padding-inline: var(--space-3);
+  border-color: var(--accent-primary);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  box-shadow: 0 0 var(--space-2) var(--surface-inset);
+}
+
+.evidenceSheetTrigger svg,
+.evidenceSheetClose svg {
+  inline-size: var(--space-4);
+  block-size: var(--space-4);
+}
+
+.evidenceSheet {
+  position: fixed;
+  inset-block-end: 0;
+  inset-inline-start: 50%;
+  inline-size: min(100% - var(--space-6), 36rem);
+  max-block-size: min(85dvb, 48rem);
+  margin: 0 auto;
+  padding: var(--space-4);
+  border: var(--border-width) solid var(--border-strong);
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  overflow: auto;
+  transform: translateX(-50%);
+}
+
+.evidenceSheet::backdrop {
+  background: var(--surface-inset);
+  opacity: 0.78;
+}
+
+.evidenceSheetHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block-end: var(--space-3);
+  border-block-end: var(--border-width) solid var(--border-subtle);
+}
+
+.evidenceSheetHeader h2 {
+  margin: 0;
+}
+
+.evidenceSheetClose {
+  display: inline-flex;
+  min-inline-size: var(--target-min);
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2);
+}
+
+.evidenceSheet > .panelHeader {
+  margin-block-start: var(--space-3);
+}
+
 .evidenceFields {
   display: grid;
   gap: var(--space-3);

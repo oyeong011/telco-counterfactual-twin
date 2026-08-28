@@ -1,3 +1,4 @@
+import { useId } from "react"
 import { DataTable, type DataTableColumn } from "./DataTable"
 import type { SurfaceState } from "./primitiveTypes"
 import { StatusChip } from "./StatusChip"
@@ -43,10 +44,12 @@ function seriesPoints(values: readonly number[]): string {
 }
 
 export function MetricDelta({ title, series, rows, state = "default" }: MetricDeltaProps) {
+  const headingId = useId()
+
   return (
-    <section className="panel metricDelta" aria-labelledby="metric-title">
+    <section className="panel metricDelta" aria-labelledby={headingId}>
       <div className="panelHeader">
-        <h2 id="metric-title">{title}</h2>
+        <h2 id={headingId}>{title}</h2>
         <StatusChip tone="proof" label="Deterministic benchmark" />
       </div>
       <div className="metricChartRegion">

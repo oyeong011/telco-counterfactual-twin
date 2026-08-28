@@ -96,6 +96,56 @@ describe("evidence primitives", () => {
     expect(screen.getByRole("complementary", { name: "Signed evidence" })).toBeInTheDocument()
   })
 
+  it("opens mobile evidence details as a dialog and restores focus after Escape", async () => {
+    // Given
+    const user = userEvent.setup()
+    render(
+      <EvidenceRail
+        title="Mobile evidence details"
+        state="approved"
+        fields={[{ label: "Replay hash", value: "sha256:mobile" }]}
+      />,
+    )
+    const trigger = screen.getByRole("button", { name: "Open mobile evidence details" })
+
+    // When
+    await user.click(trigger)
+
+    // Then
+    const dialog = screen.getByRole("dialog", { name: "Mobile evidence details" })
+    expect(dialog).toBeVisible()
+    expect(dialog).toHaveAttribute("aria-modal", "true")
+    expect(screen.getByRole("button", { name: "Close mobile evidence details" })).toHaveFocus()
+
+    // When
+    await user.keyboard("{Escape}")
+
+    // Then
+    expect(
+      screen.queryByRole("dialog", { name: "Mobile evidence details" }),
+    ).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
+  })
+
+  it("generates unique labelled headings for multiple approval evidence instances", () => {
+    // Given
+    render(
+      <>
+        <ApprovalEvidence state="rejected" steps={[]} />
+        <ApprovalEvidence state="approved" steps={[]} />
+      </>,
+    )
+
+    // When
+    const sections = screen.getAllByRole("region", { name: "Approval evidence" })
+    const labelledBy = sections.map((section) => section.getAttribute("aria-labelledby"))
+
+    // Then
+    expect(labelledBy).toHaveLength(2)
+    expect(new Set(labelledBy).size).toBe(2)
+    expect(document.querySelectorAll("#approval-title")).toHaveLength(0)
+  })
+
   it("pairs a hidden skeleton with a live loading label", () => {
     // Given
     const loadingLabel = "Loading topology"

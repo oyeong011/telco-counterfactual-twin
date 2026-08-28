@@ -81,6 +81,7 @@
 }
 
 .commandBarContent {
+  position: relative;
   display: flex;
   inline-size: 100%;
   min-inline-size: 0;
@@ -117,6 +118,10 @@
 .evidenceRail {
   inline-size: var(--shell-evidence-width);
   border-inline-start: var(--border-width) solid var(--border-subtle);
+}
+
+.evidenceSheetTrigger {
+  display: none;
 }
 
 .routeBody {
@@ -215,7 +220,23 @@
   }
 
   .evidenceRail {
+    position: fixed;
+    inset-block-end: var(--space-4);
+    inset-inline-end: var(--space-4);
+    z-index: 2;
+    display: block;
+    inline-size: auto;
+    overflow: visible;
+    border: 0;
+    background: var(--transparent);
+  }
+
+  .evidenceRail .evidencePanel {
     display: none;
+  }
+
+  .evidenceRail .evidenceSheetTrigger {
+    display: inline-flex;
   }
 
   .routeBody {

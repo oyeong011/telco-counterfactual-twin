@@ -1,4 +1,5 @@
 import { ClipboardCheck, ShieldCheck, ShieldX } from "lucide-react"
+import { useId } from "react"
 import { ErrorState } from "./ErrorState"
 import { SURFACE_TONES, type SurfaceState } from "./primitiveTypes"
 import { Skeleton } from "./Skeleton"
@@ -29,6 +30,8 @@ export function ApprovalEvidence({
   onApprove,
   onReject,
 }: ApprovalEvidenceProps) {
+  const headingId = useId()
+
   if (state === "loading") {
     return <Skeleton variant="evidence" label="Loading approval evidence" />
   }
@@ -44,9 +47,9 @@ export function ApprovalEvidence({
   const tone: StatusTone = SURFACE_TONES[state]
 
   return (
-    <section className="panel approvalEvidence" aria-labelledby="approval-title">
+    <section className="panel approvalEvidence" aria-labelledby={headingId}>
       <div className="panelHeader">
-        <h2 id="approval-title">
+        <h2 id={headingId}>
           <ClipboardCheck aria-hidden="true" />
           Approval evidence
         </h2>

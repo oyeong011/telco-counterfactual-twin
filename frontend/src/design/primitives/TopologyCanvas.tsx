@@ -1,4 +1,5 @@
 import { Network } from "lucide-react"
+import { useId } from "react"
 import { DataTable, type DataTableColumn } from "./DataTable"
 import type { SurfaceState } from "./primitiveTypes"
 import { StatusChip } from "./StatusChip"
@@ -45,10 +46,12 @@ export function TopologyCanvas({
   state = "default",
   onSelectNode,
 }: TopologyCanvasProps) {
+  const headingId = useId()
+
   return (
-    <section className="panel topologyPanel" aria-labelledby="topology-title">
+    <section className="panel topologyPanel" aria-labelledby={headingId}>
       <div className="panelHeader">
-        <h2 id="topology-title">{title}</h2>
+        <h2 id={headingId}>{title}</h2>
         <StatusChip tone="demo" label="Synthetic demo" />
       </div>
       <div className="topologyCanvas">

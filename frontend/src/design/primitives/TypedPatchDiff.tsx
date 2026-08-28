@@ -1,4 +1,5 @@
 import { Clipboard, FileCode2 } from "lucide-react"
+import { useId } from "react"
 import { SURFACE_TONES, type SurfaceState } from "./primitiveTypes"
 import { Skeleton } from "./Skeleton"
 import { StatusChip, type StatusTone } from "./StatusChip"
@@ -34,16 +35,18 @@ export function TypedPatchDiff({
   onCopy,
   copyDisabled = false,
 }: TypedPatchDiffProps) {
+  const headingId = useId()
+
   if (state === "loading") {
     return <Skeleton variant="code" label="Loading typed patch" />
   }
   const tone: StatusTone = SURFACE_TONES[state]
 
   return (
-    <section className="panel patchDiff" aria-labelledby="patch-title">
+    <section className="panel patchDiff" aria-labelledby={headingId}>
       <div className="panelHeader patchHeader">
         <div>
-          <h2 id="patch-title">
+          <h2 id={headingId}>
             <FileCode2 aria-hidden="true" />
             Proposed typed patch
           </h2>

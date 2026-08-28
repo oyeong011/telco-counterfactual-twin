@@ -1,0 +1,88 @@
+.showcaseStatePreview .commandBarContent {
+  align-items: flex-start;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.showcaseStatePreview .commandBarGroup {
+  min-inline-size: 0;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+}
+
+.showcaseStatePreview .commandBarActions {
+  flex: 1 1 auto;
+}
+
+.showcaseStatePreview .patchHeader {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.showcaseStatePreview .patchHeader > div {
+  min-inline-size: 0;
+  flex: 1 1 100%;
+}
+
+.showcaseStatePreview .patchHeader h2 {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.showcaseStateCard .appShell[data-preview="true"] {
+  min-block-size: 11rem;
+  max-block-size: none;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+}
+
+.showcaseStateCard .appShell[data-preview="true"] .primaryNav {
+  padding: var(--space-1);
+}
+
+.showcaseStateCard .appShell[data-preview="true"] .primaryNavLink {
+  min-block-size: var(--space-8);
+  padding: var(--space-1);
+  font-size: var(--text-micro);
+}
+
+.showcaseStateCard .appShell[data-preview="true"] .commandBar {
+  padding: var(--space-2);
+}
+
+.showcaseStateCard .appShell[data-preview="true"] .commandBarContent,
+.showcaseStateCard .appShell[data-preview="true"] .commandBarGroup {
+  gap: var(--space-1);
+}
+
+.showcaseStateCard .appShell[data-preview="true"] .commandBarTitle {
+  font-size: var(--text-caption);
+}
+
+.showcaseStateCard .appShell[data-preview="true"] .routeBody {
+  padding: var(--space-2);
+}
+
+@media (max-width: 767px) {
+  .showcaseStateCard .appShell[data-preview="true"] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+
+  .showcaseStateCard .appShell[data-preview="true"] .primaryNav {
+    grid-row: 2;
+    overflow-x: auto;
+  }
+
+  .showcaseStateCard .appShell[data-preview="true"] .commandBar,
+  .showcaseStateCard .appShell[data-preview="true"] .appShellBody {
+    grid-column: 1;
+  }
+
+  .showcaseStateCard .appShell[data-preview="true"] .commandBar {
+    grid-row: 1;
+  }
+
+  .showcaseStateCard .appShell[data-preview="true"] .appShellBody {
+    grid-row: 3;
+  }
+}

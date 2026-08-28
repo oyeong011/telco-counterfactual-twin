@@ -7,11 +7,13 @@ import { EvidenceRail } from "../design/primitives/EvidenceRail"
 import { StatusChip } from "../design/primitives/StatusChip"
 import { useTheme } from "../design/theme/ThemeProvider"
 import { ThemePreferenceSchema } from "../design/theme/theme"
+import { PRIMITIVE_NAMES, primitiveAnchor } from "./primitiveStateRegistry"
 import { ShowcaseData } from "./ShowcaseData"
 import { ShowcaseEvidence } from "./ShowcaseEvidence"
-import { ShowcaseStates } from "./ShowcaseStates"
+import { ShowcaseFoundation } from "./ShowcaseFoundation"
 import { CONTEXT_ITEMS, EVIDENCE_FIELDS, SHOWCASE_NAVIGATION } from "./showcaseFixtures"
 import "../styles/showcase.css"
+import "../styles/showcase-preview.css"
 
 export function PrimitiveShowcase() {
   const theme = useTheme()
@@ -68,18 +70,25 @@ export function PrimitiveShowcase() {
       contextRail={contextRail}
       evidenceRail={evidenceRail}
     >
-      <div className="showcasePage">
+      <div className="showcasePage" id="__showcase">
         <header className="showcaseIntro">
           <div>
             <StatusChip tone="info" label="Development only" />
             <h1>Evidence-first console primitives</h1>
           </div>
           <p>
-            Reusable states for a deterministic counterfactual twin. Every sample is synthetic and
-            carries no network mutation authority.
+            Each live sample is synthetic, state-labelled, and bounded by evidence-only policy. No
+            card grants network mutation authority.
           </p>
+          <nav className="showcaseAnchorNav" aria-label="Primitive anchors">
+            {PRIMITIVE_NAMES.map((primitive) => (
+              <a key={primitive} href={`#${primitiveAnchor(primitive)}`}>
+                {primitive}
+              </a>
+            ))}
+          </nav>
         </header>
-        <ShowcaseStates />
+        <ShowcaseFoundation />
         <ShowcaseData />
         <ShowcaseEvidence />
       </div>

@@ -11,6 +11,7 @@ export type AppNavigationItem = {
 
 type AppShellProps = {
   readonly navigation: readonly AppNavigationItem[]
+  readonly preview?: boolean
   readonly commandBar?: ReactNode
   readonly contextRail?: ReactNode
   readonly evidenceRail?: ReactNode
@@ -19,16 +20,27 @@ type AppShellProps = {
 
 export function AppShell({
   navigation,
+  preview = false,
   commandBar,
   contextRail,
   evidenceRail,
   children,
 }: AppShellProps) {
+  const routeBody = preview ? (
+    <div className="routeBody showcaseShellRoute">{children}</div>
+  ) : (
+    <main className="routeBody" id="main-content" tabIndex={-1}>
+      {children}
+    </main>
+  )
+
   return (
-    <div className="appShell">
-      <a className="skipLink" href="#main-content">
-        Skip to main content
-      </a>
+    <div className="appShell" data-preview={preview ? "true" : undefined}>
+      {preview ? null : (
+        <a className="skipLink" href="#main-content">
+          Skip to main content
+        </a>
+      )}
       <nav className="primaryNav" aria-label="Primary">
         <ul className="primaryNavList">
           {navigation.map((item) => {
@@ -53,9 +65,7 @@ export function AppShell({
       <header className="commandBar">{commandBar ?? <span>Console foundation</span>}</header>
       <div className="appShellBody">
         {contextRail ? <aside className="contextRail">{contextRail}</aside> : null}
-        <main className="routeBody" id="main-content" tabIndex={-1}>
-          {children}
-        </main>
+        {routeBody}
         {evidenceRail ? <aside className="evidenceRail">{evidenceRail}</aside> : null}
       </div>
     </div>

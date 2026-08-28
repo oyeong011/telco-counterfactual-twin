@@ -1,102 +1,57 @@
 import type { ReactNode } from "react"
-import { DataTable, type DataTableColumn } from "../design/primitives/DataTable"
-import { ErrorState } from "../design/primitives/ErrorState"
 import {
-  SKELETON_VARIANTS,
-  SURFACE_STATES,
-  type SurfaceState,
-} from "../design/primitives/primitiveTypes"
-import { Skeleton } from "../design/primitives/Skeleton"
-import { StatusChip, type StatusTone } from "../design/primitives/StatusChip"
+  PRIMITIVE_APPLICABLE_STATES,
+  primitiveAnchor,
+  type ShowcasePrimitive,
+  type ShowcaseState,
+} from "./primitiveStateRegistry"
 
-type StateRow = {
-  readonly id: string
-  readonly state: string
-  readonly recovery: string
+type ShowcaseStateSectionProps = {
+  readonly primitive: ShowcasePrimitive
+  readonly description: string
+  readonly children: (state: ShowcaseState) => ReactNode
 }
 
-const STATE_COLUMNS = [
-  { id: "state", header: "State", render: (row: StateRow) => row.state },
-  { id: "recovery", header: "Visible recovery", render: (row: StateRow) => row.recovery },
-] satisfies readonly DataTableColumn<StateRow>[]
+export function ShowcaseStateSection({
+  primitive,
+  description,
+  children,
+}: ShowcaseStateSectionProps) {
+  const anchor = primitiveAnchor(primitive)
+  const states = PRIMITIVE_APPLICABLE_STATES[primitive]
 
-const TONES = {
-  default: "neutral",
-  disabled: "neutral",
-  loading: "loading",
-  empty: "neutral",
-  error: "danger",
-  stale: "stale",
-  rejected: "rejected",
-  approved: "approved",
-  demo: "demo",
-} satisfies Record<SurfaceState, StatusTone>
-
-const INTERACTION_STATES = ["default", "hover", "active", "focus", "disabled"] as const
-
-function StateCell({ label, children }: { readonly label: string; readonly children: ReactNode }) {
   return (
-    <div className="showcaseStateCell" data-preview={label}>
-      <span className="showcaseStateLabel">{label}</span>
-      {children}
-    </div>
-  )
-}
-
-export function ShowcaseStates() {
-  return (
-    <section className="showcaseStack" aria-labelledby="states-heading">
-      <div className="showcaseSectionHeading">
-        <h2 id="states-heading">Interaction and system state matrix</h2>
-        <p>Visible labels, icons, and copy keep state independent from color.</p>
-      </div>
-      <section className="showcaseStateGrid" aria-label="Interactive control states">
-        {INTERACTION_STATES.map((state) => (
-          <StateCell key={state} label={state}>
-            <StatusChip
-              tone="info"
-              label="Inspect evidence"
-              disabled={state === "disabled"}
-              pressed={state === "active"}
-              onPress={() => undefined}
-            />
-          </StateCell>
-        ))}
-      </section>
-      <section className="showcaseStateGrid" aria-label="System states">
-        {SURFACE_STATES.map((state) => (
-          <StateCell key={state} label={state}>
-            <StatusChip tone={TONES[state]} label={state} metadata="Sample state" />
-          </StateCell>
-        ))}
-      </section>
-      <div className="showcaseGrid">
-        <DataTable
-          caption="Empty evidence table"
-          columns={STATE_COLUMNS}
-          rows={[]}
-          rowKey={(row) => row.id}
-          state="empty"
-        />
-        <DataTable
-          caption="Stale evidence table"
-          columns={STATE_COLUMNS}
-          rows={[{ id: "stale", state: "Stale", recovery: "Refresh observation" }]}
-          rowKey={(row) => row.id}
-          state="stale"
-        />
-      </div>
-      <div className="showcaseGrid">
-        {SKELETON_VARIANTS.map((variant) => (
-          <Skeleton key={variant} variant={variant} label={`Loading ${variant}`} rows={3} />
+    <section
+      id={anchor}
+      className="showcasePrimitive"
+      aria-label={`${primitive} state gallery`}
+      data-primitive={primitive}
+    >
+      <header className="showcaseSectionHeading">
+        <p className="showcasePrimitiveKicker">
+          Live primitive · {states.length} applicable states
+        </p>
+        <h2 id={`${anchor}-heading`}>{primitive}</h2>
+        <p>{description}</p>
+      </header>
+      <div className="showcaseStateGrid">
+        {states.map((state, index) => (
+          <article
+            className="showcaseStateCard"
+            key={state}
+            data-state={state}
+            data-showcase-state={state}
+          >
+            <div className="showcaseStateCardHeader">
+              <span className="showcaseStateLabel">{state}</span>
+              <span className="showcaseStateIndex">{index + 1}</span>
+            </div>
+            <div className="showcaseStatePreview" data-preview={state}>
+              {children(state)}
+            </div>
+          </article>
         ))}
       </div>
-      <ErrorState
-        title="Build identity mismatch"
-        code="BUILD_IDENTITY_MISMATCH"
-        detail="The console cannot bind this sample to the selected runtime identity."
-        requestId="fixture-request-92"
-      />
     </section>
   )
 }
