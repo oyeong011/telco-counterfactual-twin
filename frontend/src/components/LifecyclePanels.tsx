@@ -186,7 +186,11 @@ export function ApprovalPanel() {
         ? { reason: "Policy reasons are unavailable in the current HTTP error contract." }
         : {})}
       {...(model.snapshot.decision
-        ? { proofHash: model.snapshot.decision.approval_proof.certificate_hash }
+        ? {
+            proofId: model.snapshot.decision.approval_proof.proof_id,
+            certificateHash: model.snapshot.decision.approval_proof.certificate_hash,
+            proofSignature: model.snapshot.decision.approval_proof.proof_signature,
+          }
         : {})}
       {...(model.workflow.phase === "approval-pending"
         ? {

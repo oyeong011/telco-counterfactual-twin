@@ -7,7 +7,7 @@ import { StatusChip } from "../design/primitives/StatusChip"
 type BuildRow = { readonly label: string; readonly value: string }
 const BUILD_COLUMNS = [
   { id: "field", header: "Build field", render: (row: BuildRow) => row.label },
-  { id: "value", header: "Verified value", render: (row: BuildRow) => row.value },
+  { id: "value", header: "Parsed value", render: (row: BuildRow) => row.value },
 ] satisfies readonly DataTableColumn<BuildRow>[]
 
 function rowsFor(info: UiBuildInfo): readonly BuildRow[] {
@@ -30,11 +30,12 @@ export function AboutPage({ buildInfo }: AboutPageProps) {
     <ConsolePage title="System boundaries">
       <div className="aboutLayout">
         <section className="aboutIntro" aria-labelledby="about-heading">
-          <StatusChip tone="proof" label="Evidence, never execution" />
+          <StatusChip tone="neutral" label="Evidence, never execution" />
           <h2 id="about-heading">System boundaries</h2>
           <p>
             This portfolio console creates synthetic scenarios, records deterministic comparisons,
-            and signs evidence-only approval decisions. It has no mutation authority over a network.
+            and receives backend-issued evidence-only approval decisions. It has no mutation
+            authority over a network.
           </p>
         </section>
         <section className="panel limitationsPanel" aria-labelledby="limitations-heading">
@@ -47,6 +48,10 @@ export function AboutPage({ buildInfo }: AboutPageProps) {
             <li>The HTTP contract does not expose physical topology nodes or links.</li>
             <li>Policy-ineligible errors do not include structured reasons.</li>
             <li>SSE is a finite replay snapshot, not a live tail.</li>
+            <li>
+              Certificate and proof signatures are backend-issued data; this browser does not verify
+              Ed25519 signatures.
+            </li>
           </ul>
         </section>
         {buildInfo.kind === "unavailable" ? (

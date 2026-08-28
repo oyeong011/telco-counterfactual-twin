@@ -53,6 +53,20 @@ describe("API problem handling", () => {
     await expect(parseProblemResponse(response)).rejects.toThrow()
   })
 
+  it("rejects mismatched header and body request identifiers", async () => {
+    const response = new Response(JSON.stringify(problem(409, "idempotency_conflict")), {
+      status: 409,
+      headers: {
+        "content-type": "application/problem+json",
+        "x-request-id": "request-other",
+      },
+    })
+
+    await expect(parseProblemResponse(response)).rejects.toThrow(
+      "problem response request identifiers do not match",
+    )
+  })
+
   it.each([
     [401, "jwt_approver_invalid"],
     [401, "approval_auth_required"],

@@ -33,11 +33,11 @@ export function EvidenceBoardPage() {
           <section className="panel evidenceBoardHeader" aria-labelledby="evidence-board-heading">
             <div>
               <h2 id="evidence-board-heading">
-                {evidence ? "Evidence package verified" : "No evidence package loaded"}
+                {evidence ? "Evidence package received" : "No evidence package loaded"}
               </h2>
               <p>
-                Export contains only the parsed backend evidence response. Approval remains
-                evidence-only.
+                Evidence package received; signatures are backend-issued. Browser signature
+                verification is not performed. Export contains only the parsed backend response.
               </p>
             </div>
             {evidence ? (

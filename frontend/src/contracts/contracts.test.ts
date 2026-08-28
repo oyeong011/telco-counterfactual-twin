@@ -148,8 +148,8 @@ describe("external contract parsers", () => {
     expect(approval.success).toBe(true)
   })
 
-  it("parses service and UI build identity contracts", () => {
-    // Given: build identities with independently verifiable hashes.
+  it("parses structural build identity fields and rejects non-canonical build time", () => {
+    // Given: contract-shaped service and UI identities plus a non-canonical timestamp.
     const service = {
       schema_version: "1.0",
       service_name: "telco-twin-api",
@@ -183,10 +183,15 @@ describe("external contract parsers", () => {
     // When: each identity is parsed.
     const parsedService = ServiceBuildInfoSchema.safeParse(service)
     const parsedUi = UiBuildInfoSchema.safeParse(ui)
+    const nonCanonicalUi = UiBuildInfoSchema.safeParse({
+      ...ui,
+      built_at: "2026-08-28T00:00:00.000Z",
+    })
 
-    // Then: both build identities remain typed and usable.
+    // Then: shape-valid identities parse, while canonical UTC remains mandatory.
     expect(parsedService.success).toBe(true)
     expect(parsedUi.success).toBe(true)
+    expect(nonCanonicalUi.success).toBe(false)
   })
 
   it("rejects unsafe dynamic keys and impossible UTC dates", () => {

@@ -10,16 +10,16 @@ import { StatusChip } from "./StatusChip"
 import { TypedPatchDiff } from "./TypedPatchDiff"
 
 describe("evidence primitives", () => {
-  it("communicates approved status with visible text instead of color alone", () => {
+  it("communicates a recorded digest status with visible text instead of color alone", () => {
     // Given
-    const label = "Replay verified"
+    const label = "Replay hash matched"
 
     // When
-    render(<StatusChip tone="approved" label={label} metadata="Proof available" />)
+    render(<StatusChip tone="neutral" label={label} metadata="Content digest available" />)
 
     // Then
     expect(screen.getByText(label)).toBeVisible()
-    expect(screen.getByText("Proof available")).toBeVisible()
+    expect(screen.getByText("Content digest available")).toBeVisible()
   })
 
   it("provides a blocking error recovery action", async () => {
@@ -81,7 +81,7 @@ describe("evidence primitives", () => {
           ]}
         />
         <EvidenceRail
-          title="Signed evidence"
+          title="Backend-issued evidence"
           state="approved"
           fields={[{ id: "replay", label: "Replay hash", value: "sha256:demo" }]}
         />
@@ -93,7 +93,9 @@ describe("evidence primitives", () => {
     expect(screen.getByText("Removal: max_utilization: 85")).toBeInTheDocument()
     expect(screen.getByText("Addition: max_utilization: 75")).toBeInTheDocument()
     expect(screen.getByRole("list", { name: "Approval review steps" })).toBeInTheDocument()
-    expect(screen.getByRole("complementary", { name: "Signed evidence" })).toBeInTheDocument()
+    expect(
+      screen.getByRole("complementary", { name: "Backend-issued evidence" }),
+    ).toBeInTheDocument()
   })
 
   it("opens mobile evidence details as a dialog and restores focus after close", async () => {

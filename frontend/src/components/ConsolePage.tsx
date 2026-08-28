@@ -29,7 +29,7 @@ function commandStatus(
       return { tone: "warning", label: "Approval blocked" }
     case "decision":
     case "evidence":
-      return { tone: "proof", label: "Evidence only" }
+      return { tone: "neutral", label: "Evidence recorded" }
     default:
       return { tone: "demo", label: "Synthetic only", metadata: phase }
   }

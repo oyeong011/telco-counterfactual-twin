@@ -167,7 +167,7 @@ function LifecycleAction() {
         Load evidence package
       </button>
     )
-  if (phase === "evidence") return <StatusChip tone="proof" label="Evidence package verified" />
+  if (phase === "evidence") return <StatusChip tone="neutral" label="Evidence package received" />
   return null
 }
 

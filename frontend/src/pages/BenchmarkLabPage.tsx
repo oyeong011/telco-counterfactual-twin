@@ -91,7 +91,7 @@ export function BenchmarkLabPage() {
             </form>
           </section>
           <DataTable
-            caption="Verified benchmark response"
+            caption="Server benchmark response"
             columns={RESULT_COLUMNS}
             rows={model.benchmark ? [model.benchmark] : []}
             rowKey={(row) => `${row.seed}-${row.iterations}`}

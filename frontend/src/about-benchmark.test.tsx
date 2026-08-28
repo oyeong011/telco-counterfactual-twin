@@ -51,15 +51,34 @@ describe("artifact-backed secondary routes", () => {
     await user.click(screen.getByRole("link", { name: "Benchmarks" }))
     await user.click(await screen.findByRole("button", { name: "Run determinism probe" }))
 
-    expect(await screen.findByText("Verified benchmark response")).toBeVisible()
+    expect(await screen.findByText("Server benchmark response")).toBeVisible()
     expect(screen.getByRole("cell", { name: "Yes" })).toBeVisible()
     expect(screen.getByRole("cell", { name: "1" })).toBeVisible()
-    const table = screen.getByRole("table", { name: "Verified benchmark response" })
+    const table = screen.getByRole("table", { name: "Server benchmark response" })
     expect(
       within(table)
         .getAllByRole("columnheader")
         .map((header) => header.textContent),
     ).toEqual(["Seed", "Iterations", "Unique trace hashes", "Deterministic", "Trace hash"])
+  })
+
+  it("rejects a non-canonical UI build timestamp", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ ...UI_BUILD_INFO, built_at: "2026-08-29T00:00:00.000Z" }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+        ),
+      ),
+    )
+    const history = createMemoryHistory({ initialEntries: ["/about"] })
+    render(<ConsoleApplication client={createConsoleApiFixture().client} history={history} />)
+
+    expect(await screen.findByText("Static build identity failed schema validation.")).toBeVisible()
+    expect(screen.queryByText("Built at")).not.toBeInTheDocument()
   })
 
   it("keeps empty benchmark numbers local and shows an actionable field error", async () => {

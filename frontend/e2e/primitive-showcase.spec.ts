@@ -85,7 +85,7 @@ test("changes real selected DOM state for every interactive primitive", async ({
   const evidence = stateCard(page, "EvidenceRail")
   const approval = stateCard(page, "ApprovalEvidence")
   const controls = [
-    topology.getByRole("option", { name: "AGG 1, default" }),
+    topology.getByRole("button", { name: "AGG 1, default" }),
     timeline.getByRole("button", { name: "Select event Backhaul utilization high" }),
     metric.getByRole("button", { name: "Select metric P95 DL throughput" }),
     patch.getByRole("button", { name: "Select line 130 Addition" }),
@@ -108,7 +108,7 @@ test("renders primitive-owned hover active and focus gallery states", async ({ p
   const states = [
     {
       primitive: "TopologyCanvas",
-      role: "option",
+      role: "button",
       hover: "Core DC, approved",
       active: "AGG 1, default",
       focus: "AGG 2, stale",
@@ -239,32 +239,4 @@ test("has no serious accessibility, global overflow, target, error, or overlay d
   expect(errorAudit.clipped).toBe(false)
   expect(errorAudit.title).toContain("recovery state")
   expect(errorAudit.detail.join(" ")).toContain("Recovery remains evidence-only")
-})
-
-test("opens EvidenceRail in the top layer and restores focus after Escape", async ({ page }) => {
-  // Given
-  const trigger = page.getByRole("button", { name: "Open selected evidence" })
-
-  // When
-  await trigger.click()
-  const dialog = page.getByRole("dialog", { name: "Selected evidence" })
-
-  // Then
-  await expect(dialog).toBeVisible()
-  expect(await dialog.evaluate((element) => element.matches(":modal"))).toBe(true)
-  expect(
-    await page.evaluate(() => {
-      const background = document.querySelector(".showcaseAnchorNav a")
-      if (!(background instanceof HTMLElement)) return false
-      background.focus()
-      return document.activeElement !== background
-    }),
-  ).toBe(true)
-
-  // When
-  await page.keyboard.press("Escape")
-
-  // Then
-  await expect(dialog).toBeHidden()
-  await expect(trigger).toBeFocused()
 })

@@ -94,7 +94,9 @@ describe("governed console lifecycle", () => {
     await user.click(await screen.findByRole("button", { name: "Record approval evidence" }))
     await user.click(await screen.findByRole("button", { name: "Load evidence package" }))
 
-    expect(await screen.findByText("Evidence package verified")).toBeVisible()
+    expect(await screen.findByText("Evidence package received")).toBeVisible()
+    expect(screen.getByText(/Browser signature verification is not performed/)).toBeVisible()
+    expect(screen.queryByText("Evidence package verified")).not.toBeInTheDocument()
     expect(screen.getAllByText("approved", { selector: "span" }).length).toBeGreaterThan(0)
     expect(screen.queryByRole("button", { name: /execute/i })).not.toBeInTheDocument()
   })
@@ -108,12 +110,17 @@ describe("governed console lifecycle", () => {
     await user.click(await screen.findByRole("button", { name: "Record rejection evidence" }))
     await user.click(await screen.findByRole("button", { name: "Load evidence package" }))
 
-    expect(await screen.findByText("Evidence package verified")).toBeInTheDocument()
+    expect(await screen.findByText("Evidence package received")).toBeInTheDocument()
     expect(
       screen.getByText("Approval records evidence only. It never executes a patch."),
     ).toBeVisible()
     expect(screen.getByText("Blast radius")).toBeVisible()
     expect(screen.getAllByText("Certificate hash").length).toBeGreaterThan(0)
+    expect(screen.getAllByText("Proof ID").length).toBeGreaterThan(0)
+    expect(
+      screen.getAllByText("Proof signature (browser verification not performed)").length,
+    ).toBeGreaterThan(0)
+    expect(screen.queryByText(/^Proof [0-9a-f]{64}$/)).not.toBeInTheDocument()
     expect(screen.getAllByText("rejected", { selector: "span" }).length).toBeGreaterThan(0)
     expect(document.body).not.toHaveTextContent("demo-token-secret")
     expect(sessionValues()).not.toContain("demo-token-secret")

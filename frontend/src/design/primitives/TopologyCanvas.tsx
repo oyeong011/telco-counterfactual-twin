@@ -181,14 +181,14 @@ export function TopologyCanvas({
               )
             })}
           </svg>
-          <div className="topologyNodeControls" role="listbox" aria-label="Topology nodes">
+          <fieldset className="topologyNodeControls">
+            <legend className="visuallyHidden">Topology nodes</legend>
             {nodes.map((node) => (
               <button
                 key={node.id}
                 type="button"
-                role="option"
                 className="topologyNodeButton"
-                aria-selected={node.id === selectedNodeId}
+                aria-pressed={node.id === selectedNodeId}
                 data-highlighted={node.id === highlightedNodeId || undefined}
                 disabled={state === "disabled"}
                 onClick={() => onSelectNode?.(node.id)}
@@ -200,7 +200,7 @@ export function TopologyCanvas({
                 {node.label}, {node.status}
               </button>
             ))}
-          </div>
+          </fieldset>
           <div className="topologySelection" aria-live="polite">
             <span>Selected node: {selectedNode?.label ?? "None"}</span>
             {highlightedNode ? <span>Highlighted node: {highlightedNode.label}</span> : null}

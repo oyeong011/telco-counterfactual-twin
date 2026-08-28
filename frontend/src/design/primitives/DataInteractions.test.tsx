@@ -124,7 +124,7 @@ describe("interactive data primitives", () => {
     // Given
     const user = userEvent.setup()
     render(<TopologyHarness />)
-    const site = screen.getByRole("option", { name: "Site C, rejected" })
+    const site = screen.getByRole("button", { name: "Site C, rejected" })
 
     // When
     await user.hover(site)
@@ -136,7 +136,7 @@ describe("interactive data primitives", () => {
     await user.click(site)
 
     // Then
-    expect(site).toHaveAttribute("aria-selected", "true")
+    expect(site).toHaveAttribute("aria-pressed", "true")
     expect(screen.getByText("Selected node: Site C")).toBeVisible()
     expect(site).toHaveFocus()
   })

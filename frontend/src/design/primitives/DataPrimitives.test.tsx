@@ -80,7 +80,7 @@ describe("data primitives", () => {
     )
 
     // When
-    screen.getByRole("option", { name: "Core router, approved" }).focus()
+    screen.getByRole("button", { name: "Core router, approved" }).focus()
     await user.keyboard("{Enter}")
 
     // Then

@@ -113,7 +113,9 @@ test("real FastAPI lifecycle returns bound evidence and finite SSE", async ({ pa
   expect(replayBody).toContain("event: approval-rejected")
   expect(new Set(idempotencyKeys).size).toBe(7)
   expect(idempotencyKeys).toHaveLength(7)
-  await expect(page.getByText("Evidence package verified")).toBeVisible()
+  await expect(page.getByText("Evidence package received", { exact: true })).toBeVisible()
+  await expect(page.getByText(/Browser signature verification is not performed/)).toBeVisible()
+  await expect(page.getByText("Evidence package verified")).toHaveCount(0)
 
   await page.getByRole("link", { name: "Evidence", exact: true }).click()
   await expect(page.getByRole("heading", { level: 1, name: "Evidence board" })).toBeVisible()

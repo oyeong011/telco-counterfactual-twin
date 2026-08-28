@@ -31,7 +31,10 @@ export async function parseProblemResponse(response: Response): Promise<ParsedPr
 
   try {
     const problem = ProblemDetailsSchema.parse(body)
-    const requestId = response.headers.get("X-Request-Id") ?? problem.request_id
+    const headerRequestId = response.headers.get("X-Request-Id")
+    if (headerRequestId !== null && headerRequestId !== problem.request_id)
+      throw new ContractParseError("problem response request identifiers do not match")
+    const requestId = headerRequestId ?? problem.request_id
     return { problem, requestId }
   } catch (error) {
     if (error instanceof z.ZodError) {

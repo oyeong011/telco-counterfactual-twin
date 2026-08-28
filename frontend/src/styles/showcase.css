@@ -121,6 +121,11 @@
   max-inline-size: 100%;
 }
 
+.showcaseStatePreview .evidenceSheetTrigger {
+  display: inline-flex;
+  margin-block-start: var(--space-2);
+}
+
 .showcaseEvidenceExample,
 .showcaseApprovalExample,
 .showcaseErrorExample,

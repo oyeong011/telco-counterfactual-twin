@@ -20,7 +20,9 @@ type ApprovalEvidenceProps = {
   readonly highlightedAction?: ApprovalAction
   readonly steps: readonly ApprovalStep[]
   readonly reason?: string
-  readonly proofHash?: string
+  readonly proofId?: string
+  readonly certificateHash?: string
+  readonly proofSignature?: string
   readonly actionsDisabledReason?: string
   readonly allActionsDisabledReason?: string
   readonly onApprove?: () => void
@@ -45,7 +47,9 @@ export function ApprovalEvidence({
   highlightedAction,
   steps,
   reason,
-  proofHash,
+  proofId,
+  certificateHash,
+  proofSignature,
   actionsDisabledReason,
   allActionsDisabledReason,
   onApprove,
@@ -96,7 +100,28 @@ export function ApprovalEvidence({
         </ol>
       )}
       {reason ? <p className="approvalReason">Reason: {reason}</p> : null}
-      {proofHash ? <p className="mono">Proof {proofHash}</p> : null}
+      {proofId || certificateHash || proofSignature ? (
+        <dl className="evidenceFields approvalProofFields">
+          {proofId ? (
+            <div>
+              <dt>Proof ID</dt>
+              <dd className="mono">{proofId}</dd>
+            </div>
+          ) : null}
+          {certificateHash ? (
+            <div>
+              <dt>Certificate hash</dt>
+              <dd className="mono">{certificateHash}</dd>
+            </div>
+          ) : null}
+          {proofSignature ? (
+            <div>
+              <dt>Proof signature (browser verification not performed)</dt>
+              <dd className="mono">{proofSignature}</dd>
+            </div>
+          ) : null}
+        </dl>
+      ) : null}
       {onApprove || onReject ? (
         <div className="approvalActions" data-decision={resolvedDecision}>
           {onApprove ? (
@@ -136,6 +161,12 @@ export function ApprovalEvidence({
         </div>
       ) : null}
       <p className="approvalBoundary">Approval records evidence only. It never executes a patch.</p>
+      {proofSignature ? (
+        <p className="approvalBoundary">
+          Evidence package received; signatures are backend-issued. Browser signature verification
+          is not performed.
+        </p>
+      ) : null}
     </section>
   )
 }

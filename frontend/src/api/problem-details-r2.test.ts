@@ -29,7 +29,7 @@ describe("backend patch rejection problems", () => {
     ).toBe(true)
   })
 
-  it("preserves unsupported-patch-parameters and the response request id", async () => {
+  it("preserves unsupported-patch-parameters and a matching response request id", async () => {
     const client = createApiClient({
       fetch: async () =>
         new Response(
@@ -45,7 +45,7 @@ describe("backend patch rejection problems", () => {
             status: 422,
             headers: {
               "content-type": "application/problem+json",
-              "X-Request-Id": "request-header-001",
+              "X-Request-Id": "request-body-001",
             },
           },
         ),
@@ -68,7 +68,7 @@ describe("backend patch rejection problems", () => {
         detail: "The typed patch is not valid for this scenario baseline.",
         request_id: "request-body-001",
       },
-      requestId: "request-header-001",
+      requestId: "request-body-001",
     })
   })
 })

@@ -175,7 +175,9 @@ test("completes a rejected evidence-only lifecycle through the production UI", a
     await page.getByRole("button", { name: label }).click()
   }
 
-  await expect(page.getByText("Evidence package verified")).toBeVisible()
+  await expect(page.getByText("Evidence package received", { exact: true })).toBeVisible()
+  await expect(page.getByText(/Browser signature verification is not performed/)).toBeVisible()
+  await expect(page.getByText("Evidence package verified")).toHaveCount(0)
   await expect(
     page.getByText("Approval records evidence only. It never executes a patch."),
   ).toBeVisible()

@@ -43,13 +43,18 @@ function evidenceFields(model: ReturnType<typeof useConsole>["model"]): readonly
       { id: "policy", label: "Policy hash", value: card.policy_hash },
       {
         id: "proof",
-        label: "Approval proof hash",
+        label: "Approval proof content hash",
         value: card.approval_proof_hash ?? "Pending",
       },
       ...(proof
         ? [
             { id: "proof-id", label: "Proof ID", value: proof.proof_id },
             { id: "certificate", label: "Certificate hash", value: proof.certificate_hash },
+            {
+              id: "proof-signature",
+              label: "Proof signature (browser verification not performed)",
+              value: proof.proof_signature,
+            },
           ]
         : []),
     ]

@@ -117,8 +117,3 @@
   inline-size: var(--space-5);
   block-size: var(--space-5);
 }
-
-.showcaseStatePreview .evidenceSheetTrigger {
-  display: inline-flex;
-  margin-block-start: var(--space-2);
-}

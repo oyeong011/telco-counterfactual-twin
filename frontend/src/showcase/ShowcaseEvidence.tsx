@@ -101,7 +101,13 @@ function ApprovalExample({ state }: { readonly state: ShowcaseState }) {
         {...(highlightedAction ? { highlightedAction } : {})}
         steps={steps}
         {...(reason ? { reason } : {})}
-        {...(effectiveState === "approved" ? { proofHash: KOREAN_HASH } : {})}
+        {...(effectiveState === "approved"
+          ? {
+              proofId: "showcase-proof-id",
+              certificateHash: KOREAN_HASH,
+              proofSignature: "showcase-backend-signature-unchecked",
+            }
+          : {})}
         {...(actionsDisabledReason ? { actionsDisabledReason } : {})}
         onApprove={() => setDecision("approved")}
         {...(state === "approved" ? {} : { onReject: () => setDecision("rejected") })}
