@@ -1,12 +1,11 @@
 import { render, screen } from "@testing-library/react"
 import { createElement } from "react"
 import { describe, expect, it } from "vitest"
-import { ThemeProvider } from "../design/theme/ThemeProvider"
-import { FoundationApp } from "../FoundationApp"
+import { ConsoleApplication } from "../ConsoleApplication"
 import { shouldRenderShowcase } from "../showcase/showcaseGate"
 
 describe("document entry contract", () => {
-  it("renders the foundation route as a real main landmark without showcase content", () => {
+  it("renders the product workbench as a real main landmark without showcase content", async () => {
     // Given
     Object.defineProperty(window, "matchMedia", {
       configurable: true,
@@ -25,10 +24,10 @@ describe("document entry contract", () => {
     })
 
     // When
-    render(createElement(ThemeProvider, null, createElement(FoundationApp)))
+    render(createElement(ConsoleApplication))
 
     // Then
-    expect(screen.getByRole("main")).toHaveTextContent("Console foundation")
+    expect(await screen.findByRole("main")).toHaveTextContent("Start an isolated evidence session")
     expect(screen.queryByRole("region", { name: /state gallery/i })).not.toBeInTheDocument()
   })
 

@@ -13,7 +13,8 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command: "VITE_DISABLE_REACT_DEVTOOLS=1 pnpm dev --host 127.0.0.1 --port 4173 --strictPort",
+    command:
+      "VITE_DISABLE_REACT_DEVTOOLS=1 node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 4173 --strictPort",
     url: "http://127.0.0.1:4173/__showcase",
     reuseExistingServer: false,
     timeout: 120_000,

@@ -1,0 +1,226 @@
+.routeStack,
+.submittedPatchStack,
+.topologyContractStack,
+.stackRegion,
+.aboutLayout {
+  display: grid;
+  min-inline-size: 0;
+  gap: var(--space-4);
+}
+
+.workbenchGrid {
+  display: grid;
+  min-inline-size: 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(var(--shell-evidence-width), 100%), 1fr));
+  gap: var(--space-4);
+}
+
+.entryPanel,
+.aboutIntro {
+  display: grid;
+  max-inline-size: var(--measure-content);
+  gap: var(--space-3);
+  padding: var(--space-6);
+  border-inline-start: var(--focus-width) solid var(--accent-primary);
+  background: var(--surface-panel);
+}
+
+.entryPanel h2,
+.entryPanel p,
+.aboutIntro h2,
+.aboutIntro p,
+.panelHeader p {
+  margin: 0;
+}
+
+.objectHeader {
+  display: flex;
+  min-inline-size: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-6);
+  padding: var(--space-5) var(--space-6);
+  border-block: var(--border-width) solid var(--border-strong);
+}
+
+.objectHeader h2,
+.objectEyebrow {
+  margin: 0;
+}
+
+.objectEyebrow {
+  color: var(--text-secondary);
+  font-size: var(--text-caption);
+}
+
+.objectFacts {
+  display: flex;
+  min-inline-size: 0;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  margin: 0;
+}
+
+.objectFacts div {
+  min-inline-size: 0;
+}
+
+.objectFacts dt {
+  color: var(--text-secondary);
+  font-size: var(--text-caption);
+}
+
+.objectFacts dd {
+  max-inline-size: var(--shell-context-width);
+  margin: var(--space-1) 0 0;
+  overflow-wrap: anywhere;
+}
+
+.lifecycleSteps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(calc(var(--space-10) * 3), 100%), 1fr));
+  gap: var(--border-width);
+  padding: 0;
+  margin: 0;
+  background: var(--border-subtle);
+  list-style: none;
+}
+
+.lifecycleSteps li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: var(--target-min);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-panel);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+}
+
+.lifecycleSteps li[data-state="complete"] {
+  color: var(--accent-proof);
+}
+
+.lifecycleSteps li[data-state="current"] {
+  background: var(--selection-surface);
+  color: var(--text-primary);
+  font-weight: var(--weight-strong);
+}
+
+.lifecycleSteps li span {
+  font-family: var(--font-mono);
+}
+
+.contractGap {
+  padding: var(--space-3) var(--space-4);
+  margin: 0;
+  border: var(--border-width) solid var(--accent-warning);
+  background: var(--state-warning);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.sectionActions,
+.evidenceBoardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--border-subtle);
+  background: var(--surface-panel);
+}
+
+.sectionActions p,
+.evidenceBoardHeader p {
+  max-inline-size: var(--measure-content);
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.rawPayload {
+  border: var(--border-width) solid var(--border-subtle);
+  background: var(--surface-inset);
+}
+
+.rawPayload summary {
+  min-block-size: var(--target-min);
+  padding: var(--space-3);
+  cursor: pointer;
+}
+
+.rawPayload pre {
+  max-block-size: var(--canvas-min-height);
+  padding: var(--space-4);
+  margin: 0;
+  overflow: auto;
+  border-block-start: var(--border-width) solid var(--border-subtle);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.commandCluster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.commandCluster button,
+.evidenceBoardHeader button,
+.sectionActions button,
+.approvalActions button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-inline: var(--space-3);
+}
+
+.commandCluster svg,
+.evidenceBoardHeader svg,
+.sectionActions svg {
+  inline-size: var(--space-4);
+  block-size: var(--space-4);
+}
+
+.limitationsPanel ul {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-8);
+  margin: 0;
+}
+
+.notFoundPage {
+  display: grid;
+  min-block-size: 100dvb;
+  place-items: center;
+  padding: var(--space-6);
+}
+
+@media (max-width: 767px) {
+  .objectHeader,
+  .sectionActions,
+  .evidenceBoardHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .objectHeader {
+    padding: var(--space-4);
+  }
+
+  .objectFacts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .entryPanel,
+  .aboutIntro {
+    padding: var(--space-4);
+  }
+}
+
+@media (max-width: 480px) {
+  .objectFacts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

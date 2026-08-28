@@ -2,4 +2,6 @@
 
 ## Status
 
-The strict React/Vite/TypeScript workspace exists, but Todo 1 intentionally contains no application component. The operations console begins in its later approved frontend todo.
+The production entry renders the TanStack Router operations console. The console keeps the demo token in memory, stores only session-scoped run IDs plus the exact submitted patch in `sessionStorage`, and presents the backend lifecycle as evidence-only review rather than network execution.
+
+The primitive showcase remains available only from the development-only `/__showcase` entry gate.

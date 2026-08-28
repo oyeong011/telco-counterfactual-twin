@@ -2,4 +2,6 @@
 
 ## Status
 
-Reserved for later Playwright scenarios after the API and interaction contracts exist. Todo 1 does not add screenshot mocks or tests-after visual behavior.
+Playwright covers the primitive interaction matrix plus production-route behavior. Product scenarios use browser-layer HTTP interception with contract-valid backend responses; no fixture endpoint or mock state ships in the application bundle.
+
+The final multi-state screenshot manifest is maintained by the separate visual-QA lane.

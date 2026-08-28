@@ -3,8 +3,7 @@ import "@fontsource/ibm-plex-mono/400.css"
 import "@fontsource/ibm-plex-mono/500.css"
 import { type ReactNode, StrictMode } from "react"
 import { createRoot } from "react-dom/client"
-import { ThemeProvider } from "./design/theme/ThemeProvider"
-import { FoundationApp } from "./FoundationApp"
+import { ConsoleApplication } from "./ConsoleApplication"
 import { shouldRenderShowcase } from "./showcase/showcaseGate"
 import "./styles/tokens.css"
 import "./styles/base.css"
@@ -13,6 +12,8 @@ import "./styles/states.css"
 import "./styles/data.css"
 import "./styles/evidence.css"
 import "./styles/interactions.css"
+import "./styles/product-forms.css"
+import "./styles/product.css"
 
 const rootElement = document.getElementById("root")
 if (rootElement === null) {
@@ -21,11 +22,7 @@ if (rootElement === null) {
 
 const root = createRoot(rootElement)
 const render = (application: ReactNode) => {
-  root.render(
-    <StrictMode>
-      <ThemeProvider>{application}</ThemeProvider>
-    </StrictMode>,
-  )
+  root.render(<StrictMode>{application}</StrictMode>)
 }
 
 const reactDevToolsEnabled =
@@ -36,7 +33,7 @@ if (reactDevToolsEnabled) {
   void import("react-scan")
 }
 
-const renderFoundation = () => render(<FoundationApp />)
+const renderProduct = () => render(<ConsoleApplication />)
 
 if (import.meta.env.DEV) {
   if (
@@ -46,11 +43,17 @@ if (import.meta.env.DEV) {
     })
   ) {
     void import("./showcase/PrimitiveShowcase").then(({ PrimitiveShowcase }) => {
-      render(<PrimitiveShowcase />)
+      void import("./design/theme/ThemeProvider").then(({ ThemeProvider }) => {
+        render(
+          <ThemeProvider>
+            <PrimitiveShowcase />
+          </ThemeProvider>,
+        )
+      })
     })
   } else {
-    renderFoundation()
+    renderProduct()
   }
 } else {
-  renderFoundation()
+  renderProduct()
 }

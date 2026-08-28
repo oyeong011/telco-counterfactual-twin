@@ -16,6 +16,7 @@ type AppShellProps = {
   readonly preview?: boolean
   readonly previewLabel?: string
   readonly commandBar?: ReactNode
+  readonly navigationContent?: ReactNode
   readonly contextRail?: ReactNode
   readonly evidenceRail?: ReactNode
   readonly children: ReactNode
@@ -32,6 +33,7 @@ export function AppShell({
   preview = false,
   previewLabel,
   commandBar,
+  navigationContent,
   contextRail,
   evidenceRail,
   children,
@@ -59,24 +61,25 @@ export function AppShell({
         aria-label={preview ? (previewLabel ?? "Preview navigation") : "Primary"}
       >
         <ul className="primaryNavList">
-          {navigation.map((item) => {
-            const Icon = item.icon
-            return (
-              <li key={item.href}>
-                <a
-                  className="primaryNavLink"
-                  href={item.disabled ? undefined : item.href}
-                  aria-current={item.active ? "page" : undefined}
-                  aria-disabled={item.disabled || undefined}
-                  data-highlighted={item.highlighted || undefined}
-                  tabIndex={navigationTabIndex(item, hasFocusTarget)}
-                >
-                  <Icon aria-hidden="true" />
-                  <span>{item.label}</span>
-                </a>
-              </li>
-            )
-          })}
+          {navigationContent ??
+            navigation.map((item) => {
+              const Icon = item.icon
+              return (
+                <li key={item.href}>
+                  <a
+                    className="primaryNavLink"
+                    href={item.disabled ? undefined : item.href}
+                    aria-current={item.active ? "page" : undefined}
+                    aria-disabled={item.disabled || undefined}
+                    data-highlighted={item.highlighted || undefined}
+                    tabIndex={navigationTabIndex(item, hasFocusTarget)}
+                  >
+                    <Icon aria-hidden="true" />
+                    <span>{item.label}</span>
+                  </a>
+                </li>
+              )
+            })}
         </ul>
       </nav>
       <header className="commandBar">{commandBar ?? <span>Console foundation</span>}</header>

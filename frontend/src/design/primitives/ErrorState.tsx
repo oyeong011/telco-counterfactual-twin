@@ -7,6 +7,7 @@ type ErrorStateProps = {
   readonly requestId?: string
   readonly blocking?: boolean
   readonly retryDisabled?: boolean
+  readonly retryLabel?: string
   readonly onRetry?: () => void
 }
 
@@ -17,6 +18,7 @@ export function ErrorState({
   requestId,
   blocking = false,
   retryDisabled = false,
+  retryLabel = "Retry evidence",
   onRetry,
 }: ErrorStateProps) {
   return (
@@ -36,7 +38,7 @@ export function ErrorState({
       {onRetry ? (
         <button type="button" disabled={retryDisabled} onClick={onRetry}>
           <RotateCcw aria-hidden="true" />
-          Retry evidence
+          {retryLabel}
         </button>
       ) : null}
     </section>
