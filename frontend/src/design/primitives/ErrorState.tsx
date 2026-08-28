@@ -20,7 +20,12 @@ export function ErrorState({
   onRetry,
 }: ErrorStateProps) {
   return (
-    <section className="errorState" role={blocking ? "alert" : "status"} aria-label={title}>
+    <section
+      className="errorState"
+      data-layout="component-aware"
+      role={blocking ? "alert" : "status"}
+      aria-label={title}
+    >
       <CircleAlert aria-hidden="true" className="errorStateIcon" />
       <div>
         <h3>{title}</h3>

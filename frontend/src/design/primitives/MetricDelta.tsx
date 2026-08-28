@@ -1,6 +1,8 @@
 import { useId } from "react"
 import { DataTable, type DataTableColumn } from "./DataTable"
-import type { SurfaceState } from "./primitiveTypes"
+import { ErrorState } from "./ErrorState"
+import { SURFACE_TONES, type SurfaceState } from "./primitiveTypes"
+import { Skeleton } from "./Skeleton"
 import { StatusChip } from "./StatusChip"
 
 export type MetricSeries = {
@@ -23,6 +25,7 @@ type MetricDeltaProps = {
   readonly series: readonly MetricSeries[]
   readonly rows: readonly MetricDeltaRow[]
   readonly state?: SurfaceState
+  readonly onRetry?: () => void
 }
 
 const METRIC_COLUMNS = [
@@ -43,14 +46,28 @@ function seriesPoints(values: readonly number[]): string {
     .join(" ")
 }
 
-export function MetricDelta({ title, series, rows, state = "default" }: MetricDeltaProps) {
+export function MetricDelta({ title, series, rows, state = "default", onRetry }: MetricDeltaProps) {
   const headingId = useId()
 
+  if (state === "loading") {
+    return <Skeleton variant="chart" label={`Loading ${title}`} />
+  }
+  if (state === "error") {
+    return (
+      <ErrorState
+        title={`${title} unavailable`}
+        code="METRIC_UNAVAILABLE"
+        detail="The comparison values could not be calculated."
+        {...(onRetry ? { onRetry } : {})}
+      />
+    )
+  }
+
   return (
-    <section className="panel metricDelta" aria-labelledby={headingId}>
+    <section className="panel metricDelta" data-state={state} aria-labelledby={headingId}>
       <div className="panelHeader">
         <h2 id={headingId}>{title}</h2>
-        <StatusChip tone="proof" label="Deterministic benchmark" />
+        <StatusChip tone={SURFACE_TONES[state]} label={state} />
       </div>
       <div className="metricChartRegion">
         <svg viewBox="0 0 100 100" role="img" aria-label={`${title} line chart`}>
@@ -81,6 +98,7 @@ export function MetricDelta({ title, series, rows, state = "default" }: MetricDe
         rows={rows}
         rowKey={(row) => row.id}
         state={state}
+        {...(onRetry ? { onRetry } : {})}
       />
     </section>
   )

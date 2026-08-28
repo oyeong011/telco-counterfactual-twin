@@ -7,11 +7,13 @@ export type AppNavigationItem = {
   readonly icon: LucideIcon
   readonly active: boolean
   readonly disabled?: boolean
+  readonly focus?: boolean
 }
 
 type AppShellProps = {
   readonly navigation: readonly AppNavigationItem[]
   readonly preview?: boolean
+  readonly previewLabel?: string
   readonly commandBar?: ReactNode
   readonly contextRail?: ReactNode
   readonly evidenceRail?: ReactNode
@@ -21,13 +23,16 @@ type AppShellProps = {
 export function AppShell({
   navigation,
   preview = false,
+  previewLabel,
   commandBar,
   contextRail,
   evidenceRail,
   children,
 }: AppShellProps) {
   const routeBody = preview ? (
-    <div className="routeBody showcaseShellRoute">{children}</div>
+    <div className="routeBody showcaseShellRoute" data-layout="preview-route">
+      {children}
+    </div>
   ) : (
     <main className="routeBody" id="main-content" tabIndex={-1}>
       {children}
@@ -41,7 +46,10 @@ export function AppShell({
           Skip to main content
         </a>
       )}
-      <nav className="primaryNav" aria-label="Primary">
+      <nav
+        className="primaryNav"
+        aria-label={preview ? (previewLabel ?? "Preview navigation") : "Primary"}
+      >
         <ul className="primaryNavList">
           {navigation.map((item) => {
             const Icon = item.icon
@@ -52,6 +60,7 @@ export function AppShell({
                   href={item.disabled ? undefined : item.href}
                   aria-current={item.active ? "page" : undefined}
                   aria-disabled={item.disabled || undefined}
+                  data-showcase-focus={item.focus || undefined}
                   tabIndex={item.disabled ? -1 : undefined}
                 >
                   <Icon aria-hidden="true" />
@@ -64,9 +73,17 @@ export function AppShell({
       </nav>
       <header className="commandBar">{commandBar ?? <span>Console foundation</span>}</header>
       <div className="appShellBody">
-        {contextRail ? <aside className="contextRail">{contextRail}</aside> : null}
+        {contextRail ? (
+          <aside className="contextRail" aria-label="Context rail">
+            {contextRail}
+          </aside>
+        ) : null}
         {routeBody}
-        {evidenceRail ? <aside className="evidenceRail">{evidenceRail}</aside> : null}
+        {evidenceRail ? (
+          <aside className="evidenceRail" aria-label="Evidence rail">
+            {evidenceRail}
+          </aside>
+        ) : null}
       </div>
     </div>
   )

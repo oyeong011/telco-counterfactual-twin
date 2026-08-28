@@ -12,6 +12,7 @@ export type DataTableColumn<Row> = {
 export type DataTableSort = {
   readonly columnId: string
   readonly direction: "ascending" | "descending"
+  readonly disabled?: boolean
   readonly onSort: (columnId: string) => void
 }
 
@@ -50,7 +51,11 @@ export function DataTable<Row>({
               return (
                 <th key={column.id} scope="col" aria-sort={sort ? direction : undefined}>
                   {sort ? (
-                    <button type="button" onClick={() => sort.onSort(column.id)}>
+                    <button
+                      type="button"
+                      disabled={sort.disabled}
+                      onClick={() => sort.onSort(column.id)}
+                    >
                       Sort by {column.header}
                     </button>
                   ) : (

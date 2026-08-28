@@ -34,7 +34,7 @@ export function ShowcaseStateSection({
         <h2 id={`${anchor}-heading`}>{primitive}</h2>
         <p>{description}</p>
       </header>
-      <div className="showcaseStateGrid">
+      <div className="showcaseStateGrid" data-layout="state-grid">
         {states.map((state, index) => (
           <article
             className="showcaseStateCard"

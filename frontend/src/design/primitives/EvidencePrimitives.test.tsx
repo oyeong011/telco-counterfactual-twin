@@ -157,4 +157,97 @@ describe("evidence primitives", () => {
     expect(screen.getByRole("status")).toHaveTextContent(loadingLabel)
     expect(screen.getByTestId("skeleton-visual")).toHaveAttribute("aria-hidden", "true")
   })
+
+  it("keeps ErrorState text readable when its component container is compact", () => {
+    // Given
+    render(
+      <div style={{ inlineSize: "256px" }}>
+        <ErrorState
+          title="Evidence unavailable"
+          code="EVIDENCE_TIMEOUT"
+          detail="The signed package did not arrive."
+          requestId="req-demo-17"
+          onRetry={() => undefined}
+        />
+      </div>,
+    )
+
+    // When
+    const error = screen.getByRole("status")
+
+    // Then
+    expect(error).toHaveAttribute("data-layout", "component-aware")
+    expect(error.querySelector("h3")).toHaveTextContent("Evidence unavailable")
+    expect(error.querySelector("p")).toHaveTextContent("EVIDENCE_TIMEOUT")
+  })
+
+  it("exposes evidence recovery and approval decision actions in the primitive gallery", async () => {
+    // Given
+    const user = userEvent.setup()
+    const onCopy = vi.fn()
+    const onApprove = vi.fn()
+    const onReject = vi.fn()
+    render(
+      <>
+        <EvidenceRail
+          title="Evidence actions"
+          state="default"
+          fields={[{ label: "Replay hash", value: "sha256:actions" }]}
+          onCopy={onCopy}
+        />
+        <ApprovalEvidence
+          state="default"
+          steps={[{ id: "review", label: "Engineer review", state: "pending" }]}
+          onApprove={onApprove}
+          onReject={onReject}
+        />
+      </>,
+    )
+
+    // When
+    await user.click(screen.getByRole("button", { name: "Copy evidence hash" }))
+    await user.click(screen.getByRole("button", { name: "Record approval evidence" }))
+    await user.click(screen.getByRole("button", { name: "Record rejection evidence" }))
+
+    // Then
+    expect(onCopy).toHaveBeenCalledOnce()
+    expect(onApprove).toHaveBeenCalledOnce()
+    expect(onReject).toHaveBeenCalledOnce()
+  })
+
+  it("blocks approval evidence actions when freshness is stale or synthetic", () => {
+    // Given
+    render(
+      <>
+        <ApprovalEvidence
+          state="stale"
+          steps={[]}
+          actionsDisabledReason="Freshness policy blocked this record."
+          onApprove={() => undefined}
+          onReject={() => undefined}
+        />
+        <ApprovalEvidence
+          state="demo"
+          steps={[]}
+          actionsDisabledReason="Synthetic demo evidence cannot be approved."
+          onApprove={() => undefined}
+          onReject={() => undefined}
+        />
+      </>,
+    )
+
+    // When
+    const approvalButtons = screen.getAllByRole("button", { name: "Record approval evidence" })
+    const rejectionButtons = screen.getAllByRole("button", { name: "Record rejection evidence" })
+
+    // Then
+    expect(approvalButtons).toHaveLength(2)
+    for (const button of approvalButtons) expect(button).toBeDisabled()
+    for (const button of rejectionButtons) expect(button).not.toBeDisabled()
+    expect(approvalButtons[0]).toHaveAttribute("title", "Freshness policy blocked this record.")
+    expect(approvalButtons[1]).toHaveAttribute(
+      "title",
+      "Synthetic demo evidence cannot be approved.",
+    )
+  })
 })

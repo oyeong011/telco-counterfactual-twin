@@ -71,6 +71,7 @@
   border: var(--border-width) solid var(--accent-danger);
   border-radius: var(--radius-panel);
   background: var(--state-danger);
+  container: error-state / inline-size;
 }
 
 .errorState h3,
@@ -163,6 +164,18 @@
 
   .errorState button {
     grid-column: 1 / -1;
+    justify-content: center;
+  }
+}
+
+@container error-state (max-width: 26rem) {
+  .errorState {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .errorState button {
+    grid-column: 1 / -1;
+    inline-size: 100%;
     justify-content: center;
   }
 }

@@ -103,6 +103,10 @@
   overflow: hidden;
 }
 
+.showcaseShellRoute {
+  grid-column: 1 / -1;
+}
+
 .contextRail,
 .evidenceRail {
   min-block-size: 0;
@@ -209,7 +213,7 @@
   .appShellBody {
     grid-row: 3;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
   }
 
   .contextRail {
@@ -220,15 +224,15 @@
   }
 
   .evidenceRail {
-    position: fixed;
-    inset-block-end: var(--space-4);
-    inset-inline-end: var(--space-4);
-    z-index: 2;
-    display: block;
+    grid-row: 3;
+    display: flex;
+    justify-content: flex-start;
     inline-size: auto;
+    padding: var(--space-3);
     overflow: visible;
     border: 0;
-    background: var(--transparent);
+    border-block-start: var(--border-width) solid var(--border-subtle);
+    background: var(--surface-nav);
   }
 
   .evidenceRail .evidencePanel {

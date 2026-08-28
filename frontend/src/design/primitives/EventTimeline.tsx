@@ -1,7 +1,7 @@
 import { CircleAlert, Clock3, Info, type LucideIcon, TriangleAlert } from "lucide-react"
 import { useId } from "react"
 import { ErrorState } from "./ErrorState"
-import type { SurfaceState } from "./primitiveTypes"
+import { SURFACE_TONES, type SurfaceState } from "./primitiveTypes"
 import { Skeleton } from "./Skeleton"
 import { StatusChip } from "./StatusChip"
 
@@ -45,10 +45,13 @@ export function EventTimeline({ title, events, state = "default", onRetry }: Eve
   }
 
   return (
-    <section className="panel timelinePanel" aria-labelledby={headingId}>
+    <section className="panel timelinePanel" data-state={state} aria-labelledby={headingId}>
       <div className="panelHeader">
         <h2 id={headingId}>{title}</h2>
-        {state === "demo" ? <StatusChip tone="demo" label="Simulated events" /> : null}
+        <StatusChip
+          tone={state === "demo" ? "demo" : SURFACE_TONES[state]}
+          label={state === "demo" ? "Simulated events" : state}
+        />
       </div>
       {state === "empty" || events.length === 0 ? (
         <p className="emptyMessage">No events were recorded.</p>
@@ -67,7 +70,13 @@ export function EventTimeline({ title, events, state = "default", onRetry }: Eve
                   {event.type}
                 </span>
                 <span>{event.impacted}</span>
-                <a href={`#${event.evidenceId}`}>Evidence {event.evidenceId}</a>
+                <a
+                  href={`#${event.evidenceId}`}
+                  aria-disabled={state === "disabled" ? "true" : undefined}
+                  tabIndex={state === "disabled" ? -1 : undefined}
+                >
+                  Evidence {event.evidenceId}
+                </a>
               </li>
             )
           })}

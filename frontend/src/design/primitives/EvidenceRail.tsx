@@ -15,6 +15,7 @@ type EvidenceRailProps = {
   readonly state?: SurfaceState
   readonly fields: readonly EvidenceField[]
   readonly onCopy?: () => void
+  readonly copyDisabled?: boolean
   readonly onRetry?: () => void
 }
 
@@ -23,10 +24,18 @@ type EvidenceDetailsProps = {
   readonly state: SurfaceState
   readonly fields: readonly EvidenceField[]
   readonly onCopy?: () => void
+  readonly copyDisabled?: boolean
   readonly headingId: string
 }
 
-function EvidenceDetails({ title, state, fields, onCopy, headingId }: EvidenceDetailsProps) {
+function EvidenceDetails({
+  title,
+  state,
+  fields,
+  onCopy,
+  copyDisabled = false,
+  headingId,
+}: EvidenceDetailsProps) {
   const tone: StatusTone = SURFACE_TONES[state]
 
   return (
@@ -51,7 +60,7 @@ function EvidenceDetails({ title, state, fields, onCopy, headingId }: EvidenceDe
         </dl>
       )}
       {onCopy ? (
-        <button className="evidenceAction" type="button" onClick={onCopy}>
+        <button className="evidenceAction" type="button" disabled={copyDisabled} onClick={onCopy}>
           <Copy aria-hidden="true" />
           Copy evidence hash
         </button>
@@ -65,6 +74,7 @@ export function EvidenceRail({
   state = "default",
   fields,
   onCopy,
+  copyDisabled = false,
   onRetry,
 }: EvidenceRailProps) {
   const [isOpen, setIsOpen] = useState(false)
@@ -133,12 +143,13 @@ export function EvidenceRail({
 
   return (
     <>
-      <aside className="evidencePanel" aria-labelledby={desktopHeadingId}>
+      <aside className="evidencePanel" data-state={state} aria-labelledby={desktopHeadingId}>
         <EvidenceDetails
           title={title}
           state={state}
           fields={fields}
           {...(onCopy ? { onCopy } : {})}
+          copyDisabled={copyDisabled}
           headingId={desktopHeadingId}
         />
       </aside>
@@ -146,6 +157,7 @@ export function EvidenceRail({
         className="evidenceSheetTrigger"
         type="button"
         ref={triggerRef}
+        data-state={state}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
         aria-label={`Open ${title.toLowerCase()}`}
@@ -183,6 +195,7 @@ export function EvidenceRail({
             state={state}
             fields={fields}
             {...(onCopy ? { onCopy } : {})}
+            copyDisabled={copyDisabled}
             headingId={`${dialogHeadingId}-details`}
           />
         </dialog>

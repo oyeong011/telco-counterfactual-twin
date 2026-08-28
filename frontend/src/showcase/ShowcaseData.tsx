@@ -35,9 +35,16 @@ function TableExample({ state }: { readonly state: ShowcaseState }) {
     <DataTable
       caption="Metric evidence table"
       columns={COMPACT_COLUMNS}
-      rows={COMPACT_ROWS}
+      rows={state === "empty" ? [] : COMPACT_ROWS}
       rowKey={(row) => row.id}
+      sort={{
+        columnId: "signal",
+        direction: state === "active" ? "descending" : "ascending",
+        disabled: state === "disabled" || state === "loading",
+        onSort: () => undefined,
+      }}
       state={surfaceStateFor(state)}
+      onRetry={() => undefined}
     />
   )
 }
@@ -46,9 +53,11 @@ function TopologyExample({ state }: { readonly state: ShowcaseState }) {
   return (
     <TopologyCanvas
       title="Topology snapshot"
-      nodes={TOPOLOGY_NODES.slice(0, 3)}
-      edges={TOPOLOGY_EDGES.slice(0, 2)}
+      nodes={state === "empty" ? [] : TOPOLOGY_NODES.slice(0, 3)}
+      edges={state === "empty" ? [] : TOPOLOGY_EDGES.slice(0, 2)}
       state={surfaceStateFor(state)}
+      onSelectNode={() => undefined}
+      onRetry={() => undefined}
     />
   )
 }
@@ -57,8 +66,9 @@ function TimelineExample({ state }: { readonly state: ShowcaseState }) {
   return (
     <EventTimeline
       title="Simulation trace"
-      events={TIMELINE_EVENTS.slice(0, 2)}
+      events={state === "empty" ? [] : TIMELINE_EVENTS.slice(0, 2)}
       state={surfaceStateFor(state)}
+      onRetry={() => undefined}
     />
   )
 }
@@ -68,8 +78,9 @@ function MetricExample({ state }: { readonly state: ShowcaseState }) {
     <MetricDelta
       title="Metric deltas"
       series={METRIC_SERIES}
-      rows={METRIC_ROWS}
+      rows={state === "empty" ? [] : METRIC_ROWS}
       state={surfaceStateFor(state)}
+      onRetry={() => undefined}
     />
   )
 }
@@ -81,7 +92,10 @@ function PatchExample({ state }: { readonly state: ShowcaseState }) {
       schemaVersion="twin.patch.v1"
       state={surfaceStateFor(state)}
       validationSummary="Evidence-only fixture; no execution authority."
-      lines={PATCH_LINES}
+      lines={state === "empty" ? [] : PATCH_LINES}
+      onCopy={() => undefined}
+      copyDisabled={state === "disabled" || state === "rejected"}
+      onRetry={() => undefined}
     />
   )
 }

@@ -1,5 +1,6 @@
 import { Clipboard, FileCode2 } from "lucide-react"
 import { useId } from "react"
+import { ErrorState } from "./ErrorState"
 import { SURFACE_TONES, type SurfaceState } from "./primitiveTypes"
 import { Skeleton } from "./Skeleton"
 import { StatusChip, type StatusTone } from "./StatusChip"
@@ -18,6 +19,7 @@ type TypedPatchDiffProps = {
   readonly lines: readonly PatchLine[]
   readonly onCopy?: () => void
   readonly copyDisabled?: boolean
+  readonly onRetry?: () => void
 }
 
 const LINE_LABELS = {
@@ -34,16 +36,27 @@ export function TypedPatchDiff({
   lines,
   onCopy,
   copyDisabled = false,
+  onRetry,
 }: TypedPatchDiffProps) {
   const headingId = useId()
 
   if (state === "loading") {
     return <Skeleton variant="code" label="Loading typed patch" />
   }
+  if (state === "error") {
+    return (
+      <ErrorState
+        title="Typed patch unavailable"
+        code="PATCH_INVALID"
+        detail="The proposed patch failed schema validation."
+        {...(onRetry ? { onRetry } : {})}
+      />
+    )
+  }
   const tone: StatusTone = SURFACE_TONES[state]
 
   return (
-    <section className="panel patchDiff" aria-labelledby={headingId}>
+    <section className="panel patchDiff" data-state={state} aria-labelledby={headingId}>
       <div className="panelHeader patchHeader">
         <div>
           <h2 id={headingId}>

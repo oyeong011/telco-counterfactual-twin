@@ -70,7 +70,7 @@ export function PrimitiveShowcase() {
       contextRail={contextRail}
       evidenceRail={evidenceRail}
     >
-      <div className="showcasePage" id="__showcase">
+      <div className="showcasePage" id="__showcase" data-layout="route-stack">
         <header className="showcaseIntro">
           <div>
             <StatusChip tone="info" label="Development only" />

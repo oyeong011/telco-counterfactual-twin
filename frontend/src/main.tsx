@@ -5,6 +5,7 @@ import { type ReactNode, StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { ThemeProvider } from "./design/theme/ThemeProvider"
 import { FoundationApp } from "./FoundationApp"
+import { shouldRenderShowcase } from "./showcase/showcaseGate"
 import "./styles/tokens.css"
 import "./styles/base.css"
 import "./styles/shell.css"
@@ -34,14 +35,21 @@ if (reactDevToolsEnabled) {
   void import("react-scan")
 }
 
+const renderFoundation = () => render(<FoundationApp />)
+
 if (import.meta.env.DEV) {
-  if (window.location.pathname === "/__showcase") {
+  if (
+    shouldRenderShowcase({
+      isDevelopment: import.meta.env.DEV,
+      pathname: window.location.pathname,
+    })
+  ) {
     void import("./showcase/PrimitiveShowcase").then(({ PrimitiveShowcase }) => {
       render(<PrimitiveShowcase />)
     })
   } else {
-    render(<FoundationApp />)
+    renderFoundation()
   }
 } else {
-  render(<FoundationApp />)
+  renderFoundation()
 }

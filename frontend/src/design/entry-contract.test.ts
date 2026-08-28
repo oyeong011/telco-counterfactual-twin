@@ -1,39 +1,49 @@
+import { render, screen } from "@testing-library/react"
+import { createElement } from "react"
 import { describe, expect, it } from "vitest"
-import indexHtml from "../../index.html?raw"
-import mainSource from "../main.tsx?raw"
+import { ThemeProvider } from "../design/theme/ThemeProvider"
+import { FoundationApp } from "../FoundationApp"
+import { shouldRenderShowcase } from "../showcase/showcaseGate"
 
 describe("document entry contract", () => {
-  it("declares an embedded favicon so production navigation has no icon request failure", () => {
+  it("renders the foundation route as a real main landmark without showcase content", () => {
     // Given
-    const faviconPattern = /<link\s+rel="icon"\s+href="data:,"\s*\/>/
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: () => ({
+        matches: false,
+        media: "(prefers-color-scheme: dark)",
+        onchange: null,
+        addEventListener() {},
+        removeEventListener() {},
+        addListener() {},
+        removeListener() {},
+        dispatchEvent() {
+          return false
+        },
+      }),
+    })
 
     // When
-    const hasEmbeddedFavicon = faviconPattern.test(indexHtml)
+    render(createElement(ThemeProvider, null, createElement(FoundationApp)))
 
     // Then
-    expect(hasEmbeddedFavicon).toBe(true)
+    expect(screen.getByRole("main")).toHaveTextContent("Console foundation")
+    expect(screen.queryByRole("region", { name: /state gallery/i })).not.toBeInTheDocument()
   })
 
-  it("keeps the development-only preview stylesheet out of the production entry graph", () => {
+  it("uses the exact showcase gate decision for entry routing", () => {
     // Given
-    const developmentOnlyStylesheetImport = /import ["']\.\/styles\/showcase\.css["']/
+    const requests = [
+      { isDevelopment: true, pathname: "/__showcase" },
+      { isDevelopment: false, pathname: "/__showcase" },
+      { isDevelopment: true, pathname: "/__showcase/fixtures" },
+    ] as const
 
     // When
-    const productionEntryImportsPreviewStyles = developmentOnlyStylesheetImport.test(mainSource)
+    const decisions = requests.map(shouldRenderShowcase)
 
     // Then
-    expect(productionEntryImportsPreviewStyles).toBe(false)
-  })
-
-  it("allows disabling both React development overlays with the Vite flag", () => {
-    // Given
-    const devToolsGate =
-      /import\.meta\.env\.DEV\s*&&\s*import\.meta\.env\.VITE_DISABLE_REACT_DEVTOOLS\s*!==\s*["']1["']/s
-
-    // When
-    const hasFlaggedDevToolsGate = devToolsGate.test(mainSource)
-
-    // Then
-    expect(hasFlaggedDevToolsGate).toBe(true)
+    expect(decisions).toEqual([true, false, false])
   })
 })

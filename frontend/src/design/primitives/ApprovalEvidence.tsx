@@ -19,6 +19,7 @@ type ApprovalEvidenceProps = {
   readonly actionsDisabledReason?: string
   readonly onApprove?: () => void
   readonly onReject?: () => void
+  readonly onRetry?: () => void
 }
 
 export function ApprovalEvidence({
@@ -29,6 +30,7 @@ export function ApprovalEvidence({
   actionsDisabledReason,
   onApprove,
   onReject,
+  onRetry,
 }: ApprovalEvidenceProps) {
   const headingId = useId()
 
@@ -41,13 +43,14 @@ export function ApprovalEvidence({
         title="Approval evidence unavailable"
         code="APPROVAL_UNAVAILABLE"
         detail="The evidence-only decision record could not be loaded."
+        {...(onRetry ? { onRetry } : {})}
       />
     )
   }
   const tone: StatusTone = SURFACE_TONES[state]
 
   return (
-    <section className="panel approvalEvidence" aria-labelledby={headingId}>
+    <section className="panel approvalEvidence" data-state={state} aria-labelledby={headingId}>
       <div className="panelHeader">
         <h2 id={headingId}>
           <ClipboardCheck aria-hidden="true" />
