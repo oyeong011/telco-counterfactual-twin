@@ -5,15 +5,17 @@ import importlib.resources
 import json
 import os
 from pathlib import Path
+from typing import Final
 
 import pytest
+from pydantic import TypeAdapter
 
 from telco_twin.mcp.contracts import (
     MCP_PROTOCOL_VERSION,
     JsonMap,
     JsonSchema,
     JsonValue,
-    _schema_json,
+    schema_json,
     tool_manifest,
     tool_manifest_hash,
 )
@@ -29,6 +31,7 @@ EXPECTED_TOOL_NAMES = (
     "compare_runs",
     "request_approval",
 )
+JSON_MAP_ADAPTER: Final[TypeAdapter[JsonMap]] = TypeAdapter(dict[str, JsonValue])
 
 
 def test_tool_manifest_exposes_only_non_executing_tools() -> None:
@@ -50,7 +53,7 @@ def test_vendored_mcp_snapshot_records_pinned_wheel_authority() -> None:
     # Given: a vendored SDK snapshot used as implementation authority.
     snapshot_path = Path("docs/vendor/mcp-python-sdk-2.1.1.json")
     # When: the snapshot is loaded.
-    snapshot = _json_map(snapshot_path)
+    snapshot = _load_json_map(snapshot_path)
     # Then: the wheel hash and supported transports are pinned.
     assert snapshot["package"] == "mcp"
     assert snapshot["version"] == "2.1.1"
@@ -74,7 +77,7 @@ def test_vendored_mcp_snapshot_records_pinned_wheel_authority() -> None:
 
 
 def test_vendored_mcp_snapshot_recomputes_installed_member_hashes() -> None:
-    snapshot = _json_map(Path("docs/vendor/mcp-python-sdk-2.1.1.json"))
+    snapshot = _load_json_map(Path("docs/vendor/mcp-python-sdk-2.1.1.json"))
     mcp_root = importlib.resources.files("mcp")
 
     for member in _json_list(snapshot["runtime_member_files"]):
@@ -113,7 +116,7 @@ def test_vendor_verifier_rejects_mutated_signature_snapshot(tmp_path: Path) -> N
     sdist = os.environ.get("MCP_2_1_1_SDIST")
     if wheel is None or sdist is None:
         pytest.skip("explicit MCP wheel and sdist paths are required for mutation proof")
-    snapshot = _json_map(Path("docs/vendor/mcp-python-sdk-2.1.1.json"))
+    snapshot = _load_json_map(Path("docs/vendor/mcp-python-sdk-2.1.1.json"))
     signatures = _json_map(snapshot["signatures"])
     signatures["server_run"] = "async def Server.run() -> None"
     snapshot["signatures"] = signatures
@@ -133,13 +136,15 @@ def test_vendor_verifier_rejects_mutated_signature_snapshot(tmp_path: Path) -> N
 def test_schema_json_preserves_optional_description_field() -> None:
     schema: JsonSchema = {"type": "object", "description": "described boundary"}
 
-    assert _schema_json(schema)["description"] == "described boundary"
+    assert schema_json(schema)["description"] == "described boundary"
 
 
-def _json_map(path: Path | JsonValue) -> JsonMap:
-    value = json.loads(path.read_text()) if isinstance(path, Path) else path
-    assert isinstance(value, dict)
-    return value
+def _load_json_map(path: Path) -> JsonMap:
+    return JSON_MAP_ADAPTER.validate_json(path.read_bytes())
+
+
+def _json_map(value: JsonValue) -> JsonMap:
+    return JSON_MAP_ADAPTER.validate_python(value)
 
 
 def _json_list(value: JsonValue) -> list[JsonValue]:

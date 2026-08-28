@@ -6,6 +6,7 @@ import json
 import sys
 from io import StringIO
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import anyio
 from mcp import ClientSession
@@ -14,6 +15,10 @@ from mcp.client.stdio import StdioServerParameters, stdio_client
 from telco_twin.mcp.stdio import StdioMcpServer
 
 from .mcp_client_flow_support import full_evidence_flow
+from .mcp_http_support import json_list, json_map, json_map_value
+
+if TYPE_CHECKING:
+    from telco_twin.mcp.contracts import JsonMap
 
 
 def test_stdio_rejects_tools_list_before_initialize() -> None:
@@ -27,8 +32,7 @@ def test_stdio_rejects_tools_list_before_initialize() -> None:
 
         assert notification is None
         assert response is not None
-        body = json.loads(response)
-        assert body["error"]["data"] == "not_initialized"
+        assert _error(response)["data"] == "not_initialized"
 
     anyio.run(scenario)
 
@@ -57,11 +61,14 @@ def test_stdio_initialize_includes_server_info_and_notifications_are_silent() ->
         tools = await server.handle_line('{"jsonrpc":"2.0","id":2,"method":"tools/list"}')
 
         assert initialized is not None
-        body = json.loads(initialized)
-        assert body["result"]["serverInfo"]["name"] == "telco-counterfactual-twin"
+        result = json_map_value(json_map(initialized)["result"])
+        server_info = json_map_value(result["serverInfo"])
+        assert server_info["name"] == "telco-counterfactual-twin"
         assert notification is None
         assert tools is not None
-        assert json.loads(tools)["result"]["tools"][0]["name"] == "list_scenarios"
+        tools_result = json_map_value(json_map(tools)["result"])
+        first_tool = json_map_value(json_list(tools_result["tools"])[0])
+        assert first_tool["name"] == "list_scenarios"
 
     anyio.run(scenario)
 
@@ -79,10 +86,11 @@ def test_stdio_rejects_present_malformed_json_rpc_ids() -> None:
         assert all(response is not None for response in cases)
         for response in cases:
             assert response is not None
-            body = json.loads(response)
+            body = json_map(response)
             assert body["id"] is None
-            assert body["error"]["code"] == -32600
-            assert body["error"]["data"] == "bad_json_rpc"
+            error = json_map_value(body["error"])
+            assert error["code"] == -32600
+            assert error["data"] == "bad_json_rpc"
 
     anyio.run(scenario)
 
@@ -134,16 +142,16 @@ def test_stdio_malformed_and_bad_lifecycle_inputs_fail_closed() -> None:
         missing_params = await server.handle_line('{"jsonrpc":"2.0","id":4,"method":"initialize"}')
 
         assert malformed is not None
-        assert json.loads(malformed)["error"]["data"] == "bad_json"
+        assert _error(malformed)["data"] == "bad_json"
         assert bad_rpc is not None
-        assert json.loads(bad_rpc)["error"]["data"] == "bad_json_rpc"
+        assert _error(bad_rpc)["data"] == "bad_json_rpc"
         assert silent_response is None
         assert missing_method is not None
-        assert json.loads(missing_method)["error"]["data"] == "method"
+        assert _error(missing_method)["data"] == "method"
         assert unsupported is not None
-        assert json.loads(unsupported)["error"]["data"] == "unsupported_version"
+        assert _error(unsupported)["data"] == "unsupported_version"
         assert missing_params is not None
-        assert json.loads(missing_params)["error"]["data"] == "bad_params"
+        assert _error(missing_params)["data"] == "bad_params"
 
     anyio.run(scenario)
 
@@ -192,22 +200,27 @@ def test_stdio_tool_call_errors_and_run_skip_notification_output() -> None:
         )
         unknown = await server.handle_line('{"jsonrpc":"2.0","id":4,"method":"unknown/method"}')
         stdin = StringIO(
-            '{"jsonrpc":"2.0","method":"notifications/initialized"}\n'
-            '{"jsonrpc":"2.0","id":5,"method":"tools/list"}\n'
+            """{"jsonrpc":"2.0","method":"notifications/initialized"}
+{"jsonrpc":"2.0","id":5,"method":"tools/list"}
+"""
         )
         stdout = StringIO()
         await server.run(stdin, stdout)
 
         assert duplicate_initialize is not None
-        assert json.loads(duplicate_initialize)["error"]["data"] == "already_initialized"
+        assert _error(duplicate_initialize)["data"] == "already_initialized"
         assert preinit_call is not None
-        assert json.loads(preinit_call)["error"]["data"] == "not_initialized"
+        assert _error(preinit_call)["data"] == "not_initialized"
         assert bad_params is not None
-        assert json.loads(bad_params)["error"]["data"] == "bad_arguments"
+        assert _error(bad_params)["data"] == "bad_arguments"
         assert bad_name is not None
-        assert json.loads(bad_name)["error"]["data"] == "bad_arguments"
+        assert _error(bad_name)["data"] == "bad_arguments"
         assert unknown is not None
-        assert json.loads(unknown)["error"]["data"] == "method"
+        assert _error(unknown)["data"] == "method"
         assert stdout.getvalue().count("\n") == 1
 
     anyio.run(scenario)
+
+
+def _error(payload: str) -> JsonMap:
+    return json_map_value(json_map(payload)["error"])

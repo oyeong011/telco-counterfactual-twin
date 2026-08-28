@@ -4,15 +4,26 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Final
+
+from pydantic import TypeAdapter
 
 from telco_twin.mcp.asgi import McpAsgiApp
-from telco_twin.mcp.contracts import MCP_PROTOCOL_VERSION
+from telco_twin.mcp.contracts import (
+    MCP_PROTOCOL_VERSION,
+    JsonList,
+    JsonMap,
+    JsonValue,
+)
 
 if TYPE_CHECKING:
-    from telco_twin.mcp.http_boundary import ReceiveMessage
+    from telco_twin.mcp.http_boundary import ReceiveMessage, SendMessage
+    from telco_twin.mcp.session_store import McpSession
 
 type Headers = list[tuple[bytes, bytes]]
+JSON_MAP_ADAPTER: Final[TypeAdapter[JsonMap]] = TypeAdapter(dict[str, JsonValue])
+JSON_LIST_ADAPTER: Final[TypeAdapter[JsonList]] = TypeAdapter(list[JsonValue])
+HEADERS_ADAPTER: Final[TypeAdapter[Headers]] = TypeAdapter(list[tuple[bytes, bytes]])
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,12 +40,12 @@ async def request(  # noqa: PLR0913
     *,
     method: str,
     headers: Headers,
-    body: dict[str, Any] | None = None,
+    body: JsonMap | None = None,
     raw_body: bytes | None = None,
     path: str = "/mcp",
 ) -> AsgiResponse:
     """Call the ASGI app once with an optional JSON body."""
-    sent: list[dict[str, Any]] = []
+    sent: list[SendMessage] = []
     payload = (
         raw_body if raw_body is not None else b"" if body is None else json.dumps(body).encode()
     )
@@ -42,7 +53,7 @@ async def request(  # noqa: PLR0913
     async def receive() -> ReceiveMessage:
         return {"type": "http.request", "body": payload, "more_body": False}
 
-    async def send(message: dict[str, Any]) -> None:
+    async def send(message: SendMessage) -> None:
         sent.append(message)
 
     await app({"type": "http", "method": method, "path": path, "headers": headers}, receive, send)
@@ -57,7 +68,7 @@ async def chunked_request(
     chunks: list[bytes],
 ) -> AsgiResponse:
     """Call the ASGI app once with chunked body frames."""
-    sent: list[dict[str, Any]] = []
+    sent: list[SendMessage] = []
     messages: list[ReceiveMessage] = [
         {"type": "http.request", "body": chunk, "more_body": index < len(chunks) - 1}
         for index, chunk in enumerate(chunks)
@@ -67,7 +78,7 @@ async def chunked_request(
     async def receive() -> ReceiveMessage:
         return next(message_iter)
 
-    async def send(message: dict[str, Any]) -> None:
+    async def send(message: SendMessage) -> None:
         sent.append(message)
 
     await app(
@@ -124,7 +135,7 @@ async def initialized_app() -> tuple[McpAsgiApp, str]:
     return app, session_id
 
 
-def initialize_body() -> dict[str, Any]:
+def initialize_body() -> JsonMap:
     """Return a supported initialize request."""
     return {
         "jsonrpc": "2.0",
@@ -151,11 +162,58 @@ def stream_token(body: bytes) -> str:
     return ":".join(event_id.split(":")[:2])
 
 
-def _response(sent: list[dict[str, Any]]) -> AsgiResponse:
+def json_map(payload: bytes | str) -> JsonMap:
+    """Parse one JSON object response without erasing recursive value types."""
+    return JSON_MAP_ADAPTER.validate_json(payload)
+
+
+def json_map_value(value: JsonValue) -> JsonMap:
+    """Narrow one recursive JSON value to an object."""
+    return JSON_MAP_ADAPTER.validate_python(value)
+
+
+def json_list(value: JsonValue) -> JsonList:
+    """Narrow one recursive JSON value to an array."""
+    return JSON_LIST_ADAPTER.validate_python(value)
+
+
+def json_str(value: JsonValue) -> str:
+    """Narrow one recursive JSON value to a string."""
+    assert isinstance(value, str)
+    return value
+
+
+def live_session(app: McpAsgiApp, session_id: str) -> McpSession:
+    """Return one live public session observable."""
+    session = app.session(session_id)
+    assert session is not None
+    return session
+
+
+def append_pings(session: McpSession, stream_id: str, count: int) -> list[str]:
+    """Append legitimate server pings and return their event IDs."""
+    event_ids: list[str] = []
+    for _ in range(count):
+        frame = session.append_ping(stream_id)
+        assert frame is not None
+        event_ids.append(frame[0])
+    return event_ids
+
+
+def retained_ids(session: McpSession, stream_id: str) -> list[str]:
+    """Return retained event IDs for one observable stream."""
+    return [event.event_id for event in session.streams[stream_id].events]
+
+
+def _response(sent: list[SendMessage]) -> AsgiResponse:
     start = sent[0]
-    raw_headers = dict(start["headers"])
+    status = start["status"]
+    assert isinstance(status, int)
+    raw_headers = dict(HEADERS_ADAPTER.validate_python(start["headers"]))
+    body = sent[-1].get("body", b"")
+    assert isinstance(body, bytes)
     return AsgiResponse(
-        status=int(start["status"]),
+        status=status,
         headers={key.decode().lower(): value.decode() for key, value in raw_headers.items()},
-        body=sent[-1].get("body", b""),
+        body=body,
     )

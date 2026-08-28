@@ -11,7 +11,10 @@ from telco_twin.mcp.contracts import MCP_PROTOCOL_VERSION
 
 from .mcp_http_support import (
     chunked_request,
+    initialize_body,
     initialized_app,
+    json_map,
+    json_map_value,
     post_headers,
     request,
 )
@@ -60,8 +63,10 @@ def test_http_rejects_malformed_json_rpc_without_500() -> None:
         assert bad_version.status == 400
         assert bad_args.status == 400
         assert extra_args.status == 400
-        assert json.loads(bad_args.body)["error"]["data"] == "bad_arguments"
-        assert json.loads(extra_args.body)["error"]["data"] == "bad_arguments"
+        bad_args_error = json_map_value(json_map(bad_args.body)["error"])
+        extra_args_error = json_map_value(json_map(extra_args.body)["error"])
+        assert bad_args_error["data"] == "bad_arguments"
+        assert extra_args_error["data"] == "bad_arguments"
 
     anyio.run(scenario)
 
@@ -72,7 +77,7 @@ def test_http_boundary_aggregates_body_and_rejects_substring_media_types() -> No
             allowed_origins=frozenset({"https://portfolio.example"}),
             max_body_bytes=32,
         )
-        full_initialize = json.dumps(_initialize()).encode()
+        full_initialize = json.dumps(initialize_body()).encode()
         chunked = await chunked_request(
             McpAsgiApp(allowed_origins=frozenset({"https://portfolio.example"})),
             method="POST",
@@ -109,7 +114,7 @@ def test_http_boundary_aggregates_body_and_rejects_substring_media_types() -> No
             McpAsgiApp(allowed_origins=frozenset({"https://portfolio.example"})),
             method="POST",
             headers=post_headers(),
-            body={key: value for key, value in _initialize().items() if key != "id"},
+            body={key: value for key, value in initialize_body().items() if key != "id"},
         )
 
         assert chunked.status == 200
@@ -144,7 +149,7 @@ def test_http_negative_edges_cover_path_method_accept_and_initialize_validation(
             app,
             method="POST",
             headers=post_headers(session_id),
-            body=_initialize(),
+            body=initialize_body(),
         )
         missing_initialize_params = await request(
             McpAsgiApp(allowed_origins=frozenset({"https://portfolio.example"})),
@@ -219,8 +224,10 @@ def test_http_focused_negative_transitions_for_branch_contract() -> None:
         ]
 
         assert [response.status for response in cases] == [202, 400, 400, 400, 400, 400]
-        assert json.loads(cases[2].body)["error"]["data"] == "missing_tool_name"
-        assert json.loads(cases[4].body)["error"]["data"] == "bad_arguments"
+        missing_name_error = json_map_value(json_map(cases[2].body)["error"])
+        bad_arguments_error = json_map_value(json_map(cases[4].body)["error"])
+        assert missing_name_error["data"] == "missing_tool_name"
+        assert bad_arguments_error["data"] == "bad_arguments"
 
     anyio.run(scenario)
 
@@ -232,17 +239,19 @@ def test_http_initialize_session_cap_reaps_expired_before_rejecting_live_session
             max_sessions=1,
             ttl_seconds=900,
         )
-        first = await request(capped, method="POST", headers=post_headers(), body=_initialize())
+        first = await request(capped, method="POST", headers=post_headers(), body=initialize_body())
         capped_out = await request(
-            capped, method="POST", headers=post_headers(), body=_initialize()
+            capped, method="POST", headers=post_headers(), body=initialize_body()
         )
         stale = McpAsgiApp(
             allowed_origins=frozenset({"https://portfolio.example"}),
             max_sessions=1,
             ttl_seconds=-1,
         )
-        expired = await request(stale, method="POST", headers=post_headers(), body=_initialize())
-        reaped = await request(stale, method="POST", headers=post_headers(), body=_initialize())
+        expired = await request(
+            stale, method="POST", headers=post_headers(), body=initialize_body()
+        )
+        reaped = await request(stale, method="POST", headers=post_headers(), body=initialize_body())
 
         assert first.status == 200
         assert capped_out.status == 429
@@ -250,16 +259,3 @@ def test_http_initialize_session_cap_reaps_expired_before_rejecting_live_session
         assert reaped.status == 200
 
     anyio.run(scenario)
-
-
-def _initialize() -> dict[str, object]:
-    return {
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "initialize",
-        "params": {
-            "protocolVersion": MCP_PROTOCOL_VERSION,
-            "capabilities": {},
-            "clientInfo": {"name": "pytest", "version": "0"},
-        },
-    }

@@ -7,7 +7,7 @@ import anyio
 from telco_twin.mcp.asgi import McpAsgiApp
 from telco_twin.mcp.contracts import MCP_PROTOCOL_VERSION
 
-from .mcp_http_support import post_headers, request
+from .mcp_http_support import initialize_body, post_headers, request
 
 
 def test_http_requires_configured_origin_on_post_get_and_delete() -> None:
@@ -20,9 +20,14 @@ def test_http_requires_configured_origin_on_post_get_and_delete() -> None:
                 (b"accept", b"application/json, text/event-stream"),
                 (b"content-type", b"application/json"),
             ],
-            body=_initialize(),
+            body=initialize_body(),
         )
-        initialized = await request(app, method="POST", headers=post_headers(), body=_initialize())
+        initialized = await request(
+            app,
+            method="POST",
+            headers=post_headers(),
+            body=initialize_body(),
+        )
         session_id = initialized.headers["mcp-session-id"]
         missing_origin_get = await request(
             app,
@@ -47,16 +52,3 @@ def test_http_requires_configured_origin_on_post_get_and_delete() -> None:
         assert missing_origin_delete.status == 403
 
     anyio.run(scenario)
-
-
-def _initialize() -> dict[str, object]:
-    return {
-        "jsonrpc": "2.0",
-        "id": 21,
-        "method": "initialize",
-        "params": {
-            "protocolVersion": MCP_PROTOCOL_VERSION,
-            "capabilities": {},
-            "clientInfo": {"name": "pytest", "version": "0"},
-        },
-    }

@@ -69,6 +69,10 @@ class EvidenceMcpService:
         manifest = generate_manifest(DEFAULT_SEED)
         self._scenarios[manifest.scenario.scenario_id] = manifest
 
+    def add_scenario(self, manifest: SimulationManifest) -> None:
+        """Add one prevalidated synthetic scenario to the evidence catalog."""
+        self._scenarios[manifest.scenario.scenario_id] = manifest
+
     async def call_tool(self, name: str, arguments: Mapping[str, JsonValue]) -> JsonObject:
         """Route one typed MCP tool call into the evidence-state map."""
         validate_arguments(name, arguments)

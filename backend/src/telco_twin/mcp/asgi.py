@@ -57,9 +57,9 @@ class McpAsgiApp:  # noqa: D101
             max_session_replay_events=self.max_session_replay_events,
         )
 
-    @property
-    def _sessions(self) -> dict[str, McpSession]:
-        return self._store.sessions
+    def session(self, session_id: str) -> McpSession | None:
+        """Return one live session for server pings and state observability."""
+        return self._store.get(session_id)
 
     async def __call__(  # noqa: D102
         self, scope: Scope | LifespanScope, receive: Receive, send: Send

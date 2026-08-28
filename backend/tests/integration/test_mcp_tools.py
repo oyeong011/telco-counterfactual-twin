@@ -33,7 +33,6 @@ def test_happy_path_records_counterfactual_evidence_without_approval() -> None:
             {"simulation_id": simulation["simulation_id"]},
         )
         assert "comparison_id" in comparison
-        service._comparisons["comparison-other"] = "simulation-other"
         approval = await service.call_tool(
             "request_approval",
             {
@@ -111,7 +110,7 @@ def test_diagnosis_and_approval_effects_are_backed_by_bounded_records() -> None:
         assert approval["effect"] == "approval_request_recorded"
         assert service.approval_request_records()[0].comparison_id == comparison["comparison_id"]
         other = generate_manifest(54)
-        service._scenarios[other.scenario.scenario_id] = other
+        service.add_scenario(other)
         with pytest.raises(McpToolError) as caught:
             _ = await service.call_tool(
                 "diagnose_scenario",
@@ -145,7 +144,24 @@ def test_tool_state_rejects_schema_and_missing_state_edges() -> None:
             {"simulation_id": simulation["simulation_id"]},
         )
         assert "comparison_id" in comparison
-        service._comparisons["comparison-other"] = "simulation-other"
+        other = generate_manifest(54)
+        service.add_scenario(other)
+        other_proposal = await service.call_tool(
+            "propose_patch",
+            {
+                "scenario_id": other.scenario.scenario_id,
+                "target_id": other.scenario.target_ids[0],
+            },
+        )
+        assert "patch_id" in other_proposal
+        other_simulation = await service.call_tool(
+            "simulate_patch",
+            {
+                "scenario_id": other.scenario.scenario_id,
+                "patch_id": other_proposal["patch_id"],
+            },
+        )
+        assert "simulation_id" in other_simulation
 
         cases: list[tuple[str, dict[str, JsonValue], str]] = [
             ("list_scenarios", {"unexpected": "x"}, "bad_arguments"),
@@ -182,8 +198,8 @@ def test_tool_state_rejects_schema_and_missing_state_edges() -> None:
             (
                 "request_approval",
                 {
-                    "comparison_id": "comparison-other",
-                    "simulation_id": simulation["simulation_id"],
+                    "comparison_id": comparison["comparison_id"],
+                    "simulation_id": other_simulation["simulation_id"],
                 },
                 "missing_simulation",
             ),

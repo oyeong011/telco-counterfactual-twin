@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import json
-
 import anyio
 
-from .mcp_http_support import initialized_app, post_headers, request
+from .mcp_http_support import initialized_app, json_map, json_map_value, post_headers, request
 
 
 def test_tool_errors_are_returned_as_json_rpc_errors() -> None:
@@ -25,8 +23,9 @@ def test_tool_errors_are_returned_as_json_rpc_errors() -> None:
             },
         )
 
-        body = json.loads(response.body)
+        body = json_map(response.body)
+        error = json_map_value(body["error"])
         assert response.status == 400
-        assert body["error"]["data"] == "unknown_tool"
+        assert error["data"] == "unknown_tool"
 
     anyio.run(scenario)

@@ -7,13 +7,17 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Final
 
 import anyio
 import httpx2
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
+from pydantic import TypeAdapter
 
 from .mcp_client_flow_support import full_evidence_flow
+
+SOCKET_ADDRESS_ADAPTER: Final[TypeAdapter[tuple[str, int]]] = TypeAdapter(tuple[str, int])
 
 
 def test_real_mcp_streamable_http_client_completes_full_evidence_flow() -> None:
@@ -63,7 +67,7 @@ def test_real_mcp_streamable_http_client_completes_full_evidence_flow() -> None:
 def _free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.bind(("127.0.0.1", 0))
-        return int(sock.getsockname()[1])
+        return SOCKET_ADDRESS_ADAPTER.validate_python(sock.getsockname())[1]
 
 
 def _wait_for_port(port: int) -> None:

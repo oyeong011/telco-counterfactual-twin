@@ -2,24 +2,31 @@
 
 from __future__ import annotations
 
-import json
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import anyio
 
 from telco_twin.mcp.asgi import McpAsgiApp
-from telco_twin.mcp.contracts import MCP_PROTOCOL_VERSION
 
-from .mcp_http_support import initialized_app, post_headers, request
+from .mcp_http_support import (
+    initialize_body,
+    initialized_app,
+    json_list,
+    json_map,
+    json_map_value,
+    json_str,
+    post_headers,
+    request,
+)
 
 if TYPE_CHECKING:
-    from telco_twin.mcp.http_boundary import ReceiveMessage
+    from telco_twin.mcp.http_boundary import ReceiveMessage, SendMessage
 
 
 def test_initialize_negotiates_session_then_tools_list_returns_json() -> None:
     async def scenario() -> None:
         app = McpAsgiApp(allowed_origins=frozenset({"https://portfolio.example"}))
-        created = await request(app, method="POST", headers=post_headers(), body=_initialize())
+        created = await request(app, method="POST", headers=post_headers(), body=initialize_body())
         session_id = created.headers["mcp-session-id"]
         initialized = await request(
             app,
@@ -35,11 +42,15 @@ def test_initialize_negotiates_session_then_tools_list_returns_json() -> None:
         )
 
         assert created.status == 200
-        server_name = json.loads(created.body)["result"]["serverInfo"]["name"]
+        created_result = json_map_value(json_map(created.body)["result"])
+        server_info = json_map_value(created_result["serverInfo"])
+        server_name = json_str(server_info["name"])
         assert server_name == "telco-counterfactual-twin"
         assert initialized.status == 202
         assert session_id.isascii()
-        assert json.loads(tools.body)["result"]["tools"][0]["name"] == "list_scenarios"
+        tools_result = json_map_value(json_map(tools.body)["result"])
+        first_tool = json_map_value(json_list(tools_result["tools"])[0])
+        assert first_tool["name"] == "list_scenarios"
 
     anyio.run(scenario)
 
@@ -86,7 +97,7 @@ def test_transport_matrix_rejects_bad_headers_and_handles_notifications_delete()
 def test_http_rejects_operations_until_initialized_notification() -> None:
     async def scenario() -> None:
         app = McpAsgiApp(allowed_origins=frozenset({"https://portfolio.example"}))
-        created = await request(app, method="POST", headers=post_headers(), body=_initialize())
+        created = await request(app, method="POST", headers=post_headers(), body=initialize_body())
         session_id = created.headers["mcp-session-id"]
 
         response = await request(
@@ -97,7 +108,8 @@ def test_http_rejects_operations_until_initialized_notification() -> None:
         )
 
         assert response.status == 400
-        assert json.loads(response.body)["error"]["data"] == "not_initialized"
+        error = json_map_value(json_map(response.body)["error"])
+        assert error["data"] == "not_initialized"
 
     anyio.run(scenario)
 
@@ -105,7 +117,7 @@ def test_http_rejects_operations_until_initialized_notification() -> None:
 def test_lifespan_shutdown_completes_and_clears_sessions() -> None:
     async def scenario() -> None:
         app, session_id = await initialized_app()
-        sent: list[dict[str, Any]] = []
+        sent: list[SendMessage] = []
         messages: list[ReceiveMessage] = [
             {"type": "lifespan.startup"},
             {"type": "lifespan.shutdown"},
@@ -115,7 +127,7 @@ def test_lifespan_shutdown_completes_and_clears_sessions() -> None:
         async def receive() -> ReceiveMessage:
             return next(message_iter)
 
-        async def send(message: dict[str, Any]) -> None:
+        async def send(message: SendMessage) -> None:
             sent.append(message)
 
         await app({"type": "lifespan"}, receive, send)
@@ -124,7 +136,7 @@ def test_lifespan_shutdown_completes_and_clears_sessions() -> None:
             "lifespan.startup.complete",
             "lifespan.shutdown.complete",
         ]
-        assert session_id not in app._sessions
+        assert app.session(session_id) is None
 
     anyio.run(scenario)
 
@@ -132,31 +144,18 @@ def test_lifespan_shutdown_completes_and_clears_sessions() -> None:
 def test_http_scope_and_lifespan_fallbacks_are_closed() -> None:
     async def scenario() -> None:
         app = McpAsgiApp(allowed_origins=frozenset({"https://portfolio.example"}))
-        sent: list[dict[str, Any]] = []
+        sent: list[SendMessage] = []
 
         async def receive() -> ReceiveMessage:
             return {"type": "lifespan.other"}
 
-        async def send(message: dict[str, Any]) -> None:
+        async def send(message: SendMessage) -> None:
             sent.append(message)
 
         await app({"type": "websocket"}, receive, send)
         await app({"type": "lifespan"}, receive, send)
 
-        assert sent[0]["status"] == 500
-        assert sent[-1]["type"] == "lifespan.shutdown.complete"
+        assert sent[0].get("status") == 500
+        assert sent[-1].get("type") == "lifespan.shutdown.complete"
 
     anyio.run(scenario)
-
-
-def _initialize() -> dict[str, Any]:
-    return {
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "initialize",
-        "params": {
-            "protocolVersion": MCP_PROTOCOL_VERSION,
-            "capabilities": {},
-            "clientInfo": {"name": "pytest", "version": "0"},
-        },
-    }

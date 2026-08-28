@@ -133,16 +133,17 @@ def tool_contracts_json() -> JsonList:
             {
                 "name": tool["name"],
                 "description": tool["description"],
-                "inputSchema": _schema_json(tool["inputSchema"]),
+                "inputSchema": schema_json(tool["inputSchema"]),
             }
         )
     return tools
 
 
-def _schema_json(schema: JsonSchema) -> JsonMap:
+def schema_json(schema: JsonSchema) -> JsonMap:
+    """Convert one typed schema into recursive JSON values."""
     properties: JsonMap = {}
     for name, child in schema.get("properties", {}).items():
-        properties[name] = _schema_json(child)
+        properties[name] = schema_json(child)
     result: JsonMap = {"type": schema.get("type", "object")}
     if properties:
         result["properties"] = properties
