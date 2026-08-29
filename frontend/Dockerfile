@@ -10,8 +10,9 @@ RUN pnpm --dir frontend build
 
 FROM node:26-alpine
 WORKDIR /app
-COPY frontend/server.mjs server.mjs
-COPY --from=build /app/frontend/dist dist
+COPY --chown=node:node frontend/server.mjs server.mjs
+COPY --from=build --chown=node:node /app/frontend/dist dist
+RUN chmod -R u=rwX,g=rX,o=rX /app/dist && chmod 0444 /app/server.mjs
 USER node
 EXPOSE 8080
 CMD ["node", "server.mjs"]

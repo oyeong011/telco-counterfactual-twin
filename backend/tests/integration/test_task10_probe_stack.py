@@ -137,6 +137,18 @@ def build_info(release: str) -> dict[str, str]:
     }
 
 
+def docker_run(*args: str, timeout: int = 120) -> subprocess.CompletedProcess[str]:
+    """Run Docker for bounded image contract checks."""
+    return subprocess.run(
+        ("docker", *args),
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=timeout,
+    )
+
+
 def run_probe(
     handler: type[BaseHTTPRequestHandler], tmp_path: Path
 ) -> tuple[subprocess.CompletedProcess[str], Path, ThreadingHTTPServer]:
@@ -194,3 +206,33 @@ def test_probe_writes_success_artifact_after_lifecycle_and_finite_sse(tmp_path: 
     assert "approval_status" not in lifecycle
     assert "/api/runs/run-probe/events" in ProbeHandler.seen_paths
     assert not (tmp_path / "probe.json.tmp").exists()
+
+
+def test_frontend_image_runs_as_node_with_readable_build_info() -> None:
+    # Given: the production frontend image is built from the release Dockerfile.
+    tag = "telco-counterfactual-twin-task10-frontend-permissions:pytest"
+    build = docker_run("build", "-f", "frontend/Dockerfile", "-t", tag, ".", timeout=300)
+    assert build.returncode == 0, build.stdout + build.stderr
+    try:
+        # When: Docker records the configured runtime user and Node reads the built artifact.
+        inspect = docker_run("image", "inspect", tag, "--format", "{{.Config.User}}")
+        script = """
+const fs = require('node:fs');
+const paths = ['/app/server.mjs', '/app/dist', '/app/dist/build-info.json'];
+if (process.getuid && process.getuid() === 0) process.exit(10);
+const payload = JSON.parse(fs.readFileSync('/app/dist/build-info.json', 'utf8'));
+if (payload.schema_version !== '1.0') process.exit(11);
+for (const path of paths) {
+  fs.accessSync(path, fs.constants.R_OK);
+  const mode = fs.statSync(path).mode & 0o777;
+  if ((mode & 0o002) !== 0) process.exit(12);
+}
+"""
+        read = docker_run("run", "--rm", "--entrypoint", "node", tag, "-e", script)
+
+        # Then: the runtime contract is explicit and does not rely on root-owned startup.
+        assert inspect.returncode == 0, inspect.stdout + inspect.stderr
+        assert inspect.stdout.strip() == "node"
+        assert read.returncode == 0, read.stdout + read.stderr
+    finally:
+        _ = docker_run("image", "rm", "-f", tag, timeout=60)
