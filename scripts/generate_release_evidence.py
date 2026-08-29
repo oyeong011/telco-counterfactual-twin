@@ -19,6 +19,7 @@ import hashlib
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,6 +27,11 @@ from typing import Annotated, Final
 
 import typer
 from pydantic import JsonValue
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+if str(REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPOSITORY_ROOT))
+
 from telco_twin.api.build_identity import runtime_tree_hash as api_runtime_hash
 from telco_twin.domain.canonical import JSON_VALUE_ADAPTER, canonical_json_bytes
 
@@ -74,7 +80,17 @@ class SavedFile:
 
 
 def _run(root: Path, command: Command) -> None:
-    _ = subprocess.run(command, cwd=root, check=True, timeout=900)
+    environment = os.environ.copy()
+    environment["PYTHONPATH"] = os.pathsep.join(
+        part for part in (str(root), environment.get("PYTHONPATH", "")) if part
+    )
+    _ = subprocess.run(
+        command,
+        cwd=root,
+        check=True,
+        timeout=900,
+        env=environment,
+    )
 
 
 def _git(root: Path, args: Command) -> str:

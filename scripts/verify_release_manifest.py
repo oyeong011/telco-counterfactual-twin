@@ -16,12 +16,18 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Final
 
 import typer
 from pydantic import JsonValue, TypeAdapter, ValidationError
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+if str(REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPOSITORY_ROOT))
+
 from telco_twin.api.build_identity import runtime_tree_hash as api_runtime_hash
 from telco_twin.domain.canonical import canonical_json_bytes
 

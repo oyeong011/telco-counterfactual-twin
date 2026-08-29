@@ -75,6 +75,31 @@ def run_script(script: Path, root: Path, *args: str) -> subprocess.CompletedProc
     )
 
 
+def test_release_evidence_clis_bootstrap_repo_imports_without_pythonpath() -> None:
+    # Given: the documented direct CLI boundary without a caller-provided import path.
+    environment = dict(os.environ)
+    _ = environment.pop("PYTHONPATH", None)
+
+    # When: each Task 10 evidence CLI starts from the repository root.
+    results = tuple(
+        subprocess.run(
+            [sys.executable, str(script), "--help"],
+            cwd=REPO_ROOT,
+            env=environment,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        for script in (GENERATE_SCRIPT, VERIFY_SCRIPT)
+    )
+
+    # Then: both executable scripts resolve the repo-local scripts package themselves.
+    assert all(result.returncode == 0 for result in results), "\n".join(
+        result.stdout + result.stderr for result in results
+    )
+
+
 def git(root: Path, *args: str) -> str:
     """Run one Git command inside a temporary fixture repository."""
     result = subprocess.run(
