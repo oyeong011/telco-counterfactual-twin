@@ -18,13 +18,6 @@ jobs:
           version: "0.11.6"
           python-version: "3.12"
           enable-cache: true
-      - name: Verify Python and specs
-        run: |
-          uv sync --project backend --locked --all-groups
-          make check-specs
-          make python-lint
-          make python-typecheck
-          make python-test
       - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
         with:
           version: 11.19.0
@@ -34,7 +27,14 @@ jobs:
           node-version: "26.4.0"
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
-      - name: Verify frontend types
+      - name: Install frontend dependencies
+        run: pnpm --dir frontend install --frozen-lockfile
+      - name: Verify Python and specs
         run: |
-          pnpm --dir frontend install --frozen-lockfile
-          make frontend-typecheck
+          uv sync --project backend --locked --all-groups
+          make check-specs
+          make python-lint
+          make python-typecheck
+          make python-test
+      - name: Verify frontend types
+        run: make frontend-typecheck
