@@ -189,6 +189,7 @@ def run(backend: str, frontend: str) -> JsonObject:
             201,
             "comparison",
         )
+        _ = require_str(comparison, "comparison_id")
         sse_event_count = require_finite_sse(client, run_id, headers)
         approval = require(
             client.post(
@@ -216,11 +217,14 @@ def run(backend: str, frontend: str) -> JsonObject:
         },
         "lifecycle": {
             "approval_before_simulation_status": before.status_code,
-            "scenario_id": scenario_id,
-            "simulation_id": simulation_id,
-            "run_id": run_id,
-            "comparison_id": require_str(comparison, "comparison_id"),
+            "scenario_created": True,
+            "simulation_created": True,
+            "comparison_created": True,
+            "approval_request_created": True,
             "approval_state": approval_state,
+            "fault_family": "radio-congestion",
+            "seed": 6701,
+            "network_change_permitted": False,
             "effect": "none",
             "sse_event_count": sse_event_count,
         },

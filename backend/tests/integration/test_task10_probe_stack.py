@@ -38,6 +38,10 @@ class DegradedHandler(BaseHTTPRequestHandler):
 
 class ProbeHandler(BaseHTTPRequestHandler):
     seen_paths: ClassVar[list[str]] = []
+    scenario_id: ClassVar[str] = "scenario-probe"
+    simulation_id: ClassVar[str] = "simulation-probe"
+    run_id: ClassVar[str] = "run-probe"
+    comparison_id: ClassVar[str] = "comparison-probe"
 
     def do_GET(self) -> None:
         path = urlparse(self.path).path
@@ -49,7 +53,7 @@ class ProbeHandler(BaseHTTPRequestHandler):
                 self.write_json({"status": "ready"})
             case "/build-info" | "/build-info.json":
                 self.write_json(build_info("release-1"))
-            case "/api/runs/run-probe/events":
+            case _ if path == f"/api/runs/{self.run_id}/events":
                 self.send_response(HTTPStatus.OK)
                 self.send_header("Content-Type", "text/event-stream")
                 self.end_headers()
@@ -85,31 +89,31 @@ class ProbeHandler(BaseHTTPRequestHandler):
                 self.write_json(
                     {
                         "scenario": {
-                            "scenario_id": "scenario-probe",
+                            "scenario_id": self.scenario_id,
                             "starts_at": "2027-01-01T00:00:00Z",
                         },
                         "topology_hash": "0" * 64,
                     },
                     status=HTTPStatus.CREATED,
                 )
-            case "/api/scenarios/scenario-probe/diagnose":
+            case _ if path == f"/api/scenarios/{self.scenario_id}/diagnose":
                 self.write_json({"diagnosis": {"fault_family": "radio-congestion"}})
-            case "/api/scenarios/scenario-probe/patches":
+            case _ if path == f"/api/scenarios/{self.scenario_id}/patches":
                 self.write_json(
                     {"patch": {"patch_id": "patch-probe-0001"}}, status=HTTPStatus.CREATED
                 )
             case "/api/patches/patch-probe-0001/simulations":
                 self.write_json(
-                    {"simulation_id": "simulation-probe", "run_id": "run-probe"},
+                    {"simulation_id": self.simulation_id, "run_id": self.run_id},
                     status=HTTPStatus.CREATED,
                 )
-            case "/api/simulations/simulation-probe/comparisons":
-                self.write_json({"comparison_id": "comparison-probe"}, status=HTTPStatus.CREATED)
-            case "/api/simulations/simulation-probe/approval-requests":
+            case _ if path == f"/api/simulations/{self.simulation_id}/comparisons":
+                self.write_json({"comparison_id": self.comparison_id}, status=HTTPStatus.CREATED)
+            case _ if path == f"/api/simulations/{self.simulation_id}/approval-requests":
                 self.write_json(
                     {
                         "approval_request": {"state": "pending"},
-                        "run_id": "run-probe",
+                        "run_id": self.run_id,
                         "evidence_id": "evidence-probe",
                         "policy": {"eligible": True},
                     },
@@ -135,6 +139,15 @@ def build_info(release: str) -> dict[str, str]:
         "runtime_source_commit_sha": release,
         "release_commit_sha": release,
     }
+
+
+def configure_probe_ids(
+    *, scenario_id: str, simulation_id: str, run_id: str, comparison_id: str
+) -> None:
+    ProbeHandler.scenario_id = scenario_id
+    ProbeHandler.simulation_id = simulation_id
+    ProbeHandler.run_id = run_id
+    ProbeHandler.comparison_id = comparison_id
 
 
 def docker_run(*args: str, timeout: int = 120) -> subprocess.CompletedProcess[str]:
@@ -193,6 +206,12 @@ def test_probe_rejects_degraded_readiness_without_artifact(tmp_path: Path) -> No
 def test_probe_writes_success_artifact_after_lifecycle_and_finite_sse(tmp_path: Path) -> None:
     # Given: a live HTTP stack that satisfies the synthetic lifecycle contract.
     ProbeHandler.seen_paths = []
+    configure_probe_ids(
+        scenario_id="scenario-probe",
+        simulation_id="simulation-probe",
+        run_id="run-probe",
+        comparison_id="comparison-probe",
+    )
     # When: the stack probe runs.
     result, output, _ = run_probe(ProbeHandler, tmp_path)
     # Then: it records deterministic evidence only after the lifecycle and SSE pass.
@@ -206,6 +225,40 @@ def test_probe_writes_success_artifact_after_lifecycle_and_finite_sse(tmp_path: 
     assert "approval_status" not in lifecycle
     assert "/api/runs/run-probe/events" in ProbeHandler.seen_paths
     assert not (tmp_path / "probe.json.tmp").exists()
+
+
+def test_probe_artifact_is_stable_across_valid_random_lifecycle_ids(
+    tmp_path: Path,
+) -> None:
+    # Given: two valid lifecycles with different generated identifiers.
+    configure_probe_ids(
+        scenario_id="scenario-alpha",
+        simulation_id="simulation-alpha",
+        run_id="run-alpha",
+        comparison_id="comparison-alpha",
+    )
+    first_result, first_output, _ = run_probe(ProbeHandler, tmp_path / "first")
+    configure_probe_ids(
+        scenario_id="scenario-beta",
+        simulation_id="simulation-beta",
+        run_id="run-beta",
+        comparison_id="comparison-beta",
+    )
+
+    # When: the probe observes the same semantic lifecycle through the second ID set.
+    second_result, second_output, _ = run_probe(ProbeHandler, tmp_path / "second")
+
+    # Then: persisted evidence remains byte-stable and omits random lifecycle IDs.
+    assert first_result.returncode == 0, first_result.stdout + first_result.stderr
+    assert second_result.returncode == 0, second_result.stdout + second_result.stderr
+    assert first_output.read_bytes() == second_output.read_bytes()
+    payload = JSON_OBJECT_ADAPTER.validate_json(first_output.read_bytes())
+    lifecycle = payload.get("lifecycle")
+    assert isinstance(lifecycle, dict)
+    assert "scenario_id" not in lifecycle
+    assert "simulation_id" not in lifecycle
+    assert "run_id" not in lifecycle
+    assert "comparison_id" not in lifecycle
 
 
 def test_frontend_image_runs_as_node_with_readable_build_info() -> None:
