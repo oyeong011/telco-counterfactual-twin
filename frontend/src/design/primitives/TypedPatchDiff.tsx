@@ -79,7 +79,8 @@ export function TypedPatchDiff({
       {state === "empty" || lines.length === 0 ? (
         <p className="emptyMessage">No patch was proposed.</p>
       ) : (
-        <ol className="patchLines" aria-label={`${path} patch lines`}>
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: The scrollable list needs a Safari keyboard entry point.
+        <ol className="patchLines" aria-label={`${path} patch lines`} tabIndex={0}>
           {lines.map((line) => {
             const content = (
               <>

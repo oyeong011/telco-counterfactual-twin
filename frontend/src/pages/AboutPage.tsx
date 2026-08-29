@@ -1,5 +1,6 @@
 import { ConsolePage } from "../components/ConsolePage"
 import type { BuildInfoState } from "../console/build-info"
+import { useConsole } from "../console/ConsoleContext"
 import type { UiBuildInfo } from "../contracts/generated"
 import { DataTable, type DataTableColumn } from "../design/primitives/DataTable"
 import { StatusChip } from "../design/primitives/StatusChip"
@@ -25,7 +26,33 @@ function rowsFor(info: UiBuildInfo): readonly BuildRow[] {
 type AboutPageProps = { readonly buildInfo: BuildInfoState }
 
 export function AboutPage({ buildInfo }: AboutPageProps) {
+  const { model } = useConsole()
   const rows = buildInfo.kind === "available" ? rowsFor(buildInfo.value) : []
+  const decision = model.snapshot.decision?.approval_proof.decision
+  const decisionOutcome = (() => {
+    switch (decision) {
+      case undefined:
+        return null
+      case "approved":
+        return {
+          tone: "approved",
+          label: "Approved",
+          detail:
+            "The backend recorded an evidence-only approval. This console did not execute a network change.",
+        } as const
+      case "rejected":
+        return {
+          tone: "rejected",
+          label: "Rejected",
+          detail:
+            "The backend recorded an evidence-only rejection. This console did not execute a network change.",
+        } as const
+      default: {
+        const unreachableDecision: never = decision
+        throw new TypeError(`Unsupported decision: ${String(unreachableDecision)}`)
+      }
+    }
+  })()
   return (
     <ConsolePage title="System boundaries">
       <div className="aboutLayout">
@@ -38,6 +65,20 @@ export function AboutPage({ buildInfo }: AboutPageProps) {
             authority over a network.
           </p>
         </section>
+        {decisionOutcome ? (
+          <section
+            className="aboutDecision"
+            data-decision={decisionOutcome.tone}
+            aria-labelledby="about-decision-heading"
+          >
+            <div>
+              <p className="objectEyebrow">Current backend outcome</p>
+              <h2 id="about-decision-heading">Current evidence-only decision</h2>
+            </div>
+            <StatusChip tone={decisionOutcome.tone} label={decisionOutcome.label} />
+            <p>{decisionOutcome.detail}</p>
+          </section>
+        ) : null}
         <section className="panel limitationsPanel" aria-labelledby="limitations-heading">
           <div className="panelHeader">
             <h2 id="limitations-heading">Precise limitations</h2>

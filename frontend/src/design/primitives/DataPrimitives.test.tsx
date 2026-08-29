@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest"
 import { DataTable } from "./DataTable"
 import { MetricDelta } from "./MetricDelta"
 import { TopologyCanvas } from "./TopologyCanvas"
+import { TypedPatchDiff } from "./TypedPatchDiff"
 
 const metricRows = [
   { id: "throughput", metric: "DL throughput", baseline: "142.3", candidate: "167.8" },
@@ -120,5 +121,29 @@ describe("data primitives", () => {
     expect(container.querySelector('[data-line-style="solid"]')).toBeInTheDocument()
     const table = screen.getByRole("table", { name: "Baseline versus candidate values" })
     expect(within(table).getByRole("cell", { name: "improved" })).toBeInTheDocument()
+  })
+
+  it("keeps the scrollable patch list keyboard focusable without losing list semantics", () => {
+    // Given / When
+    render(
+      <TypedPatchDiff
+        path="configs/site-c/scheduler.yaml"
+        schemaVersion="twin.patch.v1"
+        validationSummary="Evidence only"
+        lines={[
+          { id: "line-1", number: 1, kind: "context", content: "capacity_ues: 200" },
+          { id: "line-2", number: 2, kind: "addition", content: "capacity_ues: 230" },
+        ]}
+      />,
+    )
+
+    // Then
+    const patchLines = screen.getByRole("list", {
+      name: "configs/site-c/scheduler.yaml patch lines",
+    })
+    expect(patchLines.tagName).toBe("OL")
+    expect(patchLines).toHaveAttribute("tabindex", "0")
+    patchLines.focus()
+    expect(patchLines).toHaveFocus()
   })
 })

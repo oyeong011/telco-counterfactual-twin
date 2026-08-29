@@ -190,6 +190,12 @@ test("completes a rejected evidence-only lifecycle through the production UI", a
       ).join(""),
     ),
   ).not.toContain("demo-token-secret")
+  await page.getByRole("link", { name: "Run detail" }).click()
+  await expect(page.getByRole("heading", { level: 1, name: "Run detail" })).toBeVisible()
+  const runDetailAccessibility = await new AxeBuilder({ page })
+    .withRules(["scrollable-region-focusable"])
+    .analyze()
+  expect(runDetailAccessibility.violations).toEqual([])
   await page.getByRole("link", { name: "Evidence", exact: true }).click()
   const eventTable = page.getByRole("table", { name: "Evidence event ledger" })
   await expect(eventTable).toBeVisible()

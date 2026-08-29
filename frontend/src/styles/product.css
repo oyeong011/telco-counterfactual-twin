@@ -25,6 +25,35 @@
   background: var(--surface-panel);
 }
 
+.aboutDecision {
+  display: grid;
+  max-inline-size: var(--measure-content);
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: var(--border-width) solid var(--border-strong);
+}
+
+.aboutDecision[data-decision="approved"] {
+  border-color: var(--accent-proof);
+  background: var(--state-proof);
+}
+
+.aboutDecision[data-decision="rejected"] {
+  border-color: var(--accent-danger);
+  background: var(--state-danger);
+}
+
+.aboutDecision h2,
+.aboutDecision p {
+  margin: 0;
+}
+
+.aboutDecision > p {
+  grid-column: 1 / -1;
+}
+
 .entryPanel h2,
 .entryPanel p,
 .aboutIntro h2,
