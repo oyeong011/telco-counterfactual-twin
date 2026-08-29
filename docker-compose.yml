@@ -1,0 +1,41 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      TWIN_ALLOWED_ORIGINS: '["http://127.0.0.1:4173","http://localhost:4173"]'
+      TWIN_ENVIRONMENT: "local"
+      TWIN_RUNTIME_SOURCE_COMMIT_SHA: "${TWIN_RUNTIME_SOURCE_COMMIT_SHA:?set by scripts/with_compose_cleanup.sh}"
+      TWIN_RELEASE_COMMIT_SHA: "${TWIN_RELEASE_COMMIT_SHA:?set by scripts/with_compose_cleanup.sh}"
+    ports:
+      - "127.0.0.1:18080:8080"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2)"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: "no"
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_BASE_URL: http://127.0.0.1:18080
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:4173:8080"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8080/build-info.json').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: "no"
