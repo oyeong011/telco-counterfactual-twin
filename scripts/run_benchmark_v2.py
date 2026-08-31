@@ -96,7 +96,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     _ = parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     _ = parser.add_argument(
-        "--out", type=Path, default=Path("artifacts/eval/diagnosis-v2.json")
+        "--out", type=Path, default=Path("artifacts/eval-v2/diagnosis-v2.json")
     )
     namespace = parser.parse_args()
     seed = cast("int", namespace.seed)

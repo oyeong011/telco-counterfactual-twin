@@ -91,7 +91,7 @@
     ],
     "noise_fraction": 0.12,
     "seed": 20270827,
-    "source_commit_sha": "4d01c59bc4e02f4e71261f6af671bd3fa5997615",
+    "source_commit_sha": "146a252df0e78ad04f95442b3a5d0d82605f93ab",
     "split": "heldout"
   },
   "safety": {
