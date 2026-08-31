@@ -1,12 +1,28 @@
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
 from pathlib import Path
+from typing import cast
 
 ROOT = Path(__file__).resolve().parents[3]
-EXPECTED_BUILD_SHA = "6a569645c3f3bc054f0103a213dbf24c1c15c9f6"
+
+
+def _committed_build_sha() -> str:
+    """Read the identity the wrapper is expected to derive.
+
+    Pinning a literal SHA here breaks on the next source commit even though the
+    wrapper is correct, so the expectation follows the committed build-info the
+    wrapper actually reads.
+    """
+    text = (ROOT / "frontend/public/build-info.json").read_text()
+    build_info = cast("dict[str, object]", json.loads(text))
+    return str(build_info["runtime_source_commit_sha"])
+
+
+EXPECTED_BUILD_SHA = _committed_build_sha()
 
 
 def fake_docker(tmp_path: Path, *, down_status: int = 0) -> tuple[Path, Path]:
