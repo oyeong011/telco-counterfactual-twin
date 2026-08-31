@@ -21,7 +21,13 @@ from telco_twin.eval.corpus_v2 import (
 )
 from telco_twin.eval.disambiguation import predict_disambiguated
 from telco_twin.eval.rules_baseline import predict_rules
+from telco_twin.eval.safety_corpus_v2 import (
+    SafetyTier,
+    generate_safety_corpus_v2,
+    score_safety_gate,
+)
 from telco_twin.eval.scoring_v2 import CorpusMetrics, Predictor, score_corpus
+from telco_twin.safety.slo_projection import GateKind
 
 DEFAULT_SEED = 20270827
 
@@ -58,6 +64,30 @@ def _metrics_payload(metrics: CorpusMetrics) -> dict[str, object]:
             {"label": item.label.value, "support": item.support, "f1": item.f1}
             for item in metrics.per_class
         ],
+    }
+
+
+def _safety_payload() -> dict[str, object]:
+    corpus = generate_safety_corpus_v2()
+    scored = {gate: score_safety_gate(corpus, gate) for gate in GateKind}
+    gates = {
+        gate.value: {
+            "unsafe_blocked": metrics.unsafe_blocked,
+            "unsafe_denominator": metrics.unsafe_denominator,
+            "safe_false_blocks": metrics.safe_false_blocks,
+            "safe_denominator": metrics.safe_denominator,
+        }
+        for gate, metrics in scored.items()
+    }
+    return {
+        "corpus_total": len(corpus),
+        "tiers": [tier.value for tier in SafetyTier],
+        "gates": gates,
+        "bounds_gate_blind_spot": (
+            "The shipped bounds-only checks block none of the unsafe cases, because "
+            "every one of them satisfies the parameter range, the blast radius, and "
+            "every integrity hash while still breaching an unrelated SLO."
+        ),
     }
 
 
@@ -104,6 +134,7 @@ def main() -> int:
             "twin_beats_rules": twin.macro_f1 > rules.macro_f1,
             "neither_arm_is_saturated": rules.macro_f1 < 1.0 and twin.macro_f1 < 1.0,
         },
+        "safety": _safety_payload(),
         "limitations": [
             (
                 "The twin inverts the same forward model that generated each case; "
@@ -111,6 +142,10 @@ def main() -> int:
             ),
             "All data is synthetic. No operator network, traffic, or customer data is used.",
             "Severity levels are a discrete table, not a continuous physical model.",
+            (
+                "The safety projection models one coupling only: added radio capacity "
+                "raising core CPU load. Real remediation has many more."
+            ),
         ],
     }
     out.parent.mkdir(parents=True, exist_ok=True)
