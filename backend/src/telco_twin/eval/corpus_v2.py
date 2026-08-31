@@ -126,15 +126,21 @@ def _components(family: FaultFamily, tier: DifficultyTier) -> tuple[FaultCompone
     return (confounder, primary)
 
 
-def _case(
-    family: FaultFamily,
-    tier: DifficultyTier,
-    split: EvaluationSplit,
-    index: int,
-    seed: int,
-    noise_fraction: float,
-) -> DiagnosisCase:
-    slug = f"{split.value}-{tier.value}-{family.value}-{index:02d}"
+@dataclass(frozen=True, slots=True)
+class _CaseSpec:
+    """Everything that identifies one generated case."""
+
+    family: FaultFamily
+    tier: DifficultyTier
+    split: EvaluationSplit
+    index: int
+    seed: int
+    noise_fraction: float
+
+
+def _case(spec: _CaseSpec) -> DiagnosisCase:
+    family, tier, split, seed = spec.family, spec.tier, spec.split, spec.seed
+    slug = f"{split.value}-{tier.value}-{family.value}-{spec.index:02d}"
     observation = synthesize_observation(
         _components(family, tier),
         case_slug=slug,
@@ -142,7 +148,9 @@ def _case(
         jitter=_jitter(slug, seed),
     )
     observation = observation.model_copy(
-        update={"windows": (_noisy_window(observation.windows[0], slug, seed, noise_fraction),)}
+        update={
+            "windows": (_noisy_window(observation.windows[0], slug, seed, spec.noise_fraction),)
+        }
     )
     return DiagnosisCase(
         case_id=f"diag-v2-{slug}",
@@ -160,7 +168,16 @@ def generate_corpus_v2(
     """Build the full deterministic v2 corpus; pass 0.0 to ablate measurement noise."""
     return tuple(
         CorpusItem(
-            case=_case(family, tier, split, index, seed, noise_fraction),
+            case=_case(
+                _CaseSpec(
+                    family=family,
+                    tier=tier,
+                    split=split,
+                    index=index,
+                    seed=seed,
+                    noise_fraction=noise_fraction,
+                )
+            ),
             tier=tier,
             split=split,
         )

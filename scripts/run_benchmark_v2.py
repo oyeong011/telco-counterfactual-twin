@@ -11,9 +11,14 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
+from typing import cast
 
-from telco_twin.eval.corpus_v2 import NOISE_FRACTION, DifficultyTier, generate_corpus_v2
+from telco_twin.eval.corpus_v2 import (
+    NOISE_FRACTION,
+    CorpusItem,
+    DifficultyTier,
+    generate_corpus_v2,
+)
 from telco_twin.eval.disambiguation import predict_disambiguated
 from telco_twin.eval.rules_baseline import predict_rules
 from telco_twin.eval.scoring_v2 import CorpusMetrics, Predictor, score_corpus
@@ -32,7 +37,7 @@ def _source_commit() -> str:
 
 
 def _tier_breakdown(
-    items: tuple[Any, ...], predictor: Predictor
+    items: tuple[CorpusItem, ...], predictor: Predictor
 ) -> dict[str, dict[str, int]]:
     breakdown: dict[str, dict[str, int]] = {}
     for tier in DifficultyTier:
@@ -44,7 +49,7 @@ def _tier_breakdown(
     return breakdown
 
 
-def _metrics_payload(metrics: CorpusMetrics) -> dict[str, Any]:
+def _metrics_payload(metrics: CorpusMetrics) -> dict[str, object]:
     return {
         "evaluated_count": metrics.evaluated_count,
         "abstained_count": metrics.abstained_count,
@@ -59,17 +64,19 @@ def _metrics_payload(metrics: CorpusMetrics) -> dict[str, Any]:
 def main() -> int:
     """Score both arms on the held-out v2 split and write one JSON artifact."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
-    parser.add_argument(
+    _ = parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
+    _ = parser.add_argument(
         "--out", type=Path, default=Path("artifacts/eval/diagnosis-v2.json")
     )
-    args = parser.parse_args()
+    namespace = parser.parse_args()
+    seed = cast("int", namespace.seed)
+    out = cast("Path", namespace.out)
 
-    corpus = generate_corpus_v2(seed=args.seed)
+    corpus = generate_corpus_v2(seed=seed)
     heldout = tuple(item for item in corpus if item.split.value == "heldout")
     rules = score_corpus(heldout, predict_rules)
     twin = score_corpus(heldout, predict_disambiguated)
-    payload = {
+    payload: dict[str, object] = {
         "schema_version": "1.0",
         "provenance": {
             "source_commit_sha": _source_commit(),
@@ -77,9 +84,9 @@ def main() -> int:
                 "python",
                 "scripts/run_benchmark_v2.py",
                 "--seed",
-                str(args.seed),
+                str(seed),
             ],
-            "seed": args.seed,
+            "seed": seed,
             "split": "heldout",
             "corpus_total": len(corpus),
             "noise_fraction": NOISE_FRACTION,
@@ -106,8 +113,8 @@ def main() -> int:
             "Severity levels are a discrete table, not a continuous physical model.",
         ],
     }
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(
+    out.parent.mkdir(parents=True, exist_ok=True)
+    _ = out.write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
     return 0
