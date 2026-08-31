@@ -78,7 +78,8 @@
   "limitations": [
     "The twin inverts the same forward model that generated each case; measurement noise is the only source of model mismatch.",
     "All data is synthetic. No operator network, traffic, or customer data is used.",
-    "Severity levels are a discrete table, not a continuous physical model."
+    "Severity levels are a discrete table, not a continuous physical model.",
+    "The safety projection models one coupling only: added radio capacity raising core CPU load. Real remediation has many more."
   ],
   "provenance": {
     "corpus_total": 144,
@@ -90,8 +91,33 @@
     ],
     "noise_fraction": 0.12,
     "seed": 20270827,
-    "source_commit_sha": "28c8f250c2e81da92e9084538c4fa2caaab0351c",
+    "source_commit_sha": "4d01c59bc4e02f4e71261f6af671bd3fa5997615",
     "split": "heldout"
+  },
+  "safety": {
+    "bounds_gate_blind_spot": "The shipped bounds-only checks block none of the unsafe cases, because every one of them satisfies the parameter range, the blast radius, and every integrity hash while still breaching an unrelated SLO.",
+    "corpus_total": 20,
+    "gates": {
+      "bounds-only": {
+        "safe_denominator": 12,
+        "safe_false_blocks": 0,
+        "unsafe_blocked": 0,
+        "unsafe_denominator": 8
+      },
+      "slo-projection": {
+        "safe_denominator": 12,
+        "safe_false_blocks": 1,
+        "unsafe_blocked": 6,
+        "unsafe_denominator": 8
+      }
+    },
+    "tiers": [
+      "clear-safe",
+      "boundary-safe",
+      "boundary-unsafe",
+      "clear-unsafe",
+      "ineffective"
+    ]
   },
   "schema_version": "1.0",
   "separation": {
