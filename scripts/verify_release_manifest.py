@@ -45,7 +45,7 @@ REQUIRED_ARTIFACTS: Final = (
     "artifacts/eval/diagnosis.jsonl",
     "artifacts/eval/replay-hashes.json",
     "artifacts/eval/safety-gate.json",
-    "artifacts/eval/local-stack-probe.json",
+    "artifacts/probe/local-stack-probe.json",
     "frontend/public/build-info.json",
     "artifacts/security/component-inventory.json",
 )

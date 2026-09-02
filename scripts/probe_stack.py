@@ -13,7 +13,7 @@ from pydantic import JsonValue, TypeAdapter
 
 JSON_HEADERS: Final = {"Accept": "application/json"}
 SSE_HEADERS: Final = {"Accept": "text/event-stream"}
-DEFAULT_PROBE_OUTPUT: Final = Path("artifacts/eval/local-stack-probe.json")
+DEFAULT_PROBE_OUTPUT: Final = Path("artifacts/probe/local-stack-probe.json")
 JsonObject: TypeAlias = dict[str, JsonValue]
 JSON_OBJECT_ADAPTER: Final[TypeAdapter[JsonObject]] = TypeAdapter(dict[str, JsonValue])
 

@@ -110,8 +110,16 @@ def test_sbom_script_fails_when_required_lockfiles_are_missing(tmp_path: Path) -
 
 def test_sbom_script_reports_missing_runtime_tools(tmp_path: Path) -> None:
     # Given: an environment without the shell tools the script requires.
+    # A PATH holding only bash lets the script start while resolving none of its
+    # tools. Stripping PATH to /usr/bin:/bin is not enough: Linux CI images ship
+    # jq and shasum there, so the missing-tool condition never occurs.
     out_path = tmp_path / "tools.json"
-    stripped_env = {"PATH": "/usr/bin:/bin"}
+    stripped_bin = tmp_path / "stripped-bin"
+    stripped_bin.mkdir()
+    bash_path = shutil.which("bash")
+    assert bash_path is not None
+    (stripped_bin / "bash").symlink_to(bash_path)
+    stripped_env = {"PATH": str(stripped_bin)}
     # When: the generator starts without its declared toolchain.
     result = run_sbom(out_path, env=stripped_env)
     # Then: it fails with a specific tool error rather than pretending to succeed.

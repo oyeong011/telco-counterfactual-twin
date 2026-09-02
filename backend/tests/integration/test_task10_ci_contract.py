@@ -143,7 +143,7 @@ def test_makefile_targets_encode_task10_contracts() -> None:
     assert "scripts/verify_release_manifest.py" in evidence
     probe = target_body(makefile, "probe")
     assert "scripts/with_compose_cleanup.sh -f docker-compose.yml --" in probe
-    assert "scripts/probe_stack.py --out artifacts/eval/local-stack-probe.json" in probe
+    assert "scripts/probe_stack.py --out artifacts/probe/local-stack-probe.json" in probe
 
 
 def test_env_example_contains_only_synthetic_local_defaults() -> None:

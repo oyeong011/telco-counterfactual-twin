@@ -93,7 +93,7 @@ def test_task10_contract_survives_bounded_fresh_clone_acceptance_seam(
     assert "pytest backend/tests/integration/test_task10_fresh_clone.py" not in make.stdout
     assert "uv sync --project backend --locked --all-groups" in make.stdout
     assert "pnpm --dir frontend install --frozen-lockfile" in make.stdout
-    assert "scripts/probe_stack.py --out artifacts/eval/local-stack-probe.json" in make.stdout
+    assert "scripts/probe_stack.py --out artifacts/probe/local-stack-probe.json" in make.stdout
     assert (clone / ".env.example").is_file()
     assert run_git(clone, "check-ignore", ".env.example").returncode == 1
 

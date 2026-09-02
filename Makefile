@@ -52,7 +52,7 @@ sbom-check:
 	tmp_dir="$$(mktemp -d)"; trap 'rm -rf "$$tmp_dir"' EXIT; bash scripts/generate_sbom.sh --repo-root . --out "$$tmp_dir/component-inventory.json"; cmp "$$tmp_dir/component-inventory.json" artifacts/security/component-inventory.json
 
 probe:
-	./scripts/with_compose_cleanup.sh -f docker-compose.yml -- uv run --project backend python scripts/probe_stack.py --out artifacts/eval/local-stack-probe.json
+	./scripts/with_compose_cleanup.sh -f docker-compose.yml -- uv run --project backend python scripts/probe_stack.py --out artifacts/probe/local-stack-probe.json
 
 generate-release-evidence:
 	uv run --project backend python scripts/generate_release_evidence.py

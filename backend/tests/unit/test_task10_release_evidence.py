@@ -35,7 +35,7 @@ REQUIRED_ARTIFACTS: Final = (
     "artifacts/eval/diagnosis.jsonl",
     "artifacts/eval/replay-hashes.json",
     "artifacts/eval/safety-gate.json",
-    "artifacts/eval/local-stack-probe.json",
+    "artifacts/probe/local-stack-probe.json",
     "frontend/public/build-info.json",
     "artifacts/security/component-inventory.json",
 )
@@ -525,7 +525,7 @@ def test_release_generator_declares_full_deterministic_command_contract() -> Non
     assert "scripts/probe_stack.py --out {probe_out}" in joined
     assert "bash scripts/generate_sbom.sh --repo-root . --out {sbom_out}" in joined
     assert "artifacts/contracts/mcp-tools.json" in generator.REQUIRED_ARTIFACTS
-    assert "artifacts/eval/local-stack-probe.json" in generator.REQUIRED_ARTIFACTS
+    assert "artifacts/probe/local-stack-probe.json" in generator.REQUIRED_ARTIFACTS
     assert "artifacts/security/component-inventory.json" in generator.REQUIRED_ARTIFACTS
     assert "_require_prior_eval_dir_clean(root)" in source
     assert "_remove_eval_dir(root)" in source
