@@ -161,9 +161,39 @@ def _assert_allowed_status(root: Path) -> None:
         raise ReleaseManifestError(f"dirty-source:{','.join(extra)}")
 
 
+def _names_from_diff_z(raw: str) -> tuple[str, ...]:
+    """Parse `git diff --name-status -z`, whose fields differ from porcelain status.
+
+    Porcelain packs the status and the path into one NUL-terminated record.
+    Diff emits them as separate records, so reusing the porcelain parser here
+    returned an empty name for every status and a path missing its first three
+    characters.
+    """
+    parts = tuple(item for item in raw.split("\0") if item)
+    names: list[str] = []
+    index = 0
+    while index < len(parts):
+        status = parts[index]
+        index += 1
+        if index >= len(parts):
+            raise ReleaseManifestError("malformed-git-diff")
+        if status[0] in {"R", "C"}:
+            if index + 1 >= len(parts):
+                raise ReleaseManifestError("malformed-git-rename")
+            names.append(parts[index])
+            names.append(parts[index + 1])
+            index += 2
+            continue
+        names.append(parts[index])
+        index += 1
+    return tuple(names)
+
+
 def _assert_allowed_source_diff(root: Path, source_sha: str) -> None:
     raw = _git(root, ("diff", "--name-status", "-z", f"{source_sha}..HEAD", "--"))
-    extra = sorted(path for path in _names_from_z(raw) if path not in GENERATED_PATHS)
+    extra = sorted(
+        path for path in _names_from_diff_z(raw) if path not in GENERATED_PATHS
+    )
     if extra:
         raise ReleaseManifestError(f"source-diff-out-of-scope:{','.join(extra)}")
 

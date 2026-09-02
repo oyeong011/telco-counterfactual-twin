@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import os
 import subprocess
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Final, cast
@@ -530,3 +532,36 @@ def test_release_generator_declares_full_deterministic_command_contract() -> Non
     assert "_require_prior_eval_dir_clean(root)" in source
     assert "_remove_eval_dir(root)" in source
     assert "deployment_preflight" not in source
+
+
+def _load_diff_parser() -> Callable[[str], tuple[str, ...]]:
+    path = Path(__file__).resolve().parents[3] / "scripts/verify_release_manifest.py"
+    spec = importlib.util.spec_from_file_location("verify_release_manifest_probe", path)
+    if spec is None or spec.loader is None:
+        pytest.fail("cannot load the release manifest verifier")
+    module = importlib.util.module_from_spec(spec)
+    # dataclasses resolves a class's module through sys.modules during exec.
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return cast("Callable[[str], tuple[str, ...]]", module._names_from_diff_z)
+
+
+def test_source_diff_parser_reads_diff_fields_not_porcelain_fields() -> None:
+    """`git diff --name-status -z` splits status and path into separate records.
+
+    Reusing the porcelain parser here produced an empty name for every status
+    and a path missing its first three characters, so an evidence-only commit
+    was reported as out of scope. CI caught it; this pins the shape.
+    """
+    parse = _load_diff_parser()
+    modified = "M\0artifacts/eval/safety-gate.json\0A\0frontend/public/build-info.json\0"
+    assert parse(modified) == (
+        "artifacts/eval/safety-gate.json",
+        "frontend/public/build-info.json",
+    )
+    renamed = "R100\0artifacts/eval/probe.json\0artifacts/probe/probe.json\0"
+    assert parse(renamed) == (
+        "artifacts/eval/probe.json",
+        "artifacts/probe/probe.json",
+    )
+    assert parse("") == ()
