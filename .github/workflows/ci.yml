@@ -46,6 +46,12 @@ jobs:
         run: make generate-release-evidence
       - name: Cleanup local Compose resources
         if: always()
+        # The compose file requires both identities, so a bare teardown fails
+        # interpolation and marks an otherwise green job red. Tear down the
+        # stack under the identity it was built with.
+        env:
+          TWIN_RUNTIME_SOURCE_COMMIT_SHA: ${{ github.sha }}
+          TWIN_RELEASE_COMMIT_SHA: ${{ github.sha }}
         run: docker compose -f docker-compose.yml down -v --remove-orphans
       - name: Upload non-secret release evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
