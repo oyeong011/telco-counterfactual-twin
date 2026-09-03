@@ -79,7 +79,7 @@
     "The twin inverts the same forward model that generated each case; measurement noise is the only source of model mismatch.",
     "All data is synthetic. No operator network, traffic, or customer data is used.",
     "Severity levels are a discrete table, not a continuous physical model.",
-    "The safety projection models one coupling only: added radio capacity raising core CPU load. Real remediation has many more."
+    "Each safety projection models one collateral coupling per operation: radio and backhaul capacity load the core, UPF units draw site power, slice weight starves the peer slice. Real remediation has many more."
   ],
   "provenance": {
     "corpus_total": 144,
@@ -91,24 +91,88 @@
     ],
     "noise_fraction": 0.12,
     "seed": 20270827,
-    "source_commit_sha": "146a252df0e78ad04f95442b3a5d0d82605f93ab",
+    "source_commit_sha": "4aa82faa72e34cad0f9971a75f7c7b709a5cba2c",
     "split": "heldout"
   },
   "safety": {
     "bounds_gate_blind_spot": "The shipped bounds-only checks block none of the unsafe cases, because every one of them satisfies the parameter range, the blast radius, and every integrity hash while still breaching an unrelated SLO.",
-    "corpus_total": 20,
+    "corpus_total": 80,
     "gates": {
       "bounds-only": {
-        "safe_denominator": 12,
+        "safe_denominator": 48,
         "safe_false_blocks": 0,
         "unsafe_blocked": 0,
-        "unsafe_denominator": 8
+        "unsafe_denominator": 32
       },
       "slo-projection": {
-        "safe_denominator": 12,
-        "safe_false_blocks": 1,
-        "unsafe_blocked": 6,
-        "unsafe_denominator": 8
+        "safe_denominator": 48,
+        "safe_false_blocks": 4,
+        "unsafe_blocked": 24,
+        "unsafe_denominator": 32
+      }
+    },
+    "operations": [
+      "adjust-radio-capacity",
+      "restore-backhaul-capacity",
+      "scale-upf-capacity",
+      "rebalance-slice-weight"
+    ],
+    "per_operation": {
+      "adjust-radio-capacity": {
+        "bounds-only": {
+          "safe_denominator": 12,
+          "safe_false_blocks": 0,
+          "unsafe_blocked": 0,
+          "unsafe_denominator": 8
+        },
+        "slo-projection": {
+          "safe_denominator": 12,
+          "safe_false_blocks": 1,
+          "unsafe_blocked": 6,
+          "unsafe_denominator": 8
+        }
+      },
+      "rebalance-slice-weight": {
+        "bounds-only": {
+          "safe_denominator": 12,
+          "safe_false_blocks": 0,
+          "unsafe_blocked": 0,
+          "unsafe_denominator": 8
+        },
+        "slo-projection": {
+          "safe_denominator": 12,
+          "safe_false_blocks": 1,
+          "unsafe_blocked": 6,
+          "unsafe_denominator": 8
+        }
+      },
+      "restore-backhaul-capacity": {
+        "bounds-only": {
+          "safe_denominator": 12,
+          "safe_false_blocks": 0,
+          "unsafe_blocked": 0,
+          "unsafe_denominator": 8
+        },
+        "slo-projection": {
+          "safe_denominator": 12,
+          "safe_false_blocks": 2,
+          "unsafe_blocked": 7,
+          "unsafe_denominator": 8
+        }
+      },
+      "scale-upf-capacity": {
+        "bounds-only": {
+          "safe_denominator": 12,
+          "safe_false_blocks": 0,
+          "unsafe_blocked": 0,
+          "unsafe_denominator": 8
+        },
+        "slo-projection": {
+          "safe_denominator": 12,
+          "safe_false_blocks": 0,
+          "unsafe_blocked": 5,
+          "unsafe_denominator": 8
+        }
       }
     },
     "tiers": [
