@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from telco_twin.domain.intervention import PatchOperation
 from telco_twin.eval.safety_corpus_v2 import (
     SafetyTier,
     generate_safety_corpus_v2,
     score_safety_gate,
-    tier_capacity,
+    tier_value,
     truth_case,
 )
 from telco_twin.safety.slo_projection import GateKind, decide_patch, project_patch
@@ -45,7 +46,8 @@ def test_neither_safety_gate_is_saturated_on_the_tiered_corpus() -> None:
 
 def test_an_ineffective_patch_does_not_clear_the_fault_in_truth() -> None:
     """A patch too small to relieve the cell must not read as a successful change."""
-    truth = truth_case(tier_capacity(SafetyTier.INEFFECTIVE))
+    radio = PatchOperation.ADJUST_RADIO_CAPACITY
+    truth = truth_case(radio, tier_value(radio, SafetyTier.INEFFECTIVE))
     assert not project_patch(truth).fault_cleared
 
 

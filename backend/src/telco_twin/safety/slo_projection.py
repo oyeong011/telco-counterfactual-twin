@@ -6,24 +6,36 @@ can see a patch that satisfies every bound and still pushes an unrelated metric
 past its SLO, so a gate built only from them cannot be scored for judgment.
 
 This module adds the missing dimension by projecting the patched observation
-through the simulator's forward model and asking two questions the bounds cannot:
-did the fault actually clear, and did anything else break.
+through a forward model and asking two questions the bounds cannot: did the
+fault actually clear, and did anything else break.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum, unique
-from typing import Final
+from typing import TYPE_CHECKING
 
-CAPACITY_LOWER: Final = 1
-CAPACITY_UPPER: Final = 1000
+from telco_twin.safety.remediation_models import (
+    PARAMETER_RANGE,
+    BreachCode,
+    ObservedCell,
+    project,
+)
 
-# Radio congestion clears once utilization falls back under its onset threshold.
-PRB_FAULT_THRESHOLD_PCT: Final = 90.0
-# Serving more UE slots costs core processing; past this the UPF breaches its SLO.
-NF_CPU_SLO_PCT: Final = 90.0
-CPU_COST_PER_UE_SLOT: Final = 0.225
+if TYPE_CHECKING:
+    from telco_twin.domain.intervention import PatchOperation
+
+__all__ = [
+    "BreachCode",
+    "GateKind",
+    "ObservedCell",
+    "PatchDecision",
+    "ProjectedOutcome",
+    "RemediationCase",
+    "decide_patch",
+    "project_patch",
+]
 
 
 @unique
@@ -34,61 +46,54 @@ class GateKind(StrEnum):
     SLO_PROJECTION = "slo-projection"
 
 
-@unique
-class BreachCode(StrEnum):
-    """Closed set of reasons a projected patch is refused."""
-
-    PARAMETER_RANGE = "patch-parameter-range"
-    UPF_CPU_SLO = "upf-cpu-slo-exceeded"
-
-
 @dataclass(frozen=True, slots=True)
 class RemediationCase:
-    """One proposed capacity change against one observed cell."""
+    """One proposed sized change against one observed cell."""
 
     case_id: str
-    baseline_capacity_ues: int
-    patched_capacity_ues: int
-    observed_prb_pct: float
-    observed_nf_cpu_pct: float
+    operation: PatchOperation
+    baseline_value: float
+    patched_value: float
+    observed: ObservedCell
 
 
 @dataclass(frozen=True, slots=True)
 class ProjectedOutcome:
     """The forward model's view of the network after the patch."""
 
-    prb_after_pct: float
-    nf_cpu_after_pct: float
     fault_cleared: bool
+    projected: tuple[tuple[str, float], ...]
     breaches: tuple[BreachCode, ...]
 
 
 @dataclass(frozen=True, slots=True)
 class PatchDecision:
-    """What one gate concluded about one case."""
+    """What one gate concluded about one case, and the numbers it concluded from."""
 
     case_id: str
     gate: GateKind
     blocked: bool
     fault_cleared: bool
     breaches: tuple[BreachCode, ...]
+    projected: tuple[tuple[str, float], ...]
+
+
+def _in_range(case: RemediationCase) -> bool:
+    lower, upper = PARAMETER_RANGE[case.operation]
+    return lower <= case.patched_value <= upper
 
 
 def project_patch(case: RemediationCase) -> ProjectedOutcome:
-    """Model added radio capacity relieving utilization while loading the core."""
-    ratio = case.baseline_capacity_ues / case.patched_capacity_ues
-    prb_after = min(100.0, case.observed_prb_pct * ratio)
-    added_slots = case.patched_capacity_ues - case.baseline_capacity_ues
-    nf_cpu_after = case.observed_nf_cpu_pct + CPU_COST_PER_UE_SLOT * added_slots
+    """Run the operation's model and collect every breach, bounds included."""
+    projection = project(case.operation, case.observed, case.baseline_value, case.patched_value)
     breaches: list[BreachCode] = []
-    if not CAPACITY_LOWER <= case.patched_capacity_ues <= CAPACITY_UPPER:
+    if not _in_range(case):
         breaches.append(BreachCode.PARAMETER_RANGE)
-    if nf_cpu_after > NF_CPU_SLO_PCT:
-        breaches.append(BreachCode.UPF_CPU_SLO)
+    if projection.collateral is not None:
+        breaches.append(projection.collateral)
     return ProjectedOutcome(
-        prb_after_pct=prb_after,
-        nf_cpu_after_pct=nf_cpu_after,
-        fault_cleared=prb_after < PRB_FAULT_THRESHOLD_PCT,
+        fault_cleared=projection.fault_cleared,
+        projected=projection.projected,
         breaches=tuple(breaches),
     )
 
@@ -110,4 +115,5 @@ def decide_patch(case: RemediationCase, gate: GateKind) -> PatchDecision:
         blocked=bool(breaches),
         fault_cleared=outcome.fault_cleared,
         breaches=breaches,
+        projected=outcome.projected,
     )

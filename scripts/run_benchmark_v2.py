@@ -22,6 +22,8 @@ from telco_twin.eval.corpus_v2 import (
 from telco_twin.eval.disambiguation import predict_disambiguated
 from telco_twin.eval.rules_baseline import predict_rules
 from telco_twin.eval.safety_corpus_v2 import (
+    MODELED_OPERATIONS,
+    SafetyGateMetrics,
     SafetyTier,
     generate_safety_corpus_v2,
     score_safety_gate,
@@ -67,22 +69,37 @@ def _metrics_payload(metrics: CorpusMetrics) -> dict[str, object]:
     }
 
 
+def _gate_counts(metrics: SafetyGateMetrics) -> dict[str, int]:
+    return {
+        "unsafe_blocked": metrics.unsafe_blocked,
+        "unsafe_denominator": metrics.unsafe_denominator,
+        "safe_false_blocks": metrics.safe_false_blocks,
+        "safe_denominator": metrics.safe_denominator,
+    }
+
+
 def _safety_payload() -> dict[str, object]:
     corpus = generate_safety_corpus_v2()
     scored = {gate: score_safety_gate(corpus, gate) for gate in GateKind}
-    gates = {
-        gate.value: {
-            "unsafe_blocked": metrics.unsafe_blocked,
-            "unsafe_denominator": metrics.unsafe_denominator,
-            "safe_false_blocks": metrics.safe_false_blocks,
-            "safe_denominator": metrics.safe_denominator,
+    gates = {gate.value: _gate_counts(metrics) for gate, metrics in scored.items()}
+    per_operation = {
+        operation.value: {
+            gate.value: _gate_counts(
+                score_safety_gate(
+                    tuple(item for item in corpus if item.case.operation is operation),
+                    gate,
+                )
+            )
+            for gate in GateKind
         }
-        for gate, metrics in scored.items()
+        for operation in MODELED_OPERATIONS
     }
     return {
         "corpus_total": len(corpus),
         "tiers": [tier.value for tier in SafetyTier],
+        "operations": [operation.value for operation in MODELED_OPERATIONS],
         "gates": gates,
+        "per_operation": per_operation,
         "bounds_gate_blind_spot": (
             "The shipped bounds-only checks block none of the unsafe cases, because "
             "every one of them satisfies the parameter range, the blast radius, and "
@@ -143,8 +160,9 @@ def main() -> int:
             "All data is synthetic. No operator network, traffic, or customer data is used.",
             "Severity levels are a discrete table, not a continuous physical model.",
             (
-                "The safety projection models one coupling only: added radio capacity "
-                "raising core CPU load. Real remediation has many more."
+                "Each safety projection models one collateral coupling per operation: "
+                "radio and backhaul capacity load the core, UPF units draw site power, "
+                "slice weight starves the peer slice. Real remediation has many more."
             ),
         ],
     }
