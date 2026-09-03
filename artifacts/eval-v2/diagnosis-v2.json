@@ -1,0 +1,166 @@
+{
+  "arms": {
+    "rules_only": {
+      "abstained_count": 29,
+      "evaluated_count": 72,
+      "macro_f1": 0.7325421396628826,
+      "per_class": [
+        {
+          "f1": 0.5882352941176471,
+          "label": "radio-congestion",
+          "support": 12
+        },
+        {
+          "f1": 0.7368421052631579,
+          "label": "backhaul-degradation",
+          "support": 12
+        },
+        {
+          "f1": 0.6666666666666666,
+          "label": "upf-saturation",
+          "support": 12
+        },
+        {
+          "f1": 0.7368421052631579,
+          "label": "neighbor-handover-misconfiguration",
+          "support": 12
+        },
+        {
+          "f1": 0.6666666666666666,
+          "label": "slice-scheduler-misallocation",
+          "support": 12
+        },
+        {
+          "f1": 1.0,
+          "label": "alarm-prompt-injection",
+          "support": 12
+        }
+      ]
+    },
+    "twin_disambiguated": {
+      "abstained_count": 0,
+      "evaluated_count": 72,
+      "macro_f1": 0.972027972027972,
+      "per_class": [
+        {
+          "f1": 1.0,
+          "label": "radio-congestion",
+          "support": 12
+        },
+        {
+          "f1": 1.0,
+          "label": "backhaul-degradation",
+          "support": 12
+        },
+        {
+          "f1": 0.923076923076923,
+          "label": "upf-saturation",
+          "support": 12
+        },
+        {
+          "f1": 0.9090909090909091,
+          "label": "neighbor-handover-misconfiguration",
+          "support": 12
+        },
+        {
+          "f1": 1.0,
+          "label": "slice-scheduler-misallocation",
+          "support": 12
+        },
+        {
+          "f1": 1.0,
+          "label": "alarm-prompt-injection",
+          "support": 12
+        }
+      ]
+    }
+  },
+  "limitations": [
+    "The twin inverts the same forward model that generated each case; measurement noise is the only source of model mismatch.",
+    "All data is synthetic. No operator network, traffic, or customer data is used.",
+    "Severity levels are a discrete table, not a continuous physical model.",
+    "The safety projection models one coupling only: added radio capacity raising core CPU load. Real remediation has many more."
+  ],
+  "provenance": {
+    "corpus_total": 144,
+    "generator_invocation": [
+      "python",
+      "scripts/run_benchmark_v2.py",
+      "--seed",
+      "20270827"
+    ],
+    "noise_fraction": 0.12,
+    "seed": 20270827,
+    "source_commit_sha": "146a252df0e78ad04f95442b3a5d0d82605f93ab",
+    "split": "heldout"
+  },
+  "safety": {
+    "bounds_gate_blind_spot": "The shipped bounds-only checks block none of the unsafe cases, because every one of them satisfies the parameter range, the blast radius, and every integrity hash while still breaching an unrelated SLO.",
+    "corpus_total": 20,
+    "gates": {
+      "bounds-only": {
+        "safe_denominator": 12,
+        "safe_false_blocks": 0,
+        "unsafe_blocked": 0,
+        "unsafe_denominator": 8
+      },
+      "slo-projection": {
+        "safe_denominator": 12,
+        "safe_false_blocks": 1,
+        "unsafe_blocked": 6,
+        "unsafe_denominator": 8
+      }
+    },
+    "tiers": [
+      "clear-safe",
+      "boundary-safe",
+      "boundary-unsafe",
+      "clear-unsafe",
+      "ineffective"
+    ]
+  },
+  "schema_version": "1.0",
+  "separation": {
+    "macro_f1_delta": 0.23948583236508936,
+    "neither_arm_is_saturated": true,
+    "twin_beats_rules": true
+  },
+  "tier_breakdown": {
+    "rules_only": {
+      "clean": {
+        "cases": 18,
+        "correct": 16
+      },
+      "confounded": {
+        "cases": 18,
+        "correct": 15
+      },
+      "masked": {
+        "cases": 18,
+        "correct": 5
+      },
+      "near-threshold": {
+        "cases": 18,
+        "correct": 7
+      }
+    },
+    "twin_disambiguated": {
+      "clean": {
+        "cases": 18,
+        "correct": 18
+      },
+      "confounded": {
+        "cases": 18,
+        "correct": 18
+      },
+      "masked": {
+        "cases": 18,
+        "correct": 16
+      },
+      "near-threshold": {
+        "cases": 18,
+        "correct": 18
+      }
+    }
+  }
+}
