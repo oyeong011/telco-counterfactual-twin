@@ -1,0 +1,3663 @@
+{
+  "artifacts": [
+    {
+      "path": "backend/uv.lock",
+      "sha256": "c2a20587fd6f42fd98d951d49e6244ef81a77493816db7ba9af7789657beb2ba"
+    },
+    {
+      "path": "frontend/package.json",
+      "sha256": "038cfc4a9cebe986a00557bd98119bb7512aebe623b07d2113a2c3263c8984b0"
+    },
+    {
+      "path": "frontend/pnpm-lock.yaml",
+      "sha256": "dbd684571d86d2ad2dd9d2a9e453eeed1efa270167a39974b55a9bbea8d176cd"
+    }
+  ],
+  "components": [
+    {
+      "ecosystem": "python",
+      "name": "annotated-doc",
+      "source": "backend/uv.lock",
+      "version": "0.0.5"
+    },
+    {
+      "ecosystem": "python",
+      "name": "annotated-types",
+      "source": "backend/uv.lock",
+      "version": "0.8.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "anyio",
+      "source": "backend/uv.lock",
+      "version": "4.14.2"
+    },
+    {
+      "ecosystem": "python",
+      "name": "ast-serialize",
+      "source": "backend/uv.lock",
+      "version": "0.8.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "attrs",
+      "source": "backend/uv.lock",
+      "version": "26.1.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "backports-zstd",
+      "source": "backend/uv.lock",
+      "version": "1.7.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "basedpyright",
+      "source": "backend/uv.lock",
+      "version": "1.39.10"
+    },
+    {
+      "ecosystem": "python",
+      "name": "brotli",
+      "source": "backend/uv.lock",
+      "version": "1.2.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "brotlicffi",
+      "source": "backend/uv.lock",
+      "version": "1.2.0.2"
+    },
+    {
+      "ecosystem": "python",
+      "name": "certifi",
+      "source": "backend/uv.lock",
+      "version": "2026.7.22"
+    },
+    {
+      "ecosystem": "python",
+      "name": "cffi",
+      "source": "backend/uv.lock",
+      "version": "2.1.1"
+    },
+    {
+      "ecosystem": "python",
+      "name": "charset-normalizer",
+      "source": "backend/uv.lock",
+      "version": "3.5.1"
+    },
+    {
+      "ecosystem": "python",
+      "name": "check-jsonschema",
+      "source": "backend/uv.lock",
+      "version": "0.37.4"
+    },
+    {
+      "ecosystem": "python",
+      "name": "click",
+      "source": "backend/uv.lock",
+      "version": "8.5.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "colorama",
+      "source": "backend/uv.lock",
+      "version": "0.4.6"
+    },
+    {
+      "ecosystem": "python",
+      "name": "coverage",
+      "source": "backend/uv.lock",
+      "version": "7.15.4"
+    },
+    {
+      "ecosystem": "python",
+      "name": "cryptography",
+      "source": "backend/uv.lock",
+      "version": "50.0.1"
+    },
+    {
+      "ecosystem": "python",
+      "name": "cuda-bindings",
+      "source": "backend/uv.lock",
+      "version": "13.3.1"
+    },
+    {
+      "ecosystem": "python",
+      "name": "cuda-pathfinder",
+      "source": "backend/uv.lock",
+      "version": "1.8.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "cuda-toolkit",
+      "source": "backend/uv.lock",
+      "version": "13.0.3.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "fastapi",
+      "source": "backend/uv.lock",
+      "version": "0.141.1"
+    },
+    {
+      "ecosystem": "python",
+      "name": "filelock",
+      "source": "backend/uv.lock",
+      "version": "3.32.4"
+    },
+    {
+      "ecosystem": "python",
+      "name": "fsspec",
+      "source": "backend/uv.lock",
+      "version": "2026.7.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "h11",
+      "source": "backend/uv.lock",
+      "version": "0.16.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "h2",
+      "source": "backend/uv.lock",
+      "version": "4.4.1"
+    },
+    {
+      "ecosystem": "python",
+      "name": "hf-xet",
+      "source": "backend/uv.lock",
+      "version": "1.6.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "hpack",
+      "source": "backend/uv.lock",
+      "version": "4.2.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "httpcore",
+      "source": "backend/uv.lock",
+      "version": "1.0.9"
+    },
+    {
+      "ecosystem": "python",
+      "name": "httpcore2",
+      "source": "backend/uv.lock",
+      "version": "2.12.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "httpx",
+      "source": "backend/uv.lock",
+      "version": "0.28.1"
+    },
+    {
+      "ecosystem": "python",
+      "name": "httpx2",
+      "source": "backend/uv.lock",
+      "version": "2.12.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "httpx2-jsfetch",
+      "source": "backend/uv.lock",
+      "version": "1.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "huggingface-hub",
+      "source": "backend/uv.lock",
+      "version": "1.28.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "hyperframe",
+      "source": "backend/uv.lock",
+      "version": "6.1.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "hypothesis",
+      "source": "backend/uv.lock",
+      "version": "6.165.10"
+    },
+    {
+      "ecosystem": "python",
+      "name": "idna",
+      "source": "backend/uv.lock",
+      "version": "3.19"
+    },
+    {
+      "ecosystem": "python",
+      "name": "iniconfig",
+      "source": "backend/uv.lock",
+      "version": "2.3.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "jinja2",
+      "source": "backend/uv.lock",
+      "version": "3.1.6"
+    },
+    {
+      "ecosystem": "python",
+      "name": "jsonschema",
+      "source": "backend/uv.lock",
+      "version": "4.26.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "jsonschema-specifications",
+      "source": "backend/uv.lock",
+      "version": "2025.9.1"
+    },
+    {
+      "ecosystem": "python",
+      "name": "librt",
+      "source": "backend/uv.lock",
+      "version": "0.15.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "markdown-it-py",
+      "source": "backend/uv.lock",
+      "version": "4.2.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "markupsafe",
+      "source": "backend/uv.lock",
+      "version": "3.0.3"
+    },
+    {
+      "ecosystem": "python",
+      "name": "mcp",
+      "source": "backend/uv.lock",
+      "version": "2.1.1"
+    },
+    {
+      "ecosystem": "python",
+      "name": "mcp-types",
+      "source": "backend/uv.lock",
+      "version": "2.1.1"
+    },
+    {
+      "ecosystem": "python",
+      "name": "mdurl",
+      "source": "backend/uv.lock",
+      "version": "0.1.2"
+    },
+    {
+      "ecosystem": "python",
+      "name": "mpmath",
+      "source": "backend/uv.lock",
+      "version": "1.3.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "mypy",
+      "source": "backend/uv.lock",
+      "version": "2.3.1"
+    },
+    {
+      "ecosystem": "python",
+      "name": "mypy-extensions",
+      "source": "backend/uv.lock",
+      "version": "1.1.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "networkx",
+      "source": "backend/uv.lock",
+      "version": "3.6.1"
+    },
+    {
+      "ecosystem": "python",
+      "name": "nodejs-wheel-binaries",
+      "source": "backend/uv.lock",
+      "version": "24.19.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "numpy",
+      "source": "backend/uv.lock",
+      "version": "2.5.2"
+    },
+    {
+      "ecosystem": "python",
+      "name": "nvidia-cublas",
+      "source": "backend/uv.lock",
+      "version": "13.1.1.3"
+    },
+    {
+      "ecosystem": "python",
+      "name": "nvidia-cuda-cupti",
+      "source": "backend/uv.lock",
+      "version": "13.0.85"
+    },
+    {
+      "ecosystem": "python",
+      "name": "nvidia-cuda-nvrtc",
+      "source": "backend/uv.lock",
+      "version": "13.0.88"
+    },
+    {
+      "ecosystem": "python",
+      "name": "nvidia-cuda-runtime",
+      "source": "backend/uv.lock",
+      "version": "13.0.96"
+    },
+    {
+      "ecosystem": "python",
+      "name": "nvidia-cudnn-cu13",
+      "source": "backend/uv.lock",
+      "version": "9.20.0.48"
+    },
+    {
+      "ecosystem": "python",
+      "name": "nvidia-cufft",
+      "source": "backend/uv.lock",
+      "version": "12.0.0.61"
+    },
+    {
+      "ecosystem": "python",
+      "name": "nvidia-cufile",
+      "source": "backend/uv.lock",
+      "version": "1.15.1.6"
+    },
+    {
+      "ecosystem": "python",
+      "name": "nvidia-curand",
+      "source": "backend/uv.lock",
+      "version": "10.4.0.35"
+    },
+    {
+      "ecosystem": "python",
+      "name": "nvidia-cusolver",
+      "source": "backend/uv.lock",
+      "version": "12.0.4.66"
+    },
+    {
+      "ecosystem": "python",
+      "name": "nvidia-cusparse",
+      "source": "backend/uv.lock",
+      "version": "12.6.3.3"
+    },
+    {
+      "ecosystem": "python",
+      "name": "nvidia-cusparselt-cu13",
+      "source": "backend/uv.lock",
+      "version": "0.8.1"
+    },
+    {
+      "ecosystem": "python",
+      "name": "nvidia-nccl-cu13",
+      "source": "backend/uv.lock",
+      "version": "2.29.7"
+    },
+    {
+      "ecosystem": "python",
+      "name": "nvidia-nvjitlink",
+      "source": "backend/uv.lock",
+      "version": "13.3.33"
+    },
+    {
+      "ecosystem": "python",
+      "name": "nvidia-nvshmem-cu13",
+      "source": "backend/uv.lock",
+      "version": "3.4.5"
+    },
+    {
+      "ecosystem": "python",
+      "name": "nvidia-nvtx",
+      "source": "backend/uv.lock",
+      "version": "13.0.85"
+    },
+    {
+      "ecosystem": "python",
+      "name": "opentelemetry-api",
+      "source": "backend/uv.lock",
+      "version": "1.44.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "packaging",
+      "source": "backend/uv.lock",
+      "version": "26.3"
+    },
+    {
+      "ecosystem": "python",
+      "name": "pathspec",
+      "source": "backend/uv.lock",
+      "version": "1.1.1"
+    },
+    {
+      "ecosystem": "python",
+      "name": "pluggy",
+      "source": "backend/uv.lock",
+      "version": "1.6.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "pycparser",
+      "source": "backend/uv.lock",
+      "version": "3.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "pydantic",
+      "source": "backend/uv.lock",
+      "version": "2.13.4"
+    },
+    {
+      "ecosystem": "python",
+      "name": "pydantic-core",
+      "source": "backend/uv.lock",
+      "version": "2.46.4"
+    },
+    {
+      "ecosystem": "python",
+      "name": "pydantic-settings",
+      "source": "backend/uv.lock",
+      "version": "2.15.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "pygments",
+      "source": "backend/uv.lock",
+      "version": "2.21.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "pyjwt",
+      "source": "backend/uv.lock",
+      "version": "2.13.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "pynacl",
+      "source": "backend/uv.lock",
+      "version": "1.6.2"
+    },
+    {
+      "ecosystem": "python",
+      "name": "pytest",
+      "source": "backend/uv.lock",
+      "version": "9.1.1"
+    },
+    {
+      "ecosystem": "python",
+      "name": "pytest-cov",
+      "source": "backend/uv.lock",
+      "version": "7.1.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "python-dotenv",
+      "source": "backend/uv.lock",
+      "version": "1.2.3"
+    },
+    {
+      "ecosystem": "python",
+      "name": "python-multipart",
+      "source": "backend/uv.lock",
+      "version": "0.0.32"
+    },
+    {
+      "ecosystem": "python",
+      "name": "pywin32",
+      "source": "backend/uv.lock",
+      "version": "312"
+    },
+    {
+      "ecosystem": "python",
+      "name": "pyyaml",
+      "source": "backend/uv.lock",
+      "version": "6.0.3"
+    },
+    {
+      "ecosystem": "python",
+      "name": "referencing",
+      "source": "backend/uv.lock",
+      "version": "0.37.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "regex",
+      "source": "backend/uv.lock",
+      "version": "2026.7.19"
+    },
+    {
+      "ecosystem": "python",
+      "name": "regress",
+      "source": "backend/uv.lock",
+      "version": "2025.10.1"
+    },
+    {
+      "ecosystem": "python",
+      "name": "requests",
+      "source": "backend/uv.lock",
+      "version": "2.34.2"
+    },
+    {
+      "ecosystem": "python",
+      "name": "rfc8785",
+      "source": "backend/uv.lock",
+      "version": "0.1.4"
+    },
+    {
+      "ecosystem": "python",
+      "name": "rich",
+      "source": "backend/uv.lock",
+      "version": "15.0.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "rpds-py",
+      "source": "backend/uv.lock",
+      "version": "2026.6.3"
+    },
+    {
+      "ecosystem": "python",
+      "name": "ruamel-yaml",
+      "source": "backend/uv.lock",
+      "version": "0.19.1"
+    },
+    {
+      "ecosystem": "python",
+      "name": "ruff",
+      "source": "backend/uv.lock",
+      "version": "0.16.4"
+    },
+    {
+      "ecosystem": "python",
+      "name": "safetensors",
+      "source": "backend/uv.lock",
+      "version": "0.8.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "setuptools",
+      "source": "backend/uv.lock",
+      "version": "84.0.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "shellingham",
+      "source": "backend/uv.lock",
+      "version": "1.5.4"
+    },
+    {
+      "ecosystem": "python",
+      "name": "sortedcontainers",
+      "source": "backend/uv.lock",
+      "version": "2.4.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "sse-starlette",
+      "source": "backend/uv.lock",
+      "version": "3.4.8"
+    },
+    {
+      "ecosystem": "python",
+      "name": "starlette",
+      "source": "backend/uv.lock",
+      "version": "1.6.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "sympy",
+      "source": "backend/uv.lock",
+      "version": "1.14.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "telco-counterfactual-twin-backend",
+      "source": "backend/uv.lock",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "tokenizers",
+      "source": "backend/uv.lock",
+      "version": "0.23.1"
+    },
+    {
+      "ecosystem": "python",
+      "name": "torch",
+      "source": "backend/uv.lock",
+      "version": "2.13.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "tqdm",
+      "source": "backend/uv.lock",
+      "version": "4.70.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "transformers",
+      "source": "backend/uv.lock",
+      "version": "5.16.1"
+    },
+    {
+      "ecosystem": "python",
+      "name": "triton",
+      "source": "backend/uv.lock",
+      "version": "3.7.1"
+    },
+    {
+      "ecosystem": "python",
+      "name": "truststore",
+      "source": "backend/uv.lock",
+      "version": "0.10.4"
+    },
+    {
+      "ecosystem": "python",
+      "name": "typer",
+      "source": "backend/uv.lock",
+      "version": "0.27.1"
+    },
+    {
+      "ecosystem": "python",
+      "name": "typing-extensions",
+      "source": "backend/uv.lock",
+      "version": "4.16.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "typing-inspection",
+      "source": "backend/uv.lock",
+      "version": "0.4.4"
+    },
+    {
+      "ecosystem": "python",
+      "name": "urllib3",
+      "source": "backend/uv.lock",
+      "version": "2.7.0"
+    },
+    {
+      "ecosystem": "python",
+      "name": "uvicorn",
+      "source": "backend/uv.lock",
+      "version": "0.52.4"
+    },
+    {
+      "ecosystem": "node",
+      "name": "    '",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "edge-runtime/vm"
+    },
+    {
+      "ecosystem": "node",
+      "name": "    '",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "farmfe/core"
+    },
+    {
+      "ecosystem": "node",
+      "name": "    '",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "opentelemetry/api"
+    },
+    {
+      "ecosystem": "node",
+      "name": "    '",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "opentelemetry/api"
+    },
+    {
+      "ecosystem": "node",
+      "name": "    '",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "opentelemetry/core"
+    },
+    {
+      "ecosystem": "node",
+      "name": "    '",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "opentelemetry/exporter-trace-otlp-http"
+    },
+    {
+      "ecosystem": "node",
+      "name": "    '",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "opentelemetry/instrumentation"
+    },
+    {
+      "ecosystem": "node",
+      "name": "    '",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "opentelemetry/sdk-trace-base"
+    },
+    {
+      "ecosystem": "node",
+      "name": "    '",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "rolldown/plugin-babel"
+    },
+    {
+      "ecosystem": "node",
+      "name": "    '",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "rspack/core"
+    },
+    {
+      "ecosystem": "node",
+      "name": "    '",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "types/node"
+    },
+    {
+      "ecosystem": "node",
+      "name": "    '",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "types/node"
+    },
+    {
+      "ecosystem": "node",
+      "name": "    '",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "types/react"
+    },
+    {
+      "ecosystem": "node",
+      "name": "    '",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "types/react-dom"
+    },
+    {
+      "ecosystem": "node",
+      "name": "    '",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "vitejs/devtools"
+    },
+    {
+      "ecosystem": "node",
+      "name": "    '",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "vitest/browser-playwright"
+    },
+    {
+      "ecosystem": "node",
+      "name": "    '",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "vitest/browser-preview"
+    },
+    {
+      "ecosystem": "node",
+      "name": "    '",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "vitest/browser-webdriverio"
+    },
+    {
+      "ecosystem": "node",
+      "name": "    '",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "vitest/coverage-istanbul"
+    },
+    {
+      "ecosystem": "node",
+      "name": "    '",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "vitest/coverage-v8"
+    },
+    {
+      "ecosystem": "node",
+      "name": "    '",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "vitest/ui"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@adobe/css-tools",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.5.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@apm-js-collab/code-transformer",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.18.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@apm-js-collab/code-transformer-bundler-plugins",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.7.4"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@apm-js-collab/tracing-hooks",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.13.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@astrojs/compiler",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.0.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@axe-core/playwright",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.13.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@babel/code-frame",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.29.7"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@babel/compat-data",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.29.7"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@babel/core",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.29.7"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@babel/generator",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.29.8"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@babel/helper-compilation-targets",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.29.7"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@babel/helper-globals",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.29.7"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@babel/helper-module-imports",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.29.7"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@babel/helper-module-transforms",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.29.7"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@babel/helper-string-parser",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.29.7"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@babel/helper-validator-identifier",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.29.7"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@babel/helper-validator-option",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.29.7"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@babel/helpers",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.29.7"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@babel/parser",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.29.8"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@babel/runtime",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.29.7"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@babel/template",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.29.7"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@babel/traverse",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.29.8"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@babel/types",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.29.8"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@biomejs/biome",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.5.10"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@biomejs/cli-darwin-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.5.10"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@biomejs/cli-darwin-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.5.10"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@biomejs/cli-linux-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.5.10"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@biomejs/cli-linux-arm64-musl",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.5.10"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@biomejs/cli-linux-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.5.10"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@biomejs/cli-linux-x64-musl",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.5.10"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@biomejs/cli-win32-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.5.10"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@biomejs/cli-win32-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.5.10"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@emnapi/core",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.11.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@emnapi/runtime",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.11.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@emnapi/wasi-threads",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.2.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@esbuild/aix-ppc64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.28.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@esbuild/android-arm",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.28.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@esbuild/android-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.28.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@esbuild/android-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.28.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@esbuild/darwin-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.28.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@esbuild/darwin-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.28.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@esbuild/freebsd-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.28.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@esbuild/freebsd-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.28.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@esbuild/linux-arm",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.28.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@esbuild/linux-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.28.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@esbuild/linux-ia32",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.28.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@esbuild/linux-loong64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.28.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@esbuild/linux-mips64el",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.28.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@esbuild/linux-ppc64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.28.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@esbuild/linux-riscv64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.28.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@esbuild/linux-s390x",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.28.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@esbuild/linux-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.28.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@esbuild/netbsd-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.28.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@esbuild/netbsd-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.28.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@esbuild/openbsd-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.28.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@esbuild/openbsd-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.28.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@esbuild/openharmony-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.28.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@esbuild/sunos-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.28.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@esbuild/win32-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.28.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@esbuild/win32-ia32",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.28.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@esbuild/win32-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.28.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@eslint-community/eslint-utils",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.10.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@eslint-community/regexpp",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.12.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@eslint/config-array",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.23.5"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@eslint/config-helpers",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.7.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@eslint/core",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.2.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@eslint/object-schema",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.0.5"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@eslint/plugin-kit",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.7.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@fontsource-variable/rubik",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "5.3.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@fontsource/ibm-plex-mono",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "5.3.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@humanfs/core",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.19.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@humanfs/node",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.16.8"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@humanfs/types",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.15.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@humanwhocodes/module-importer",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.0.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@humanwhocodes/retry",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.4.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@iarna/toml",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.2.5"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@jridgewell/gen-mapping",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.3.13"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@jridgewell/remapping",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.3.5"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@jridgewell/resolve-uri",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.1.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@jridgewell/sourcemap-codec",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.5.5"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@jridgewell/trace-mapping",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.3.31"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@napi-rs/wasm-runtime",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.2.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@nodelib/fs.scandir",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.1.5"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@nodelib/fs.stat",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.0.5"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@nodelib/fs.walk",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.2.8"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@opentelemetry/api",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.9.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@opentelemetry/api-logs",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.220.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@opentelemetry/core",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.10.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@opentelemetry/instrumentation",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.220.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@opentelemetry/resources",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.10.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@opentelemetry/sdk-trace",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.10.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@opentelemetry/sdk-trace-base",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.10.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@opentelemetry/semantic-conventions",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.43.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-parser/binding-android-arm-eabi",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.143.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-parser/binding-android-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.143.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-parser/binding-darwin-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.143.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-parser/binding-darwin-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.143.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-parser/binding-freebsd-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.143.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-parser/binding-linux-arm-gnueabihf",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.143.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-parser/binding-linux-arm-musleabihf",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.143.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-parser/binding-linux-arm64-gnu",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.143.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-parser/binding-linux-arm64-musl",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.143.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-parser/binding-linux-ppc64-gnu",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.143.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-parser/binding-linux-riscv64-gnu",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.143.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-parser/binding-linux-riscv64-musl",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.143.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-parser/binding-linux-s390x-gnu",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.143.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-parser/binding-linux-x64-gnu",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.143.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-parser/binding-linux-x64-musl",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.143.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-parser/binding-openharmony-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.143.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-parser/binding-win32-arm64-msvc",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.143.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-parser/binding-win32-ia32-msvc",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.143.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-parser/binding-win32-x64-msvc",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.143.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-project/types",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.143.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-project/types",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.147.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-resolver/binding-android-arm-eabi",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "11.24.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-resolver/binding-android-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "11.24.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-resolver/binding-darwin-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "11.24.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-resolver/binding-darwin-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "11.24.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-resolver/binding-freebsd-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "11.24.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-resolver/binding-linux-arm-gnueabihf",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "11.24.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-resolver/binding-linux-arm-musleabihf",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "11.24.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-resolver/binding-linux-arm64-gnu",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "11.24.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-resolver/binding-linux-arm64-musl",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "11.24.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-resolver/binding-linux-ppc64-gnu",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "11.24.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-resolver/binding-linux-riscv64-gnu",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "11.24.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-resolver/binding-linux-riscv64-musl",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "11.24.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-resolver/binding-linux-s390x-gnu",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "11.24.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-resolver/binding-linux-x64-gnu",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "11.24.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-resolver/binding-linux-x64-musl",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "11.24.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-resolver/binding-openharmony-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "11.24.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-resolver/binding-wasm32-wasi",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "11.24.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-resolver/binding-win32-arm64-msvc",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "11.24.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxc-resolver/binding-win32-x64-msvc",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "11.24.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxlint/binding-android-arm-eabi",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.77.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxlint/binding-android-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.77.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxlint/binding-darwin-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.77.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxlint/binding-darwin-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.77.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxlint/binding-freebsd-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.77.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxlint/binding-linux-arm-gnueabihf",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.77.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxlint/binding-linux-arm-musleabihf",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.77.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxlint/binding-linux-arm64-gnu",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.77.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxlint/binding-linux-arm64-musl",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.77.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxlint/binding-linux-ppc64-gnu",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.77.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxlint/binding-linux-riscv64-gnu",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.77.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxlint/binding-linux-riscv64-musl",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.77.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxlint/binding-linux-s390x-gnu",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.77.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxlint/binding-linux-x64-gnu",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.77.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxlint/binding-linux-x64-musl",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.77.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxlint/binding-openharmony-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.77.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxlint/binding-win32-arm64-msvc",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.77.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxlint/binding-win32-ia32-msvc",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.77.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@oxlint/binding-win32-x64-msvc",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.77.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@playwright/test",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.62.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@preact/signals",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.11.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@preact/signals-core",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.14.4"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@react-grab/cli",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.2.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@rolldown/binding-android-arm-eabi",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.2.6"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@rolldown/binding-android-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.2.6"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@rolldown/binding-darwin-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.2.6"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@rolldown/binding-darwin-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.2.6"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@rolldown/binding-freebsd-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.2.6"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@rolldown/binding-linux-arm-gnueabihf",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.2.6"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@rolldown/binding-linux-arm64-gnu",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.2.6"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@rolldown/binding-linux-arm64-musl",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.2.6"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@rolldown/binding-linux-ppc64-gnu",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.2.6"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@rolldown/binding-linux-s390x-gnu",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.2.6"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@rolldown/binding-linux-x64-gnu",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.2.6"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@rolldown/binding-linux-x64-musl",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.2.6"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@rolldown/binding-openharmony-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.2.6"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@rolldown/binding-win32-arm64-msvc",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.2.6"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@rolldown/binding-win32-x64-msvc",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.2.6"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@rolldown/pluginutils",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.0.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@rollup/pluginutils",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "5.4.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@sentry/conventions",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.16.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@sentry/core",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "10.71.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@sentry/node",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "10.71.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@sentry/node-core",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "10.71.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@sentry/opentelemetry",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "10.71.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@sentry/server-utils",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "10.71.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@shaderfrog/glsl-parser",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@standard-schema/spec",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.1.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@tanstack/history",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.162.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@tanstack/react-router",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.170.32"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@tanstack/react-store",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.9.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@tanstack/router-core",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.171.27"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@tanstack/store",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.9.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@testing-library/dom",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "10.4.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@testing-library/jest-dom",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@testing-library/react",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "16.3.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@testing-library/user-event",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "14.6.6"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@tybys/wasm-util",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.10.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@types/aria-query",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "5.0.4"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@types/chai",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "5.2.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@types/deep-eql",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@types/esrecurse",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.3.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@types/estree",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.0.9"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@types/json-schema",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.15"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@types/node",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "26.3.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@types/react",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "19.2.18"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@types/react-dom",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "19.2.5"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@types/whatwg-mimetype",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@types/ws",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "8.18.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@typescript-eslint/types",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "8.68.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@typescript/typescript-aix-ppc64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@typescript/typescript-darwin-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@typescript/typescript-darwin-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@typescript/typescript-freebsd-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@typescript/typescript-freebsd-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@typescript/typescript-linux-arm",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@typescript/typescript-linux-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@typescript/typescript-linux-loong64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@typescript/typescript-linux-mips64el",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@typescript/typescript-linux-ppc64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@typescript/typescript-linux-riscv64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@typescript/typescript-linux-s390x",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@typescript/typescript-linux-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@typescript/typescript-netbsd-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@typescript/typescript-netbsd-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@typescript/typescript-openbsd-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@typescript/typescript-openbsd-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@typescript/typescript-sunos-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@typescript/typescript-win32-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@typescript/typescript-win32-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@vitejs/plugin-react",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "6.1.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@vitest/expect",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.1.11"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@vitest/mocker",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.1.11"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@vitest/pretty-format",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.1.11"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@vitest/runner",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.1.11"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@vitest/snapshot",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.1.11"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@vitest/spy",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.1.11"
+    },
+    {
+      "ecosystem": "node",
+      "name": "@vitest/utils",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.1.11"
+    },
+    {
+      "ecosystem": "node",
+      "name": "acorn",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "8.18.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "acorn-jsx",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "5.3.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "agent-install",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.0.5"
+    },
+    {
+      "ecosystem": "node",
+      "name": "agent-install",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.0.6"
+    },
+    {
+      "ecosystem": "node",
+      "name": "ajv",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "6.15.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "ajv",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "8.20.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "ajv-formats",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.0.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "ansi-regex",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "5.0.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "ansi-regex",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "6.3.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "ansi-styles",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "5.2.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "aria-query",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "5.3.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "aria-query",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "5.3.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "assertion-error",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.0.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "astring",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.9.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "atomically",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.1.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "axe-core",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.13.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "balanced-match",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.0.4"
+    },
+    {
+      "ecosystem": "node",
+      "name": "baseline-browser-mapping",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.11.19"
+    },
+    {
+      "ecosystem": "node",
+      "name": "bippy",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.5.43"
+    },
+    {
+      "ecosystem": "node",
+      "name": "bippy",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.6.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "brace-expansion",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "5.0.9"
+    },
+    {
+      "ecosystem": "node",
+      "name": "braces",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.0.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "browserslist",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.28.8"
+    },
+    {
+      "ecosystem": "node",
+      "name": "buffer-image-size",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.6.4"
+    },
+    {
+      "ecosystem": "node",
+      "name": "caniuse-lite",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.0.30001810"
+    },
+    {
+      "ecosystem": "node",
+      "name": "chai",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "6.2.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "chalk",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "5.6.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "cjs-module-lexer",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.2.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "cli-cursor",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "5.0.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "cli-spinners",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.4.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "commander",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "14.0.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "conf",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "15.1.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "confbox",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.2.4"
+    },
+    {
+      "ecosystem": "node",
+      "name": "convert-source-map",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.0.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "cookie-es",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.1.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "cross-spawn",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.6"
+    },
+    {
+      "ecosystem": "node",
+      "name": "css.escape",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.5.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "csstype",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.2.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "debounce-fn",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "6.0.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "debug",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.4.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "deep-is",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.1.4"
+    },
+    {
+      "ecosystem": "node",
+      "name": "dequal",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.0.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "deslop-js",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.9.12"
+    },
+    {
+      "ecosystem": "node",
+      "name": "detect-libc",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.1.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "dom-accessibility-api",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.5.16"
+    },
+    {
+      "ecosystem": "node",
+      "name": "dom-accessibility-api",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.6.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "dot-prop",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "10.2.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "electron-to-chromium",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.5.415"
+    },
+    {
+      "ecosystem": "node",
+      "name": "entities",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "env-paths",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.0.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "es-module-lexer",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.3.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "esbuild",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.28.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "escalade",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.2.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "escape-string-regexp",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.0.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "eslint",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "10.9.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "eslint-plugin-react-hooks",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.1.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "eslint-scope",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "9.1.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "eslint-visitor-keys",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.4.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "eslint-visitor-keys",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "5.0.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "espree",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "11.2.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "esquery",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.7.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "esrecurse",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.3.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "estraverse",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "5.3.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "estree-walker",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "estree-walker",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.0.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "esutils",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.0.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "expect-type",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.4.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "fast-deep-equal",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.1.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "fast-glob",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.3.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "fast-json-stable-stringify",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.1.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "fast-levenshtein",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.0.6"
+    },
+    {
+      "ecosystem": "node",
+      "name": "fast-uri",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.1.6"
+    },
+    {
+      "ecosystem": "node",
+      "name": "fastq",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.20.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "fdir",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "6.5.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "file-entry-cache",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "8.0.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "fill-range",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.1.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "find-up",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "5.0.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "flat-cache",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.0.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "flatted",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.4.4"
+    },
+    {
+      "ecosystem": "node",
+      "name": "fsevents",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.3.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "fsevents",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.3.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "gensync",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.0.0-beta.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "get-east-asian-width",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.6.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "glob-parent",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "5.1.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "glob-parent",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "6.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "happy-dom",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "20.11.12"
+    },
+    {
+      "ecosystem": "node",
+      "name": "hermes-estree",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.25.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "hermes-parser",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.25.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "ignore",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "5.3.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "ignore",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.6"
+    },
+    {
+      "ecosystem": "node",
+      "name": "import-in-the-middle",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.3.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "imurmurhash",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.1.4"
+    },
+    {
+      "ecosystem": "node",
+      "name": "indent-string",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.0.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "is-extglob",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.1.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "is-glob",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.0.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "is-interactive",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.0.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "is-number",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "is-unicode-supported",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.1.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "isbot",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "5.2.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "isexe",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.0.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "jiti",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.7.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "js-tokens",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.0.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "jsesc",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.1.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "json-buffer",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.0.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "json-schema-traverse",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.4.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "json-schema-traverse",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.0.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "json-schema-typed",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "8.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "json-stable-stringify-without-jsonify",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.0.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "json5",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.2.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "jsonc-parser",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.3.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "keyv",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.5.4"
+    },
+    {
+      "ecosystem": "node",
+      "name": "kleur",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.0.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "ky",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "levn",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.4.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "lightningcss",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.33.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "lightningcss-android-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.33.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "lightningcss-darwin-arm64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.33.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "lightningcss-darwin-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.33.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "lightningcss-freebsd-x64",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.33.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "lightningcss-linux-arm-gnueabihf",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.33.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "lightningcss-linux-arm64-gnu",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.33.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "lightningcss-linux-arm64-musl",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.33.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "lightningcss-linux-x64-gnu",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.33.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "lightningcss-linux-x64-musl",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.33.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "lightningcss-win32-arm64-msvc",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.33.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "lightningcss-win32-x64-msvc",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.33.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "locate-path",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "6.0.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "log-symbols",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "lru-cache",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "5.1.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "lucide-react",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.34.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "lz-string",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.5.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "magic-string",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.30.21"
+    },
+    {
+      "ecosystem": "node",
+      "name": "magicast",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.5.4"
+    },
+    {
+      "ecosystem": "node",
+      "name": "merge2",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.4.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "meriyah",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "6.1.4"
+    },
+    {
+      "ecosystem": "node",
+      "name": "micromatch",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.0.8"
+    },
+    {
+      "ecosystem": "node",
+      "name": "mimic-function",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "5.0.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "min-indent",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.0.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "minimatch",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "10.2.6"
+    },
+    {
+      "ecosystem": "node",
+      "name": "module-details-from-path",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.0.4"
+    },
+    {
+      "ecosystem": "node",
+      "name": "ms",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.1.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "nanoid",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.3.18"
+    },
+    {
+      "ecosystem": "node",
+      "name": "natural-compare",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.4.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "node-releases",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.0.54"
+    },
+    {
+      "ecosystem": "node",
+      "name": "obug",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.1.4"
+    },
+    {
+      "ecosystem": "node",
+      "name": "onetime",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "optionator",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.9.4"
+    },
+    {
+      "ecosystem": "node",
+      "name": "ora",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "9.4.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "oxc-parser",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.143.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "oxc-resolver",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "11.24.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "oxlint",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.77.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "oxlint-plugin-react-doctor",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.9.12"
+    },
+    {
+      "ecosystem": "node",
+      "name": "p-limit",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.1.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "p-locate",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "5.0.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "package-manager-detector",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.8.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "path-exists",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.0.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "path-key",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.1.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "pathe",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.0.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "picocolors",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.1.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "picomatch",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.3.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "picomatch",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.0.7"
+    },
+    {
+      "ecosystem": "node",
+      "name": "playwright",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.62.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "playwright-core",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.62.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "postcss",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "8.5.26"
+    },
+    {
+      "ecosystem": "node",
+      "name": "preact",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "10.29.8"
+    },
+    {
+      "ecosystem": "node",
+      "name": "prelude-ls",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.2.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "pretty-format",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "27.5.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "prompts",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.4.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "punycode",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.3.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "queue-microtask",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.2.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "react",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "19.2.8"
+    },
+    {
+      "ecosystem": "node",
+      "name": "react-doctor",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.9.12"
+    },
+    {
+      "ecosystem": "node",
+      "name": "react-dom",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "19.2.8"
+    },
+    {
+      "ecosystem": "node",
+      "name": "react-grab",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.2.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "react-is",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "17.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "react-scan",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.5.7"
+    },
+    {
+      "ecosystem": "node",
+      "name": "redent",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.0.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "require-from-string",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "require-in-the-middle",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "8.0.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "restore-cursor",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "5.1.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "reusify",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.1.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "rolldown",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.2.6"
+    },
+    {
+      "ecosystem": "node",
+      "name": "run-parallel",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.2.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "scheduler",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.27.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "semifies",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.0.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "semver",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "6.3.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "semver",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.8.5"
+    },
+    {
+      "ecosystem": "node",
+      "name": "seroval",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.6.4"
+    },
+    {
+      "ecosystem": "node",
+      "name": "seroval-plugins",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.6.4"
+    },
+    {
+      "ecosystem": "node",
+      "name": "shebang-command",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.0.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "shebang-regex",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.0.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "siginfo",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.0.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "signal-exit",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.1.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "sisteransi",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.0.5"
+    },
+    {
+      "ecosystem": "node",
+      "name": "source-map",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.6.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "source-map-js",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.2.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "stackback",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "std-env",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.2.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "stdin-discarder",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.3.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "string-width",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "8.2.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "strip-ansi",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.2.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "strip-indent",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.0.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "stubborn-fs",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.0.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "stubborn-utils",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "tagged-tag",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.0.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "tinybench",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.9.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "tinyexec",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.3.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "tinyglobby",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.2.17"
+    },
+    {
+      "ecosystem": "node",
+      "name": "tinyrainbow",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.1.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "to-regex-range",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "5.0.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "tslib",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.8.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "type-check",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.4.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "type-fest",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "5.8.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "typescript",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "5.9.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "typescript",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "7.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "uint8array-extras",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.5.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "undici-types",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "8.3.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "unplugin",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.3.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "update-browserslist-db",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.3.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "uri-js",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.4.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "use-sync-external-store",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.6.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "vite",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "8.2.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "vitest",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.1.11"
+    },
+    {
+      "ecosystem": "node",
+      "name": "vscode-jsonrpc",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "8.2.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "vscode-languageserver",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "9.0.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "vscode-languageserver-protocol",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.17.5"
+    },
+    {
+      "ecosystem": "node",
+      "name": "vscode-languageserver-textdocument",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.0.14"
+    },
+    {
+      "ecosystem": "node",
+      "name": "vscode-languageserver-types",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.17.5"
+    },
+    {
+      "ecosystem": "node",
+      "name": "vscode-uri",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.2.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "webpack-virtual-modules",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.6.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "whatwg-mimetype",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.0.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "when-exit",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.1.5"
+    },
+    {
+      "ecosystem": "node",
+      "name": "which",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.0.2"
+    },
+    {
+      "ecosystem": "node",
+      "name": "why-is-node-running",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.3.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "word-wrap",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "1.2.5"
+    },
+    {
+      "ecosystem": "node",
+      "name": "ws",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "8.21.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "yallist",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.1.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "yaml",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.9.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "yocto-queue",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "0.1.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "yoctocolors",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "2.2.0"
+    },
+    {
+      "ecosystem": "node",
+      "name": "yoga-layout",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "3.2.1"
+    },
+    {
+      "ecosystem": "node",
+      "name": "zod",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.4.3"
+    },
+    {
+      "ecosystem": "node",
+      "name": "zod-validation-error",
+      "source": "frontend/pnpm-lock.yaml",
+      "version": "4.0.2"
+    }
+  ],
+  "notice": "Deterministic component inventory from pinned lock sources only; not a vulnerability scan.",
+  "project": "telco-counterfactual-twin-frontend",
+  "schema_version": "1.0"
+}
