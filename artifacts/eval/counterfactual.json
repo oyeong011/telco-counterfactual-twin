@@ -4,9 +4,9 @@
   "provenance": {
     "schema_version": "1.0",
     "extensions": null,
-    "source_commit_sha": "d5e84e00cec3f484a7bba0cdfd5a5b770ea8ba86",
-    "source_tree_sha": "bc246f860ec69e8050d6c42cbd8acdaa3e491699",
-    "source_committed_at": "2026-09-05T18:01:15Z",
+    "source_commit_sha": "b135a23249b1dc0a22f906e42fc31a06993debad",
+    "source_tree_sha": "493e87cbec14658b10aeb388ec4155d7d86f0088",
+    "source_committed_at": "2026-09-05T18:08:38Z",
     "runtime_tree_hash": "136d1610103085e822503b9b8423de4a0a7d3ba703c3ed941656ade395dfd7be",
     "expected_output_files": [
       "artifacts/eval/counterfactual.json",
