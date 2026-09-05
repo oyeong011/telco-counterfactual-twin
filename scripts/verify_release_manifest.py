@@ -48,6 +48,7 @@ REQUIRED_ARTIFACTS: Final = (
     "artifacts/probe/local-stack-probe.json",
     "frontend/public/build-info.json",
     "artifacts/security/component-inventory.json",
+    "artifacts/eval-v2/diagnosis-v2.json",
 )
 GENERATOR_COMMANDS: Final = (
     "uv run --project backend python scripts/generate_frontend_build_info.py --root . --source-commit-sha {source} --release-commit-sha {source}",
@@ -57,6 +58,7 @@ GENERATOR_COMMANDS: Final = (
     "uv run --project backend python scripts/export_mcp_tools.py",
     "scripts/with_compose_cleanup.sh -f docker-compose.yml -- uv run --project backend python scripts/probe_stack.py --out {probe_out}",
     "bash scripts/generate_sbom.sh --repo-root . --out {sbom_out}",
+    "uv run --project backend python scripts/run_benchmark_v2.py --seed 20270827 --out {eval_v2_out}",
 )
 GENERATED_PATHS: Final = frozenset((*REQUIRED_ARTIFACTS, DEFAULT_MANIFEST.as_posix()))
 # Documentation takes no part in any runtime tree hash, so a docs-only commit
