@@ -565,3 +565,43 @@ def test_source_diff_parser_reads_diff_fields_not_porcelain_fields() -> None:
         "artifacts/probe/probe.json",
     )
     assert parse("") == ()
+
+
+def _commit_file(root: Path, relative: str, text: str, message: str) -> None:
+    target = root / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    _ = target.write_text(text, encoding="utf-8")
+    _ = git(root, "add", relative)
+    _ = git(root, "commit", "-q", "-m", message)
+
+
+def test_documentation_committed_after_evidence_does_not_make_it_stale(tmp_path: Path) -> None:
+    """A README or docs commit takes no part in any runtime tree hash."""
+    root = tmp_path / "repo"
+    root.mkdir()
+    _ = init_repo(root)
+    entries = write_required_artifacts(root)
+    manifest = write_manifest(root, entries=entries, commands=GENERATOR_COMMANDS)
+    source_sha = git(root, "rev-parse", "HEAD")
+    _commit_file(root, "README.md", "# reviewed\n", "Describe the project for reviewers")
+    _commit_file(root, "docs/adr/0009-docs.md", "# adr\n", "Record a decision")
+
+    verifier.verify(root, manifest.relative_to(root), source_sha)
+
+
+def test_source_committed_after_evidence_still_reports_drift(tmp_path: Path) -> None:
+    """The documentation exemption must not widen into a general one."""
+    root = tmp_path / "repo"
+    root.mkdir()
+    _ = init_repo(root)
+    entries = write_required_artifacts(root)
+    manifest = write_manifest(root, entries=entries, commands=GENERATOR_COMMANDS)
+    source_sha = git(root, "rev-parse", "HEAD")
+    # A script is outside every runtime tree hash, so only the source-diff
+    # check can catch it. A backend/src edit would trip the hash check first.
+    _commit_file(root, "scripts/new_tool.py", "X = 1\n", "Add a tool")
+
+    with pytest.raises(verifier.ReleaseManifestError) as error:
+        verifier.verify(root, manifest.relative_to(root), source_sha)
+    assert "source-diff-out-of-scope" in str(error.value)
+    assert "scripts/new_tool.py" in str(error.value)
