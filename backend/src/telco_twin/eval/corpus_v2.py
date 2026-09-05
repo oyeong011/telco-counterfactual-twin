@@ -16,6 +16,7 @@ from telco_twin.eval.metrics import EvaluationSplit
 from telco_twin.eval.rules_baseline import DiagnosisCase
 from telco_twin.simulator.metric_model import (
     FaultComponent,
+    ObservationIdentity,
     Severity,
     synthesize_observation,
 )
@@ -82,13 +83,23 @@ class CorpusItem:
 
 
 def _jitter(slug: str, seed: int) -> dict[str, float]:
-    """Vary only radio-quality channels no rule and no hypothesis feature reads."""
+    """Vary radio-quality channels no rule reads; intensity variation is separate."""
     digest = hashlib.sha256(f"{seed}:{slug}".encode()).digest()
     return {
         "sinr_db": 18.0 + (digest[0] % 31 - 15) / 10.0,
         "rsrp_dbm": -85.0 + (digest[1] % 61 - 30) / 10.0,
         "rsrq_db": -10.0 + (digest[2] % 21 - 10) / 10.0,
     }
+
+
+def _positions(slug: str, seed: int, families: tuple[FaultFamily, ...]) -> dict[FaultFamily, float]:
+    """Where inside its severity band each component sits, drawn per instance.
+
+    This is what makes two instances of one cell differ in the channels the
+    rules and the twin actually read, instead of only in radio quality.
+    """
+    digest = hashlib.sha256(f"intensity:{seed}:{slug}".encode()).digest()
+    return {family: digest[8 + index] / 255.0 for index, family in enumerate(families)}
 
 
 def _noisy_window(
@@ -141,11 +152,12 @@ class _CaseSpec:
 def _case(spec: _CaseSpec) -> DiagnosisCase:
     family, tier, split, seed = spec.family, spec.tier, spec.split, spec.seed
     slug = f"{split.value}-{tier.value}-{family.value}-{spec.index:02d}"
+    components = _components(family, tier)
     observation = synthesize_observation(
-        _components(family, tier),
-        case_slug=slug,
-        scenario_id=f"scenario-v2-{slug}",
+        components,
+        ObservationIdentity(case_slug=slug, scenario_id=f"scenario-v2-{slug}"),
         jitter=_jitter(slug, seed),
+        positions=_positions(slug, seed, tuple(c.family for c in components)),
     )
     observation = observation.model_copy(
         update={

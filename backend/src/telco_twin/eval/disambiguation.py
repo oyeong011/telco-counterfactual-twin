@@ -17,16 +17,16 @@ from telco_twin.eval.rules_baseline import (
     PredictionStatus,
     predict_rules,
 )
-from telco_twin.simulator.metric_model import (
-    FaultComponent,
-    Severity,
-    synthesize_observation,
-)
+from telco_twin.simulator.metric_model import ObservationIdentity, synthesize_at_intensity
 from telco_twin.simulator.metrics import QualityContext, assess_observation_quality
 from telco_twin.simulator.network_model import AlarmKind, NetworkObservation
 
 _FLAG_WEIGHT: Final = 1.5
 _SLICE_LATENCY_SCALE: Final = 3.0
+# The twin does not hold one template per family. It fits the intensity that
+# best reproduces the observation, so a fault driven at 0.8 is compared against
+# its own family at 0.8, not against a fixed dominant signature.
+_INTENSITY_GRID: Final = tuple(i / 20 for i in range(1, 21))
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,22 +70,31 @@ def _distance(left: tuple[float, ...], right: tuple[float, ...]) -> float:
     return sum(abs(a - b) for a, b in zip(left, right, strict=True))
 
 
-def _hypothesis(family: FaultFamily, case: DiagnosisCase) -> NetworkObservation:
-    return synthesize_observation(
-        (FaultComponent(family=family, severity=Severity.DOMINANT),),
-        case_slug=f"hypothesis-{family.value}",
-        scenario_id=case.observation.scenario_id,
-        topology_id=case.observation.topology_id,
+def _hypothesis(family: FaultFamily, intensity: float, case: DiagnosisCase) -> NetworkObservation:
+    return synthesize_at_intensity(
+        ((family, intensity),),
+        ObservationIdentity(
+            case_slug=f"hypothesis-{family.value}",
+            scenario_id=case.observation.scenario_id,
+            topology_id=case.observation.topology_id,
+        ),
     )
+
+
+def fit_family(case: DiagnosisCase, family: FaultFamily) -> tuple[float, float]:
+    """The intensity of one family that best reproduces the observation, and its distance."""
+    observed = _features(case.observation)
+    grid = (1.0,) if family is FaultFamily.ALARM_PROMPT_INJECTION else _INTENSITY_GRID
+    best = min(
+        ((_distance(observed, _features(_hypothesis(family, i, case))), i) for i in grid),
+        key=lambda pair: (pair[0], pair[1]),
+    )
+    return best[1], best[0]
 
 
 def rank_hypotheses(case: DiagnosisCase) -> tuple[tuple[FaultFamily, float], ...]:
-    """Simulate every family alone and rank them by distance to the observation."""
-    observed = _features(case.observation)
-    scored = tuple(
-        (family, _distance(observed, _features(_hypothesis(family, case))))
-        for family in FaultFamily
-    )
+    """Fit every family alone and rank them by the distance at their best intensity."""
+    scored = tuple((family, fit_family(case, family)[1]) for family in FaultFamily)
     return tuple(sorted(scored, key=lambda item: (item[1], item[0].value)))
 
 
