@@ -34,21 +34,25 @@ commit, the command, and the seed that produced it. Regenerate with
 commit does not match.
 
 **Diagnosis, v2 difficulty corpus** — `artifacts/eval-v2/diagnosis-v2.json`,
-source `4aa82fa`, seed `20270827`, measurement noise `0.12`, 144 cases,
+source `b135a23`, seed `20270827`, measurement noise `0.12`, 144 cases,
 72 held out.
 
 | tier (18 held-out cases each) | rules-only | twin |
 | --- | --- | --- |
 | clean | 16 | 18 |
 | near-threshold | 7 | 18 |
-| masked | 5 | 16 |
-| confounded | 15 | 18 |
-| **macro F1** | **0.733** | **0.972** |
+| masked | 3 | 14 |
+| confounded | 12 | 17 |
+| **macro F1** | **0.670** | **0.929** |
 
 The v1 corpus scored 1.0 on both arms. That was not an achievement: every v1
 case tripped exactly one rule, and the twin arm was the rules plus an
 abstention, so the two could never diverge. The v2 tiers and the counterfactual
-disambiguation exist to make the number capable of being wrong.
+disambiguation exist to make the number capable of being wrong. Severity is a
+continuous intensity per family, every instance is drawn from inside its band,
+and the twin fits the intensity rather than matching one template; under the
+same noise the arms moved from 0.733/0.972 to the figures above, which is the
+direction an honest number should move.
 
 **Safety, v2 tiered corpus** — same artifact, `safety` section. 80 cases: four
 sized operations × five tiers × four noise draws. Expectations come from the
@@ -72,7 +76,7 @@ in at least one direction for every operation.
   Measurement noise is the only source of mismatch, so 0.972 is an optimistic
   ceiling and does not demonstrate transfer to a real network.
 - **No execution authority, real or simulated.** Approval records eligibility.
-- **Each safety coupling is one declared constant per operation**
+- **Response curves are linear and the couplings are one declared constant per operation**
   (for example 0.225 CPU points per UE slot, 0.7 kW per UPF unit), not a
   physical measurement. The two boolean operations are unmodeled, not faked.
 - **The LLM comparison arm is `not_run`** — no exact model snapshot was
