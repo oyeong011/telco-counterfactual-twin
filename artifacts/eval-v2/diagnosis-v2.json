@@ -1,9 +1,9 @@
 {
   "arms": {
     "rules_only": {
-      "abstained_count": 29,
+      "abstained_count": 33,
       "evaluated_count": 72,
-      "macro_f1": 0.7325421396628826,
+      "macro_f1": 0.669912205919744,
       "per_class": [
         {
           "f1": 0.5882352941176471,
@@ -11,17 +11,17 @@
           "support": 12
         },
         {
-          "f1": 0.7368421052631579,
+          "f1": 0.631578947368421,
           "label": "backhaul-degradation",
           "support": 12
         },
         {
-          "f1": 0.6666666666666666,
+          "f1": 0.5882352941176471,
           "label": "upf-saturation",
           "support": 12
         },
         {
-          "f1": 0.7368421052631579,
+          "f1": 0.5882352941176471,
           "label": "neighbor-handover-misconfiguration",
           "support": 12
         },
@@ -31,7 +31,7 @@
           "support": 12
         },
         {
-          "f1": 1.0,
+          "f1": 0.9565217391304348,
           "label": "alarm-prompt-injection",
           "support": 12
         }
@@ -40,25 +40,25 @@
     "twin_disambiguated": {
       "abstained_count": 0,
       "evaluated_count": 72,
-      "macro_f1": 0.972027972027972,
+      "macro_f1": 0.9294810744810745,
       "per_class": [
         {
-          "f1": 1.0,
+          "f1": 0.923076923076923,
           "label": "radio-congestion",
           "support": 12
         },
         {
-          "f1": 1.0,
+          "f1": 0.9166666666666666,
           "label": "backhaul-degradation",
           "support": 12
         },
         {
-          "f1": 0.923076923076923,
+          "f1": 0.8799999999999999,
           "label": "upf-saturation",
           "support": 12
         },
         {
-          "f1": 0.9090909090909091,
+          "f1": 0.8571428571428571,
           "label": "neighbor-handover-misconfiguration",
           "support": 12
         },
@@ -91,7 +91,7 @@
     ],
     "noise_fraction": 0.12,
     "seed": 20270827,
-    "source_commit_sha": "4aa82faa72e34cad0f9971a75f7c7b709a5cba2c",
+    "source_commit_sha": "71b001b2eed38c2a08221ea45248ff142df23961",
     "split": "heldout"
   },
   "safety": {
@@ -185,7 +185,7 @@
   },
   "schema_version": "1.0",
   "separation": {
-    "macro_f1_delta": 0.23948583236508936,
+    "macro_f1_delta": 0.25956886856133055,
     "neither_arm_is_saturated": true,
     "twin_beats_rules": true
   },
@@ -197,11 +197,11 @@
       },
       "confounded": {
         "cases": 18,
-        "correct": 15
+        "correct": 12
       },
       "masked": {
         "cases": 18,
-        "correct": 5
+        "correct": 3
       },
       "near-threshold": {
         "cases": 18,
@@ -215,11 +215,11 @@
       },
       "confounded": {
         "cases": 18,
-        "correct": 18
+        "correct": 17
       },
       "masked": {
         "cases": 18,
-        "correct": 16
+        "correct": 14
       },
       "near-threshold": {
         "cases": 18,
