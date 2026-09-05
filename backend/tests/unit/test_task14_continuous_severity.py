@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 
 from telco_twin.domain.scenario import FaultFamily
 from telco_twin.eval.corpus_v2 import DifficultyTier, generate_corpus_v2
-from telco_twin.eval.metrics import EvaluationSplit
 from telco_twin.eval.disambiguation import predict_disambiguated, rank_hypotheses
+from telco_twin.eval.metrics import EvaluationSplit
 from telco_twin.eval.rules_baseline import DiagnosisCase, predict_rules
 from telco_twin.eval.scoring_v2 import score_corpus
 from telco_twin.simulator.faults import DiagnosisStatus, diagnose_fault
