@@ -53,8 +53,10 @@ REQUIRED_ARTIFACTS: Final = (
     "artifacts/probe/local-stack-probe.json",
     "frontend/public/build-info.json",
     "artifacts/security/component-inventory.json",
+    "artifacts/eval-v2/diagnosis-v2.json",
 )
 EVAL_FILES: Final = REQUIRED_ARTIFACTS[2:7]
+EVAL_V2_FILE: Final = REQUIRED_ARTIFACTS[10]
 GENERATOR_COMMANDS: Final = (
     "uv run --project backend python scripts/generate_frontend_build_info.py --root . --source-commit-sha {source} --release-commit-sha {source}",
     "uv run --project backend python scripts/run_benchmark.py --split heldout --safety-set backend/fixtures/eval/safety-v1.jsonl --seed 20270827 --out artifacts/eval",
@@ -63,6 +65,9 @@ GENERATOR_COMMANDS: Final = (
     "uv run --project backend python scripts/export_mcp_tools.py",
     "scripts/with_compose_cleanup.sh -f docker-compose.yml -- uv run --project backend python scripts/probe_stack.py --out {probe_out}",
     "bash scripts/generate_sbom.sh --repo-root . --out {sbom_out}",
+    # The v2 difficulty benchmark is generated evidence like the rest. Leaving it
+    # outside this contract let it drift silently after any source change.
+    "uv run --project backend python scripts/run_benchmark_v2.py --seed 20270827 --out {eval_v2_out}",
 )
 GENERATED_PATHS: Final = (*REQUIRED_ARTIFACTS, MANIFEST_PATH.as_posix())
 
@@ -330,6 +335,23 @@ def _generate_into_stage(
     _run(
         root,
         ("bash", "scripts/generate_sbom.sh", "--repo-root", ".", "--out", str(sbom)),
+    )
+    eval_v2 = stage / EVAL_V2_FILE
+    eval_v2.parent.mkdir(parents=True, exist_ok=True)
+    _run(
+        root,
+        (
+            "uv",
+            "run",
+            "--project",
+            "backend",
+            "python",
+            "scripts/run_benchmark_v2.py",
+            "--seed",
+            "20270827",
+            "--out",
+            str(eval_v2),
+        ),
     )
 
 

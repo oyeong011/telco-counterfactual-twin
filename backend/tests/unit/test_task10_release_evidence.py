@@ -40,6 +40,7 @@ REQUIRED_ARTIFACTS: Final = (
     "artifacts/probe/local-stack-probe.json",
     "frontend/public/build-info.json",
     "artifacts/security/component-inventory.json",
+    "artifacts/eval-v2/diagnosis-v2.json",
 )
 GENERATOR_COMMANDS: Final = (
     (
@@ -59,6 +60,10 @@ GENERATOR_COMMANDS: Final = (
         "uv run --project backend python scripts/probe_stack.py --out {probe_out}"
     ),
     "bash scripts/generate_sbom.sh --repo-root . --out {sbom_out}",
+    (
+        "uv run --project backend python scripts/run_benchmark_v2.py "
+        "--seed 20270827 --out {eval_v2_out}"
+    ),
 )
 
 
@@ -280,6 +285,8 @@ class ReleaseOrderingFixture:
             self.handle_probe(command)
         elif "scripts/generate_sbom.sh" in text:
             self.handle_sbom(command)
+        elif "scripts/run_benchmark_v2.py" in text:
+            self.handle_eval_v2(command)
         else:
             message = f"unexpected command:{text}"
             raise AssertionError(message)
@@ -321,6 +328,11 @@ class ReleaseOrderingFixture:
     def handle_sbom(self, command: generator.Command) -> None:
         assert not self.build_info.exists()
         self.write_stage_output(command, {"sbom": "ok"})
+
+    def handle_eval_v2(self, command: generator.Command) -> None:
+        # Runs last, after the SBOM, straight into the stage like the probe and SBOM.
+        assert self.commands[-2].startswith("bash scripts/generate_sbom.sh")
+        self.write_stage_output(command, {"eval_v2": "ok"})
 
     def write_stage_output(self, command: generator.Command, payload: dict[str, str]) -> None:
         output = Path(command[-1])
@@ -499,6 +511,7 @@ def test_release_generator_build_info_first_and_recreates_existing_eval5(
         "scripts/export_mcp_tools.py",
         "scripts/probe_stack.py",
         "bash scripts/generate_sbom.sh --repo-root .",
+        "scripts/run_benchmark_v2.py --seed 20270827",
     ]
     assert fixture.installs[0] == ("frontend/public/build-info.json",)
     assert fixture.installs[-1] == generator.REQUIRED_ARTIFACTS
