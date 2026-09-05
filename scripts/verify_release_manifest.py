@@ -59,6 +59,13 @@ GENERATOR_COMMANDS: Final = (
     "bash scripts/generate_sbom.sh --repo-root . --out {sbom_out}",
 )
 GENERATED_PATHS: Final = frozenset((*REQUIRED_ARTIFACTS, DEFAULT_MANIFEST.as_posix()))
+# Documentation takes no part in any runtime tree hash, so a docs-only commit
+# after the evidence was generated does not make that evidence stale. The clean
+# worktree rule is untouched: the generator still refuses uncommitted edits of
+# any kind, documentation included.
+DOCUMENTATION_SUFFIXES: Final = (".md",)
+DOCUMENTATION_PREFIXES: Final = ("docs/",)
+DOCUMENTATION_FILES: Final = frozenset({"LICENSE"})
 JSON_MAP_ADAPTER: Final[TypeAdapter[JsonMap]] = TypeAdapter(JsonMap)
 
 
@@ -189,10 +196,20 @@ def _names_from_diff_z(raw: str) -> tuple[str, ...]:
     return tuple(names)
 
 
+def _is_documentation(path: str) -> bool:
+    return (
+        path in DOCUMENTATION_FILES
+        or path.endswith(DOCUMENTATION_SUFFIXES)
+        or path.startswith(DOCUMENTATION_PREFIXES)
+    )
+
+
 def _assert_allowed_source_diff(root: Path, source_sha: str) -> None:
     raw = _git(root, ("diff", "--name-status", "-z", f"{source_sha}..HEAD", "--"))
     extra = sorted(
-        path for path in _names_from_diff_z(raw) if path not in GENERATED_PATHS
+        path
+        for path in _names_from_diff_z(raw)
+        if path not in GENERATED_PATHS and not _is_documentation(path)
     )
     if extra:
         raise ReleaseManifestError(f"source-diff-out-of-scope:{','.join(extra)}")
