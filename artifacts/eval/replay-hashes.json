@@ -4,10 +4,10 @@
   "provenance": {
     "schema_version": "1.0",
     "extensions": null,
-    "source_commit_sha": "7c94cf88d6e74518293d22592874a964a0fab49a",
-    "source_tree_sha": "f54b0061f576d26ff138e371451617915a36885d",
-    "source_committed_at": "2026-09-05T16:58:18Z",
-    "runtime_tree_hash": "6c819e3db25b794a1625d5ee433935a295240a11a1f5d99aa400eca32545d34b",
+    "source_commit_sha": "b135a23249b1dc0a22f906e42fc31a06993debad",
+    "source_tree_sha": "493e87cbec14658b10aeb388ec4155d7d86f0088",
+    "source_committed_at": "2026-09-05T18:08:38Z",
+    "runtime_tree_hash": "136d1610103085e822503b9b8423de4a0a7d3ba703c3ed941656ade395dfd7be",
     "expected_output_files": [
       "artifacts/eval/counterfactual.json",
       "artifacts/eval/diagnosis-summary.json",

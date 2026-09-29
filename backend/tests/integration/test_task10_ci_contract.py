@@ -31,6 +31,7 @@ NONSECRET_UPLOAD_PATHS: Final = (
     "artifacts/contracts/mcp-tools.json",
     "artifacts/eval/*.json",
     "artifacts/eval/*.jsonl",
+    "artifacts/eval-v2/*.json",
     "artifacts/release/evidence-manifest.json",
     "artifacts/security/*.json",
     "frontend/public/build-info.json",
